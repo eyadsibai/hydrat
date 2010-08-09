@@ -5,6 +5,7 @@ bin
 develop-eggs
 
 *.egg-info
+*.pyc
 
 tmp
 build
