@@ -28,7 +28,7 @@ class memoized(object):
 class shelved(object):
   """ Decorator maker for shelved """
   def __init__(self, path):
-    scratchpath = config.getpath('scratch')
+    scratchpath = config.get('paths','scratch')
     shelfpath = os.path.join(scratchpath, 'shelves')
     self.path = os.path.join(shelfpath, path)
     

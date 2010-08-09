@@ -265,7 +265,7 @@ class libsvmExtL(SVMLearner):
   -q : quiet mode (no outputs)
   """
   __name__ = 'libsvm_ext'
-  toolpath = configuration.getpath('libsvm')
+  toolpath = configuration.get('tools','libsvm')
   learner = 'svm-train'
   classifier = 'svm-predict'
   scaler = 'svm-scale'
@@ -282,6 +282,7 @@ class libsvmExtL(SVMLearner):
                         )
     k = self.KERNEL_TYPE_CODES[kernel_type]
 
+    # TODO assertions are not the right thing to use here
     assert svm_type in range(4), "svm_type value not acceptable!"
     assert k in range(4), "kernel_type value not acceptable!"
     self.learner += ' -s %d -t %d' % (svm_type, k)
@@ -319,7 +320,7 @@ class bsvmL(SVMLearner):
   -v n: n-fold cross validation mode
   """
   __name__ = 'bsvm'
-  toolpath = configuration.getpath('bsvm')
+  toolpath = configuration.get('tools', 'bsvm')
   learner = 'bsvm-train'
   classifier = 'bsvm-predict'
 

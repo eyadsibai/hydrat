@@ -8,7 +8,8 @@ from collections import defaultdict
 from iso639 import ISO639_1
 class EuroGov(BagOfWords, ByteUBTQP, CodepointUBT, UTF8, ISO639_1):
   __name__ = 'EuroGov'
-  eurogovpath = configuration.getpath('dotwp1')
+  eurogovpath = configuration.get('corpora','eurogov')
+  #TODO: update this to use the eurogov dataset as released for NAACL
   segments = {"trn":"training", "tst":"test", "dev":"development"}
 
   def text(self):

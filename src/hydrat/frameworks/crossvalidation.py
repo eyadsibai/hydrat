@@ -235,7 +235,7 @@ def default_crossvalidation\
   # Set up a work path in the scratch directory according to the
   # dataset name if None is provided.
   if work_path is None:
-    work_path = os.path.join(config.getpath('scratchP'), 'crossvalidation', dataset.__name__)
+    work_path = os.path.join(config.get('paths','scratch'), 'crossvalidation', dataset.__name__)
 
   if baseline_features is None:
     baseline_features = []

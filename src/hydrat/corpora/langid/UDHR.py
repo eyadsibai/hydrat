@@ -9,7 +9,7 @@ class UDHR(ByteUBT, CodepointUBT):
   """Backend for UDHR data"""
   __name__ = "UDHR"
   __data = None
-  path = config.getpath('UDHR')
+  path = config.get('corpora','UDHR')
   __index = None
   __docids = None
 

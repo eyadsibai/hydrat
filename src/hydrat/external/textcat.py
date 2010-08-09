@@ -13,11 +13,11 @@ from hydrat.external import select
 
 
 try:
-  toolpath = config.getpath('textcat')
+  toolpath = config.get('tools','textcat')
   class TextCat(object):
     __name__ = "textcat_external"
     logger = logging.getLogger('hydrat.external.TextCat')
-    toolpath = config.getpath('textcat')
+    toolpath = config.get('tools','textcat')
 
     def __init__(self):
       self.model_path = None

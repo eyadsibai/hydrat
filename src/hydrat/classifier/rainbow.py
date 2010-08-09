@@ -64,7 +64,7 @@ class RainbowClassifier(LearnerlessClassifier):
     assert issubclass(feature_map.dtype.type, numpy.integer)
     LearnerlessClassifier.__init__(self, name, feature_map, class_map)
     self.method      = method
-    self.rainbowexe  = os.path.join(configuration.getpath("rainbow"),"rainbow")
+    self.rainbowexe  = configuration.get('tools', 'rainbow') 
 
   def _rc(self,command):
     full_command = self.rainbowexe + command

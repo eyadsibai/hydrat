@@ -73,7 +73,7 @@ class ReutersParser(SGMLParser):
     logger.info("Parsing reuters data set")
     start_time = time()
     for i in range(0,22):
-      with open(os.path.join(config.getpath('reuters'),"reut2-"+"%03d"%i+".sgm")) as input:
+      with open(os.path.join(config.get('corpora', 'reuters'),"reut2-"+"%03d"%i+".sgm")) as input:
         self.feed(input.read())
     time_taken = time() - start_time
     logger.info("Completed parsing in %3.2f seconds" % time_taken)

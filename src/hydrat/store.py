@@ -24,7 +24,7 @@ class NoData(ModelError): pass
 class InsufficientMetadata(ModelError): pass
 
 def initialize(path=None, overwrite=False):
-  path = config.getpath('store') if path is None else path
+  path = config.get('paths','store') if path is None else path
   if not overwrite and os.path.exists(path):
     raise IOError, "Refusing to overwrite existing file at %s" % path
   store = Store(path, mode = 'w')
@@ -59,8 +59,8 @@ class Store(object):
   """
   logger = logging.getLogger('hydrat.Store')
 
-  def __init__(self, path=None, mode='r', config_param = 'store'):
-    self.path = config.getpath(config_param) if path is None else path
+  def __init__(self, path=None, mode='r', default_path = 'store'):
+    self.path = os.path.join(config.get('paths','work'), default_path) if path is None else path
     self.fileh = tables.openFile(self.path, mode=mode)
     self.mode = mode
     self.logger.debug("Opening Store at '%s', mode '%s'", self.path, mode)

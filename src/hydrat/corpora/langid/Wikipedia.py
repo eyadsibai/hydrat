@@ -9,7 +9,7 @@ from cPickle import load
 from iso639 import ISO639_1
 
 class WikipediaPickledDataset(ByteUBTQP, CodepointUBT, UTF8, ISO639_1):
-  wikipath = configuration.getpath('wikipedia')
+  wikipath = configuration.get('corpora','wikipedia')
   __data   = None
 
   def __init__(self, name, filename):

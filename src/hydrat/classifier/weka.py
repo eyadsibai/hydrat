@@ -9,8 +9,8 @@ from hydrat.classifier.common import run_command
 from hydrat.classifier.abstract import Learner, Classifier
 from hydrat import configuration as config
 
-java_bin = config.getpath('java')
-weka_jar = config.getpath('weka')
+java_bin = config.get('tools','java')
+weka_jar = config.get('tools','weka')
 
 class WekaLearner(Learner):
 

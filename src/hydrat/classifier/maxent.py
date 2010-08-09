@@ -5,16 +5,15 @@ import tempfile
 import os
 import numpy
 
-__all__=[]
-
 from hydrat.classifier.SVM import SVMFileWriter
 
 try:
-  configuration.getpath('maxent')
+  #TODO: Make this optional import much better
+  configuration.get('tools','maxent')
 
   class maxentLearner(Learner):
     __name__ = "maxent"
-    toolpath = configuration.getpath('maxent')
+    toolpath = configuration.get('tools','maxent')
 
     def __init__(self, iterations=3, method='lbfgs' ):
       Learner.__init__(self)
@@ -70,7 +69,7 @@ try:
 
   class maxentClassifier(Classifier):
     __name__ = "maxent"
-    toolpath = configuration.getpath('maxent')
+    toolpath = configuration.get('tools','maxent')
 
     def __init__(self, model_path, num_classes, name=None):
       if name:

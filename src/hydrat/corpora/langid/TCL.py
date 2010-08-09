@@ -46,7 +46,7 @@ def compute_encodings(tclpath, efile ='encodings'):
   
 class TCL(ByteUBTQP, CodepointUBT, ISO639_1):
   __name__ = "TCL"
-  tclpath = configuration.getpath("TCL")
+  tclpath = configuration.get('corpora',"TCL")
 
   def encodings(self):
     _encodings = {}
