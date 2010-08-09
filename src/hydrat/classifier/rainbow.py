@@ -1,5 +1,5 @@
 from abstract import NullLearner, LearnerlessClassifier 
-from . import configuration 
+from hydrat import config
 import tempfile
 import shutil
 import os
@@ -64,7 +64,7 @@ class RainbowClassifier(LearnerlessClassifier):
     assert issubclass(feature_map.dtype.type, numpy.integer)
     LearnerlessClassifier.__init__(self, name, feature_map, class_map)
     self.method      = method
-    self.rainbowexe  = configuration.get('tools', 'rainbow') 
+    self.rainbowexe  = config.get('tools', 'rainbow') 
 
   def _rc(self,command):
     full_command = self.rainbowexe + command

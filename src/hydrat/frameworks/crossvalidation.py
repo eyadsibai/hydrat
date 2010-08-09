@@ -250,11 +250,9 @@ def default_crossvalidation\
     task_classes = list(dataset.classmap_names)
 
   if learners is None:
-    from hydrat.classifier.maxent import maxentLearner
     from hydrat.classifier.SVM import bsvmL
     learners =\
-      [ maxentLearner(10)
-      , bsvmL(kernel_type='linear')
+      [ bsvmL(kernel_type='linear')
       ]
 
   # Compute the full set of features
