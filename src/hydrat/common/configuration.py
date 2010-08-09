@@ -1,5 +1,7 @@
 import configobj
 import os
+import warnings
+warnings.warn("Deprecated!", DeprecationWarning)
 
 class HydratConfiguration(object):
   """
