@@ -2,14 +2,14 @@ from __future__ import with_statement
 import os
 from hydrat.preprocessor.dataset.text import ByteUBTQP
 from hydrat.preprocessor.dataset.encoded import CodepointUBT, UTF8
-from hydrat import configuration
+from hydrat import config
 from collections import defaultdict
 from cPickle import load
 
 from iso639 import ISO639_1
 
 class WikipediaPickledDataset(ByteUBTQP, CodepointUBT, UTF8, ISO639_1):
-  wikipath = configuration.get('corpora','wikipedia')
+  wikipath = config.get('corpora','wikipedia')
   __data   = None
 
   def __init__(self, name, filename):

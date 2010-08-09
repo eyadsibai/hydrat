@@ -3,7 +3,7 @@ External SVM classifiers using a command-line interface
 TODO: Why does SVM using 'output probability' perform different from without?
 """
 from hydrat.classifier.abstract import Learner, Classifier
-from hydrat import configuration
+from hydrat import config
 
 from itertools import izip
 
@@ -265,7 +265,7 @@ class libsvmExtL(SVMLearner):
   -q : quiet mode (no outputs)
   """
   __name__ = 'libsvm_ext'
-  toolpath = configuration.get('tools','libsvm')
+  toolpath = config.get('tools','libsvm')
   learner = 'svm-train'
   classifier = 'svm-predict'
   scaler = 'svm-scale'
@@ -320,7 +320,7 @@ class bsvmL(SVMLearner):
   -v n: n-fold cross validation mode
   """
   __name__ = 'bsvm'
-  toolpath = configuration.get('tools', 'bsvm')
+  toolpath = config.get('tools', 'bsvm')
   learner = 'bsvm-train'
   classifier = 'bsvm-predict'
 

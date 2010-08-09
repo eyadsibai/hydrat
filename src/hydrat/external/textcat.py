@@ -8,7 +8,7 @@ import time
 from subprocess import Popen, PIPE, STDOUT
 from hydrat.preprocessor.model.inducer import class_matrix 
 from hydrat.common import progress
-from hydrat import configuration as config
+from hydrat import config
 from hydrat.external import select
 
 

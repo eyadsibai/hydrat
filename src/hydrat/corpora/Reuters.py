@@ -1,7 +1,7 @@
 from __future__ import with_statement
 from sgmllib import SGMLParser
 from hydrat.dataset.encoded import BagOfWords
-from hydrat import configuration as config
+from hydrat import config
 import logging
 from time import time
 from collections import defaultdict

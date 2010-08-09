@@ -1,5 +1,5 @@
 import os
-from hydrat import configuration as config
+from hydrat import config
 from hydrat.preprocessor.dataset.text import ByteUBT
 from hydrat.preprocessor.dataset.encoded import CodepointUBT
 from collections import defaultdict

@@ -1,5 +1,5 @@
 from hydrat.classifier.abstract import Learner, Classifier
-from hydrat import configuration
+from hydrat import config
 
 import tempfile
 import os
@@ -9,11 +9,11 @@ from hydrat.classifier.SVM import SVMFileWriter
 
 try:
   #TODO: Make this optional import much better
-  configuration.get('tools','maxent')
+  config.get('tools','maxent')
 
   class maxentLearner(Learner):
     __name__ = "maxent"
-    toolpath = configuration.get('tools','maxent')
+    toolpath = config.get('tools','maxent')
 
     def __init__(self, iterations=3, method='lbfgs' ):
       Learner.__init__(self)
@@ -69,7 +69,7 @@ try:
 
   class maxentClassifier(Classifier):
     __name__ = "maxent"
-    toolpath = configuration.get('tools','maxent')
+    toolpath = config.get('tools','maxent')
 
     def __init__(self, model_path, num_classes, name=None):
       if name:

@@ -7,7 +7,7 @@ from hydrat.preprocessor.model.arff import arff_export
 from hydrat.preprocessor.model import ImmediateModel
 from hydrat.classifier.common import run_command
 from hydrat.classifier.abstract import Learner, Classifier
-from hydrat import configuration as config
+from hydrat import config
 
 java_bin = config.get('tools','java')
 weka_jar = config.get('tools','weka')

@@ -9,7 +9,7 @@ import datetime as dt
 warnings.simplefilter("ignore", tables.NaturalNameWarning)
 from scipy.sparse import lil_matrix, coo_matrix
 
-from hydrat import configuration as config
+from hydrat import config
 from hydrat.common import progress
 from hydrat.common.metadata import metadata_matches, get_metadata
 from hydrat.preprocessor.model import ClassMap

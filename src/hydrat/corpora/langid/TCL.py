@@ -3,7 +3,7 @@ import os
 import chardet
 from hydrat.preprocessor.dataset.text import ByteUBTQP
 from hydrat.preprocessor.dataset.encoded import CodepointUBT
-from hydrat import configuration
+from hydrat import config
 
 from iso639 import ISO639_1
 import language_data.iso639 as langdata
@@ -46,7 +46,7 @@ def compute_encodings(tclpath, efile ='encodings'):
   
 class TCL(ByteUBTQP, CodepointUBT, ISO639_1):
   __name__ = "TCL"
-  tclpath = configuration.get('corpora',"TCL")
+  tclpath = config.get('corpora',"TCL")
 
   def encodings(self):
     _encodings = {}

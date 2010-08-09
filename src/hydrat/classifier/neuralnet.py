@@ -4,7 +4,6 @@ http://ffnet.sourceforge.net
 """
 from hydrat.classifier.abstract import Learner, Classifier
 from hydrat.task.sampler import isOneofM
-from hydrat import configuration
 
 import numpy
 

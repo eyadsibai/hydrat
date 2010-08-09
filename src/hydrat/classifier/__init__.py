@@ -1,4 +1,3 @@
-from hydrat import configuration 
 from hydrat.classifier.baseline           import *
 from hydrat.classifier.knn                import *
 from hydrat.classifier.nearest_prototype  import *

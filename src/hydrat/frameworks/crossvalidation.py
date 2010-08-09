@@ -9,7 +9,7 @@ import os
 from cPickle import dump
 from itertools import combinations
 import hydrat.display.summary_fns as sf
-from hydrat import configuration as config
+from hydrat import config
 from hydrat.store import initialize, UniversalStore
 from hydrat.common.log import getHydraLogger
 from hydrat.preprocessor.model.inducer.dataset import DatasetInducer

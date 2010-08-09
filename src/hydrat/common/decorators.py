@@ -1,6 +1,6 @@
 import os
 import logging
-from hydrat import configuration as config
+from hydrat import config
 
 #from http://wiki.python.org/moin/PythonDecoratorLibrary
 class memoized(object):
