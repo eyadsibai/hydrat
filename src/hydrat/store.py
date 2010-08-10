@@ -18,6 +18,7 @@ from hydrat.result.result import Result
 from hydrat.result.tasksetresult import TaskSetResult
 from hydrat.task.task import Task
 from hydrat.task.taskset import TaskSet
+from hydrat.common.pb import get_widget, ProgressBar
 
 class ModelError(Exception): pass
 class NoData(ModelError): pass
@@ -57,7 +58,7 @@ class Store(object):
   This is the master store class for hydrat. It manages all of the movement of data
   to and from disk.
   """
-  logger = logging.getLogger('hydrat.Store')
+  logger = logging.getLogger(__name__+'.Store')
 
   def __init__(self, path=None, mode='r', default_path = 'store'):
     self.path = os.path.join(config.get('paths','work'), default_path) if path is None else path
@@ -635,10 +636,13 @@ class TaskStore(Store):
       setattr(taskset_entry_attrs, key, additional_metadata[key])
 
     self.logger.debug('Adding a taskset %s %s', str(taskset.metadata), str(additional_metadata))
-    for i,task in enumerate(taskset.tasks):
-      self.logger.debug('Adding task %d',i)
-      self._add_Task(task, taskset_entry, dict(index=i))
-    self.fileh.flush()
+
+    with ProgressBar(widgets=get_widget('Adding tasks'), maxval=len(taskset.tasks)) as pbar:
+      for i,task in enumerate(taskset.tasks):
+        self._add_Task(task, taskset_entry, dict(index=i))
+        pbar.update(i)
+      self.fileh.flush()
+
     return taskset_entry_tag
 
   def new_TaskSet(self, taskset):
