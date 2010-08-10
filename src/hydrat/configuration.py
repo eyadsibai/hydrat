@@ -44,6 +44,10 @@ def default_configuration():
   default_config.set('corpora', 'udhr', '%(corpora)s/udhr/txt')
   default_config.set('corpora', 'wikipedia', '%(corpora)s/wikipedia')
 
+  default_config.add_section('logging')
+  default_config.set('logging', 'level', 'debug')
+  default_config.set('logging', 'format', '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
   return default_config
 
 def write_default_configuration(file=DEFAULT_CONFIG_FILE):
@@ -69,4 +73,29 @@ def read_configuration(additional_path=[]):
   logger.debug("Read configuration from %s", str(paths))
   return config
 
-  
+logger = logging.getLogger("hydrat")
+logger.setLevel(logging.DEBUG)
+console_output = logging.StreamHandler()
+console_output.setLevel(logging.CRITICAL)
+logger.addHandler(console_output)
+
+LEVELS =\
+  { 'debug': logging.DEBUG
+  , 'info': logging.INFO
+  , 'warning': logging.WARNING
+  , 'error': logging.ERROR
+  , 'critical': logging.CRITICAL
+  }
+
+def process_configuration(config):
+  """ Process the hydrat configuration file. Should be invoked whenever the configuration changes.
+      Right now this is mostly only useful for setting up logging.
+  """
+  # Process options related to logging
+  global console_output 
+  level = LEVELS.get(config.get('logging','level'), logging.NOTSET)
+  formatter = logging.Formatter(config.get('logging','format',raw=True))
+  console_output.setLevel(level)
+  console_output.setFormatter(formatter)
+   
+
