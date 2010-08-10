@@ -10,6 +10,7 @@ DEFAULT_CONFIG_FILE = '.hydratrc'
 # for their individual configuration requirements by some means of introspection
 # Also, check each tool for possible installed locations automagically
 # Need to expand user's home path automatically
+# Allow configurable logging level
 
 def default_configuration():
   """
