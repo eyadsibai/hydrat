@@ -1,7 +1,7 @@
 from hydrat.dataset import Dataset
 from hydrat.preprocessor.model.inducer import invert_text
 from hydrat.common.tokenizers import NGram
-from hydrat.common import progress
+from hydrat.common.pb import ProgressIter
 
 class TextDataset(Dataset):
   """ Base class for datasets where instances can be represented
@@ -37,12 +37,13 @@ class TextDataset(Dataset):
     """
     if text is None: text = self._text()
     fm = {}
-    def report(i, t): 
-      self.logger.debug('Processing instance %d of %d (%d%% done)', i+1, t, i*100/t)
-    for instance_id in progress(text, 10, report):
+
+    for instance_id in ProgressIter(text, label="Processing Documents"):
       fm[instance_id] = invert_text(text[instance_id], tokenizer)
       if len(fm[instance_id]) == 0:
         self.logger.warning( "Tokenizer did not return any tokens for %s", instance_id )
+
+
     return fm
 
 class ByteUnigram(TextDataset):

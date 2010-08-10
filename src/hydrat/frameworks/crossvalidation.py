@@ -6,12 +6,13 @@ unifying method which only requires a dataset as a compulsory parameter,
 having default options for all other parameters.
 """
 import os
+import logging
 from cPickle import dump
 from itertools import combinations
+
 import hydrat.display.summary_fns as sf
 from hydrat import config
 from hydrat.store import initialize, UniversalStore
-from hydrat.common.log import getHydraLogger
 from hydrat.preprocessor.model.inducer.dataset import DatasetInducer
 from hydrat.task.sampler import CrossValidate
 from hydrat.experiments import Experiment
@@ -21,7 +22,7 @@ from hydrat.display.html import TableSort
 from hydrat.display.tsr import result_summary_table, render_TaskSetResult
 from hydrat.classifier import majorityL
 
-logger = getHydraLogger()
+logger = logging.getLogger(__name__)
 
 def init_workdir(path):
   if os.path.exists(path):

@@ -5,6 +5,7 @@ from optparse import OptionParser
 import configuration
 
 config = configuration.read_configuration()
+configuration.process_configuration(config)
 
 def main():
   parser = OptionParser()
@@ -28,6 +29,7 @@ def main():
   if options.config is not None:
     global config
     config = configuration.read_configuration(options.config)
+    configuration.process_configuration(config)
 
   print config.get('paths', 'scratch')
   #parser.error('Try invoking this program with the --help option')
