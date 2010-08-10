@@ -3,6 +3,7 @@ NEWS.txt
 README.rst
 setup.py
 src/hydrat/__init__.py
+src/hydrat/configuration.py
 src/hydrat/experiments.py
 src/hydrat/store.py
 src/hydrat.egg-info/PKG-INFO
@@ -38,7 +39,6 @@ src/hydrat/classifier/tree/__init__.py
 src/hydrat/common/PorterStemmer.py
 src/hydrat/common/__init__.py
 src/hydrat/common/bootstrap.py
-src/hydrat/common/configuration.py
 src/hydrat/common/decorators.py
 src/hydrat/common/enumerator.py
 src/hydrat/common/invert_dict.py
@@ -96,7 +96,6 @@ src/hydrat/task/transform.py
 src/hydrat/tools/__init__.py
 src/hydrat/tools/merge_resulttables.py
 src/hydrat/tools/model_info.py
-src/hydrat/tools/model_report.py
 src/hydrat/tools/pickle2csv.py
 src/hydrat/tools/result_delete_bymetadata.py
 src/hydrat/tools/result_list.py

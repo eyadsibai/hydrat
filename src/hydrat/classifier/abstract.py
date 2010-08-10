@@ -1,13 +1,19 @@
+"""
+This module specifies the abstract interface that all classifier modules should
+implement, and also provides some convenience methods.
+"""
 import numpy as n
 import logging
 import time
 class ClassifierError(Exception): pass
 class NoClassLabelsError(ClassifierError): pass
 class NoFeaturesError(ClassifierError): pass
+class NotInstalledError(ClassifierError): pass
 
 class Learner(object):
   def __init__(self):
     self.logger = logging.getLogger("hydrat.classifier.learner.%s"%self.__name__)
+    self._check_installed()
 
   def __call__(self, feature_map, class_map):
     num_docs, num_classes = class_map.shape
@@ -27,6 +33,10 @@ class Learner(object):
       
     self.logger.info("learning took %.1f seconds", timetaken)
     return classifier
+
+  def _check_installed(self):
+    """ Check that any external tools required are actually installed """
+    self.logger.warning("Learner '%s' does not implement _check_installed", self.__name__)
 
   @property
   def params(self):

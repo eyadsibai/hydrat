@@ -27,7 +27,7 @@ def init_workdir(path):
   if os.path.exists(path):
     logger.warning('%s already exists', path)
   else:
-    os.mkdir(path)
+    os.makedirs(path)
     os.mkdir(os.path.join(path, 'models'))
     os.mkdir(os.path.join(path, 'tasks'))
     os.mkdir(os.path.join(path, 'results'))
@@ -235,7 +235,7 @@ def default_crossvalidation\
   # Set up a work path in the scratch directory according to the
   # dataset name if None is provided.
   if work_path is None:
-    work_path = os.path.join(config.get('paths','scratch'), 'crossvalidation', dataset.__name__)
+    work_path = os.path.join(config.get('paths','work'), 'crossvalidation', dataset.__name__)
 
   if baseline_features is None:
     baseline_features = []

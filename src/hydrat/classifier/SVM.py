@@ -2,7 +2,7 @@
 External SVM classifiers using a command-line interface
 TODO: Why does SVM using 'output probability' perform different from without?
 """
-from hydrat.classifier.abstract import Learner, Classifier
+from hydrat.classifier.abstract import Learner, Classifier, NotInstalledError
 from hydrat import config
 
 from itertools import izip
@@ -58,10 +58,17 @@ class SVMLearner(Learner):
   KERNEL_TYPE_CODES = dict(linear=0, polynomial=1, rbf=2, sigmoid=3)
 
   def __init__(self):
-    Learner.__init__(self)
     self.range_path = None
     self.model_path = None
     self.clear_temp = False #TODO 
+    Learner.__init__(self)
+
+  def _check_installed(self):
+    def tool_ok(path):
+      return os.path.exists(os.path.join(self.toolpath, path))
+    if not all([tool_ok(self.learner), tool_ok(self.classifier)]):
+      self.logger.error("Tool not found at %s", self.toolpath)
+      raise NotInstalledError, "Tool not installed!"
    
   def _params(self):
     return dict()
@@ -269,6 +276,13 @@ class libsvmExtL(SVMLearner):
   learner = 'svm-train'
   classifier = 'svm-predict'
   scaler = 'svm-scale'
+
+  def _check_installed(self):
+    SVMLearner._check_installed(self)
+    if not os.path.exists(os.path.join(self.toolpath, self.scaler)):
+      self.logger.error("Tool not installed!")
+      raise NotInstalledError, "Tool not installed!"
+
 
   def __init__(self, scale=False, output_probability=False, svm_type=0, kernel_type='rbf', additional=''):
     SVMLearner.__init__(self)

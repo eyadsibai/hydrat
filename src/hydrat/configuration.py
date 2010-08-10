@@ -8,8 +8,13 @@ DEFAULT_CONFIG_FILE = '.hydratrc'
 #TODO:
 # Need to build the default configuration by scanning all the tools and corpora
 # for their individual configuration requirements by some means of introspection
+# Also, check each tool for possible installed locations automagically
+# Need to expand user's home path automatically
 
 def default_configuration():
+  """
+  Default configuration options
+  """
   default_config = ConfigParser.SafeConfigParser()
 
   default_config.add_section('paths')

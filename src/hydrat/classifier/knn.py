@@ -24,6 +24,9 @@ class KNNLearner(Learner):
                  )
     return params
 
+  def _check_installed(self):
+    pass
+
 class KNNClassifier(Classifier):
   __name__ = 'knn'
   def __init__(self, feature_map, class_map, distance_metric, NN_strategy):
