@@ -2,7 +2,7 @@ from collections import defaultdict
 from hydrat.dataset.text import TextDataset
 from hydrat.preprocessor.model.inducer import invert_text
 from hydrat.common.tokenizers import NGram, bag_of_words
-from hydrat.common.pb import get_widget, ProgressBar
+from hydrat.common.pb import ProgressIter
 
 class EncodedTextDataset(TextDataset):
   def __init__(self):
@@ -43,11 +43,10 @@ class EncodedTextDataset(TextDataset):
     if text is None: text = self._unicode()
     fm = {}
 
-    with ProgressBar(widgets=get_widget('Processing documents'), maxval=len(text)) as pbar:
-      for i, instance_id in enumerate(text):
-        fm[instance_id] = invert_text(text[instance_id], tokenizer)
-        if len(fm[instance_id]) == 0:
-          self.logger.warning( "Tokenizer did not return any tokens for %s", instance_id )
+    for instance_id in ProgressIter(text, label='Processing documents'):
+      fm[instance_id] = invert_text(text[instance_id], tokenizer)
+      if len(fm[instance_id]) == 0:
+        self.logger.warning( "Tokenizer did not return any tokens for %s", instance_id )
 
     return fm
 

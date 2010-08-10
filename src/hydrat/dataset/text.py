@@ -1,7 +1,7 @@
 from hydrat.dataset import Dataset
 from hydrat.preprocessor.model.inducer import invert_text
 from hydrat.common.tokenizers import NGram
-from hydrat.common.pb import get_widget, ProgressBar
+from hydrat.common.pb import ProgressIter
 
 class TextDataset(Dataset):
   """ Base class for datasets where instances can be represented
@@ -38,12 +38,10 @@ class TextDataset(Dataset):
     if text is None: text = self._text()
     fm = {}
 
-    with ProgressBar(widgets=get_widget('Processing documents'), maxval=len(text)) as pbar:
-      for i, instance_id in enumerate(text):
-        fm[instance_id] = invert_text(text[instance_id], tokenizer)
-        if len(fm[instance_id]) == 0:
-          self.logger.warning( "Tokenizer did not return any tokens for %s", instance_id )
-        pbar.update(i)
+    for instance_id in ProgressIter(text, label="Processing Documents"):
+      fm[instance_id] = invert_text(text[instance_id], tokenizer)
+      if len(fm[instance_id]) == 0:
+        self.logger.warning( "Tokenizer did not return any tokens for %s", instance_id )
 
 
     return fm

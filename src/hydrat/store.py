@@ -18,7 +18,7 @@ from hydrat.result.result import Result
 from hydrat.result.tasksetresult import TaskSetResult
 from hydrat.task.task import Task
 from hydrat.task.taskset import TaskSet
-from hydrat.common.pb import get_widget, ProgressBar
+from hydrat.common.pb import ProgressIter
 
 class ModelError(Exception): pass
 class NoData(ModelError): pass
@@ -637,11 +637,9 @@ class TaskStore(Store):
 
     self.logger.debug('Adding a taskset %s %s', str(taskset.metadata), str(additional_metadata))
 
-    with ProgressBar(widgets=get_widget('Adding tasks'), maxval=len(taskset.tasks)) as pbar:
-      for i,task in enumerate(taskset.tasks):
-        self._add_Task(task, taskset_entry, dict(index=i))
-        pbar.update(i)
-      self.fileh.flush()
+    for i,task in enumerate(ProgressIter(taskset.tasks, label="Adding Tasks")):
+      self._add_Task(task, taskset_entry, dict(index=i))
+    self.fileh.flush()
 
     return taskset_entry_tag
 
