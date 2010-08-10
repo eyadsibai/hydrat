@@ -20,12 +20,19 @@ from hydrat.task.task import Task
 from hydrat.task.taskset import TaskSet
 from hydrat.common.pb import ProgressIter
 
+logger = logging.getLogger(__name__)
+
 class StoreError(Exception): pass
 class NoData(StoreError): pass
 class InsufficientMetadata(StoreError): pass
 
-def initialize(path=None, overwrite=False):
-  path = config.get('paths','store') if path is None else path
+def initialize(path, overwrite=False):
+  """ Initialize a Store object.
+  This is separate from Store.__init__ because the Store constructor
+  is used to open an existing store as well.
+
+  ..todo: Refactor this back into Store, deteching if we are starting a new store
+  """
   if not overwrite and os.path.exists(path):
     raise IOError, "Refusing to overwrite existing file at %s" % path
   store = Store(path, mode = 'w')
@@ -52,6 +59,14 @@ def initialize(path=None, overwrite=False):
                         , 'results'
                         , 'TaskSetResult Data'
                         )
+
+def open_store(path=None, mode='r'):
+  """ Convenience function to create a store on demand if needed"""
+  try:
+    initialize(path, overwrite=False)
+  except IOError:
+    logger.info('Opening existing Store')
+  return UniversalStore(path, mode=mode)
 
 class Store(object):
   """

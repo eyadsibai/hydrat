@@ -12,7 +12,7 @@ from itertools import combinations
 
 import hydrat
 import hydrat.display.summary_fns as sf
-from hydrat.store import initialize, UniversalStore, StoreError
+from hydrat.store import open_store, UniversalStore, StoreError
 from hydrat.preprocessor.model.inducer.dataset import DatasetInducer
 from hydrat.task.sampler import CrossValidate
 from hydrat.experiments import Experiment
@@ -25,6 +25,10 @@ from hydrat.classifier import majorityL
 logger = logging.getLogger(__name__)
 
 def init_workdir(path):
+  """ Initialize the working directory, where various intermediate files will be stored.
+  This is not to be considered a scratch folder, since the files stored here can be re-used.
+  @param path The path to initialize
+  """
   if os.path.exists(path):
     logger.warning('%s already exists', path)
   else:
@@ -33,13 +37,6 @@ def init_workdir(path):
     os.mkdir(os.path.join(path, 'tasks'))
     os.mkdir(os.path.join(path, 'results'))
     os.mkdir(os.path.join(path, 'output'))
-
-def open_store(path=None, mode='r'):
-  try:
-    initialize(path, overwrite=False)
-  except IOError:
-    logger.info('Opening existing Store')
-  return UniversalStore(path, mode=mode)
 
 def create_model(store, datasets):
   inducer = DatasetInducer(store)
