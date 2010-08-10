@@ -1,7 +1,7 @@
-import random
 import time
 import numpy
-from sys import maxint
+
+from hydrat.common.sampling import partition
 
 def isOneofM(class_map):
   """
@@ -45,49 +45,6 @@ def stratify(class_map):
     strata_map[doc_index, strata_index]  = True
   return strata_map
 
-def partition(num_items, weights, probabilistic = False, rng = None):
-  """
-  Partition a number of items into partitions according to weights
-  @return: map of doc_index -> partition membership
-  @rtype: numpy boolean array (items * partitions) 
-  """
-  probabilities = weights / float(weights.sum())
-  if rng is None:
-    rng = random.Random()
-  # Changed from -maxint-1 to maxint because newer numpy requires positive seed.
-  numpy.random.seed(rng.randint(0, maxint))
-  num_parts   = len(probabilities)
-  partition_map = numpy.zeros((num_items,num_parts), dtype = 'bool')
-  if probabilistic:
-    c = numpy.cumsum(probabilities)
-    r = numpy.random.random(num_items)
-    partition_indices = numpy.searchsorted(c, r)
-    for doc_index, part_index in enumerate(partition_indices):
-      partition_map[doc_index, part_index] = True
-  else:
-    partition_sizes = numpy.floor(probabilities * num_items).astype(int)
-    items_partitioned = partition_sizes.sum()
-    gap = num_items - items_partitioned
-    # Distribute the gap amongst the biggest partitions, adding one to each
-    # This behaviour was deprecated as it does not behave well when partitions
-    # all have the same size. The later partitions get favored by nature of the
-    # argsort.
-    # distribute_gap_to = numpy.argsort(partition_sizes) >= (num_parts - gap)
-    # Randomly distribute it 
-    distribute_gap_to = numpy.concatenate(( numpy.ones(gap, dtype=bool), numpy.zeros(num_parts-gap, dtype=bool) )) 
-    numpy.random.shuffle(distribute_gap_to)
-    partition_sizes[distribute_gap_to] += 1
-    assert partition_sizes.sum() == num_items
-    indices = numpy.arange(num_items) 
-    numpy.random.shuffle(indices)
-    index        = 0
-    for part_index, part_size in enumerate(partition_sizes):
-      for i in xrange(part_size):
-        doc_index = indices[index]
-        partition_map[doc_index, part_index] = True
-        index += 1
-  return partition_map
-
 def allocate(strata_map, weights, probabilistic = False, rng = None):
   """
   Stratified allocation of items into partitions
@@ -103,14 +60,13 @@ def allocate(strata_map, weights, probabilistic = False, rng = None):
     strata_items        = strata_map[:,strata_index]
     strata_num_items    = strata_items.sum() 
     strata_doc_indices  = numpy.arange(len(strata_items))[strata_items]
-    strata_part_map     = partition(strata_num_items, weights, probabilistic, rng)
+    strata_part_map     = partition(strata_num_items, weights, probabilistic, rng=rng)
     for inner_index, doc_index in enumerate(strata_doc_indices):
       part_map[doc_index] = strata_part_map[inner_index]
   return part_map
 
 from hydrat.task.taskset import TaskSet
 from hydrat.task.task import InMemoryTask
-
 
 class Partitioning(object):
   """ Represents a partitioning on a set of data """
@@ -149,12 +105,8 @@ class Sampler(object):
   """ A sampler takes a class map and produces partitions 
       TODO: Does sampling have to be defined in terms of a class map?
   """
-  def __init__(self, seed=None):
-    if seed is None: seed = time.time()
-    rng   = random.Random()
-    rng.seed(seed)
+  def __init__(self, rng):
     self.rng = rng
-    self.seed = seed
 
   def __call__(self, class_map):
     return self.sample(class_map)
@@ -164,8 +116,8 @@ class Sampler(object):
     raise NotImplementedError
 
 class TrainTest(Sampler):
-  def __init__(self, ratio=4, seed=None):
-    Sampler.__init__(self, seed)
+  def __init__(self, ratio=4, rng=None):
+    Sampler.__init__(self, rng)
     self.ratio = ratio
 
   def sample(self, class_map):
@@ -178,12 +130,12 @@ class TrainTest(Sampler):
                      ) 
     metadata = dict()
     metadata['task_type'] = 'train_test'
-    metadata['seed'] = self.seed
+    metadata['rng_state'] = self.rng.get_state()
     return Partitioning(class_map, parts, metadata) 
 
 class CrossValidate(Sampler):
-  def __init__(self, folds=10, seed=None):
-    Sampler.__init__(self, seed)
+  def __init__(self, folds=10, rng=None):
+    Sampler.__init__(self, rng)
     self.folds = folds
 
   def sample(self, class_map):
@@ -196,5 +148,5 @@ class CrossValidate(Sampler):
                     ) 
     metadata = dict()
     metadata['task_type'] = 'crossvalidate'
-    metadata['seed'] = self.seed
+    metadata['rng_state'] = self.rng.get_state()
     return Partitioning(class_map, folds, metadata) 

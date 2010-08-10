@@ -4,8 +4,12 @@ from optparse import OptionParser
 
 import configuration
 
+# Global configuration
 config = configuration.read_configuration()
 configuration.process_configuration(config)
+
+# Global random number generator
+rng = configuration.rng 
 
 def main():
   parser = OptionParser()

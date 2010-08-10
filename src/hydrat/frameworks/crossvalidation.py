@@ -10,9 +10,9 @@ import logging
 from cPickle import dump
 from itertools import combinations
 
+import hydrat
 import hydrat.display.summary_fns as sf
-from hydrat import config
-from hydrat.store import initialize, UniversalStore
+from hydrat.store import initialize, UniversalStore, StoreError
 from hydrat.preprocessor.model.inducer.dataset import DatasetInducer
 from hydrat.task.sampler import CrossValidate
 from hydrat.experiments import Experiment
@@ -46,8 +46,8 @@ def create_model(store, datasets):
   for ds in datasets:
     inducer(ds)
 
-def partitions(data_store, ds, cm_name, folds=10, seed=61383441363):
-  cv = CrossValidate(folds=folds, seed=seed)
+def partitions(data_store, ds, cm_name, folds=10, rng=None):
+  cv = CrossValidate(folds=folds, rng=rng)
   classmap = data_store.get_Data(ds, {'type':'class','name':cm_name})
   partitions = cv(classmap)
   return partitions
@@ -57,15 +57,15 @@ def tasks_combination( data_store
                      , features 
                      , n
                      , ds
-                     , partitions
-                     , seed=61383441363
+                     , partitioning
+                     , rng=None
                      , baseline = None 
                      ):
   """
   Implements a system to combine different feature sets into tasks.
   """
   # n-ary combinations
-  cm_name = partitions.metadata['class_name']
+  cm_name = partitioning.metadata['class_name']
   if baseline is None:
     fms = {}
   else:
@@ -81,10 +81,12 @@ def tasks_combination( data_store
     fm = union(*rel_fms)
     try:
       if baseline is None:
-        task_store.new_TaskSet(partitions(fm, {'name':'+'.join((cm_name,) +  fns)}))
+        task_store.new_TaskSet(partitioning(fm, {'name':'+'.join((cm_name,) +  fns)}))
       else:
-        task_store.new_TaskSet(partitions(fm, {'name':'+'.join((cm_name,baseline) +  fns)}))
-    except ValueError,e:
+        task_store.new_TaskSet(partitioning(fm, {'name':'+'.join((cm_name,baseline) +  fns)}))
+    except StoreError,e:
+      # This is how we discovere tasksets that already exist.
+      # TODO: find an efficient way to do this! Constructing the whole thing is rather stupid
       logger.info(e)
 
 def tasks_singlefeat( data_store
@@ -92,26 +94,28 @@ def tasks_singlefeat( data_store
                     , dataset
                     , task_classes
                     , features
+                    , rng
                     ):
   """
   For each class, generate one task per feature set
   """
   for cm_name in task_classes:
-    parts = partitions(data_store, dataset, cm_name)
-    tasks_combination( data_store, task_store, features, 1, dataset, parts)
+    parts = partitions(data_store, dataset, cm_name, rng=rng)
+    tasks_combination( data_store, task_store, features, 1, dataset, parts, rng=rng)
 
 def tasks_ablation( data_store
                   , task_store
                   , dataset
                   , task_classes
                   , features
+                  , rng
                   ):
   """
   For each class, generate one task per ablated feature set
   """
   for cm_name in task_classes:
-    parts = partitions(data_store, dataset, cm_name)
-    tasks_combination( data_store, task_store, features, len(features) - 1, dataset, parts)
+    parts = partitions(data_store, dataset, cm_name, rng=rng)
+    tasks_combination( data_store, task_store, features, len(features) - 1, dataset, parts, rng=rng)
 
 def tasks_baseplus( data_store
                   , task_store
@@ -120,22 +124,23 @@ def tasks_baseplus( data_store
                   , baseline_features
                   , added_features
                   , n
+                  , rng
                   ):
   """
   For each class, generate tasks that represent augmentation of each
   baseline feature set with n feature sets from 'added_features'.
   """
   for cm_name in task_classes:
-    parts = partitions(data_store, dataset, cm_name)
+    parts = partitions(data_store, dataset, cm_name, rng=rng)
     for baseline in baseline_features:
-      tasks_combination( data_store, task_store, added_features, n, dataset, parts, baseline=baseline)
+      tasks_combination( data_store, task_store, added_features, n, dataset, parts, baseline=baseline, rng=rng)
 
 
 def run_experiment(taskset, learner, result_store):
   keys = [ 'dataset_uuid'
          , 'feature_desc'
          , 'task_type'
-         , 'seed'
+         , 'rng_state'
          , 'class_uuid'
          ]
   m = dict( (k,taskset.metadata[k]) for k in keys )
@@ -222,6 +227,7 @@ def default_crossvalidation\
   , added_features = None
   , task_classes = None
   , learners = None
+  , rng = None
   ):
   """
   .. todo:
@@ -236,7 +242,7 @@ def default_crossvalidation\
   # Set up a work path in the scratch directory according to the
   # dataset name if None is provided.
   if work_path is None:
-    work_path = os.path.join(config.get('paths','work'), 'crossvalidation', dataset.__name__)
+    work_path = os.path.join(hydrat.config.get('paths','work'), 'crossvalidation', dataset.__name__)
 
   if baseline_features is None:
     baseline_features = []
@@ -255,6 +261,9 @@ def default_crossvalidation\
     learners =\
       [ bsvmL(kernel_type='linear')
       ]
+
+  if rng is None:
+    rng = hydrat.rng
 
   # Compute the full set of features
   all_features = baseline_features + added_features
@@ -283,23 +292,23 @@ def default_crossvalidation\
   
   # Each featureset in isolation
   task_store = open_store(os.path.join(taskP, 'singlefeat.h5'), 'a')
-  tasks_singlefeat(data_store, task_store, ds_name, task_classes, all_features)
+  tasks_singlefeat(data_store, task_store, ds_name, task_classes, all_features, rng)
   task_files.append('singlefeat.h5')
 
   # Feature ablation
   task_store = open_store(os.path.join(taskP, 'singlefeat.h5'), 'a')
-  tasks_ablation(data_store, task_store, ds_name, task_classes, all_features)
+  tasks_ablation(data_store, task_store, ds_name, task_classes, all_features, rng)
   task_files.append('singlefeat.h5')
 
   if baseline_features is not None:
     # Baseline + 1 feature set
     task_store = open_store(os.path.join(taskP, 'baseplusone.h5'), 'a')
-    tasks_baseplus(data_store, task_store, ds_name, task_classes, baseline_features, added_features, 1)
+    tasks_baseplus(data_store, task_store, ds_name, task_classes, baseline_features, added_features, 1, rng)
     task_files.append('baseplusone.h5')
 
     # Baseline + 2 feature sets
     task_store = open_store(os.path.join(taskP, 'baseplustwo.h5'), 'a')
-    tasks_baseplus(data_store, task_store, ds_name, task_classes, baseline_features, added_features, 2)
+    tasks_baseplus(data_store, task_store, ds_name, task_classes, baseline_features, added_features, 2, rng)
     task_files.append('baseplustwo.h5')
 
 
