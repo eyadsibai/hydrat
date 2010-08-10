@@ -1,5 +1,27 @@
 # Common operations on metadata stored in pytables nodes
 
+def value_matches(v1, v2):
+  """ Define equality over all sorts of values that could end up in
+      our metadata.
+      ..todo:
+        Would be nice to unit test this.
+  """
+  try:
+    match = v1 == v2
+    if isinstance(match, bool):
+      return match
+    else:
+      return match.all()
+  except ValueError:
+    # try to catch numpy complaining about arrays being compared
+    try:
+      if len(v1) == len(v2):
+        return all(value_matches(x,y) for x,y in zip(v1,v2))
+
+    except TypeError:
+      # can't determine lengths, so we'll just call them different
+      return False
+
 def metadata_matches(attrs, desired_metadata):
   for key in desired_metadata:
     try:
@@ -7,7 +29,7 @@ def metadata_matches(attrs, desired_metadata):
     except AttributeError:
       # No match if node does not have this attribute
       return False
-    if value != desired_metadata[key]:
+    if not value_matches(value,desired_metadata[key]):
       # No match if node's value does not match the desired value
       return False
   # Match if we got this far

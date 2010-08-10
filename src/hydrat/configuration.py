@@ -1,6 +1,7 @@
 import ConfigParser
 import logging
 import os.path
+import numpy
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +50,10 @@ def default_configuration():
   default_config.set('logging', 'level', 'debug')
   default_config.set('logging', 'format', '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
+  default_config.add_section('random')
+  default_config.set('random', 'seed', '83441363')
+  default_config.set('random', 'allow_default_rng', 'False')
+
   return default_config
 
 def write_default_configuration(file=DEFAULT_CONFIG_FILE):
@@ -79,6 +84,7 @@ logger.setLevel(logging.DEBUG)
 console_output = logging.StreamHandler()
 console_output.setLevel(logging.CRITICAL)
 logger.addHandler(console_output)
+rng = None
 
 LEVELS =\
   { 'debug': logging.DEBUG
@@ -92,11 +98,19 @@ def process_configuration(config):
   """ Process the hydrat configuration file. Should be invoked whenever the configuration changes.
       Right now this is mostly only useful for setting up logging.
   """
+  logger = logging.getLogger('hydrat.process_configuration')
+
   # Process options related to logging
   global console_output 
   level = LEVELS.get(config.get('logging','level'), logging.NOTSET)
   formatter = logging.Formatter(config.get('logging','format',raw=True))
   console_output.setLevel(level)
   console_output.setFormatter(formatter)
+
+  # Process options related to random number management 
+  global rng
+  seed = config.getint('random','seed')
+  rng = numpy.random.mtrand.RandomState(seed)
+  logger.debug('Set random seed to %d', seed)
    
 
