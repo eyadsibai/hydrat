@@ -107,10 +107,3 @@ class TCL(ByteUBTQP, CodepointUBT, ISO639_1):
     for id in cm:
       cm[id] = [ tcl_639_mapping[label] for label in cm[id]]
     return cm
-
-if __name__ == "__main__":
-  from hydrat.common.log import getHydraLogger
-  l = getHydraLogger()
-  #x = TCL()
-  #print x.encodings()
-  compute_encodings(TCL.tclpath)
