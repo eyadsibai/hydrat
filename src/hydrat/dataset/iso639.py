@@ -1,4 +1,4 @@
-from hydrat.preprocessor.dataset import Dataset
+from . import Dataset
 
 class ISO639_1(Dataset):
   """ Mixin for a dataset that maps into the ISO639_1 class space """
@@ -29,7 +29,3 @@ class ISO639_1(Dataset):
   def cm_iso639_1(self):
     raise NotImplementedError
 
-
-if __name__ == "__main__":
-  x = ISO639_1()
-  print x.classspace('iso639_1')
