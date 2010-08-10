@@ -491,7 +491,7 @@ class DatasetStore(SpaceStore):
     self._check_writeable()
     ds_name = self.get_Metadata(ds_tag)['name']
     space_name = self.get_Metadata(space_tag)['name']
-    self.logger.info("Adding Sparse Feature Map to dataset '%s' in space '%s'", ds_name, space_name)
+    self.logger.info("Adding feature map to dataset '%s' in space '%s'", ds_name, space_name)
     ds = getattr(self.datasets, str(ds_tag))
     space = getattr(self.spaces, str(space_tag))
 
@@ -541,7 +541,7 @@ class DatasetStore(SpaceStore):
     self._check_writeable()
     ds_name = self.get_Metadata(ds_tag)['name']
     space_name = self.get_Metadata(space_tag)['name']
-    self.logger.info("Adding Sparse Feature Map to dataset '%s' in space '%s'", ds_name, space_name)
+    self.logger.info("Adding feature map to dataset '%s' in space '%s'", ds_name, space_name)
     ds = getattr(self.datasets, str(ds_tag))
     space = getattr(self.spaces, str(space_tag))
 
