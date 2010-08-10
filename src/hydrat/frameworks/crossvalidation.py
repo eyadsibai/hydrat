@@ -38,16 +38,29 @@ def init_workdir(path):
     os.mkdir(os.path.join(path, 'results'))
     os.mkdir(os.path.join(path, 'output'))
 
-def create_model(store, datasets):
+def generate_model(store, datasets):
+  """ Generate models for given datasets.
+  A model is essentially a distribution over tokens. This function iterates over all 
+  the listed datasets, and calls a DatasetInducer instance on each of them.
+  The DatasetInducer instance saves the model into the given store
+  """
   inducer = DatasetInducer(store)
   for ds in datasets:
     inducer(ds)
 
-def partitions(data_store, ds, cm_name, folds=10, rng=None):
+def generate_partitioning(data_store, ds, cm_name, folds=10, rng=None):
+  """ Generate a partitioning of a particular dataset in a store.
+  Note that this partitioning is done stratified with respect to a named
+  class map. 
+  @param data_store Store containing the relevant models
+  @param ds The dataset we are interested in partitioning
+  @param cm_name The name of the classmap used to stratify the partitioning
+  @returns A function that when applied to ??? generates partitions
+  """
   cv = CrossValidate(folds=folds, rng=rng)
   classmap = data_store.get_Data(ds, {'type':'class','name':cm_name})
-  partitions = cv(classmap)
-  return partitions
+  partitioner = cv(classmap)
+  return partitioner
   
 def tasks_combination( data_store
                      , task_store
@@ -97,7 +110,7 @@ def tasks_singlefeat( data_store
   For each class, generate one task per feature set
   """
   for cm_name in task_classes:
-    parts = partitions(data_store, dataset, cm_name, rng=rng)
+    parts = generate_partitioning(data_store, dataset, cm_name, rng=rng)
     tasks_combination( data_store, task_store, features, 1, dataset, parts, rng=rng)
 
 def tasks_ablation( data_store
@@ -111,7 +124,7 @@ def tasks_ablation( data_store
   For each class, generate one task per ablated feature set
   """
   for cm_name in task_classes:
-    parts = partitions(data_store, dataset, cm_name, rng=rng)
+    parts = generate_partitioning(data_store, dataset, cm_name, rng=rng)
     tasks_combination( data_store, task_store, features, len(features) - 1, dataset, parts, rng=rng)
 
 def tasks_baseplus( data_store
@@ -128,7 +141,7 @@ def tasks_baseplus( data_store
   baseline feature set with n feature sets from 'added_features'.
   """
   for cm_name in task_classes:
-    parts = partitions(data_store, dataset, cm_name, rng=rng)
+    parts = generate_partitioning(data_store, dataset, cm_name, rng=rng)
     for baseline in baseline_features:
       tasks_combination( data_store, task_store, added_features, n, dataset, parts, baseline=baseline, rng=rng)
 
@@ -278,7 +291,7 @@ def default_crossvalidation\
   ####
   data = open_store(os.path.join(modelP,'model.h5'), 'a')
   ds_name = dataset.__name__
-  create_model(data, [dataset])
+  generate_model(data, [dataset])
 
   ####
   ## Set up Tasks

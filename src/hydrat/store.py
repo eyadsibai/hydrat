@@ -36,25 +36,25 @@ def initialize(path, overwrite=False):
   if not overwrite and os.path.exists(path):
     raise IOError, "Refusing to overwrite existing file at %s" % path
   store = Store(path, mode = 'w')
-  store.logger.debug("Creating 'datasets'")
+  logger.debug("Creating 'datasets'")
   store.fileh.createGroup( store.root
                         , 'datasets'
                         , 'Per-dataset Data'
                         )
 
-  store.logger.debug("Creating 'spaces'")
+  logger.debug("Creating 'spaces'")
   store.fileh.createGroup( store.root
                         , 'spaces'
                         , 'Space Information'
                         )
 
-  store.logger.debug("Creating 'tasksets'")
+  logger.debug("Creating 'tasksets'")
   store.fileh.createGroup( store.root
                         , 'tasksets'
                         , 'TaskSet Data'
                         )
 
-  store.logger.debug("Creating 'results'")
+  logger.debug("Creating 'results'")
   store.fileh.createGroup( store.root
                         , 'results'
                         , 'TaskSetResult Data'
@@ -73,13 +73,11 @@ class Store(object):
   This is the master store class for hydrat. It manages all of the movement of data
   to and from disk.
   """
-  logger = logging.getLogger(__name__+'.Store')
-
   def __init__(self, path=None, mode='r', default_path = 'store'):
     self.path = os.path.join(config.get('paths','work'), default_path) if path is None else path
     self.fileh = tables.openFile(self.path, mode=mode)
     self.mode = mode
-    self.logger.debug("Opening Store at '%s', mode '%s'", self.path, mode)
+    logger.debug("Opening Store at '%s', mode '%s'", self.path, mode)
     self.root = self.fileh.root
     super(Store, self).__init__()
 
@@ -97,14 +95,14 @@ class Store(object):
     """
     dtype = node._v_attrs.dtype
     if shape is None: shape = node._v_attrs.shape
-    #self.logger.debug("Reading sparse node")
+    #logger.debug("Reading sparse node")
     values = node.read(field='value')
     feature = node.read(field='feature_index')
     instance = node.read(field='instance_index')
     m = coo_matrix((values,numpy.vstack((instance,feature))), shape=shape)
-    #self.logger.debug('Converting format')
+    #logger.debug('Converting format')
     m = m.tocsr()
-    #self.logger.debug("SPARSE matrix ready")
+    #logger.debug("SPARSE matrix ready")
     return m
 
   def _add_sparse_node( self
@@ -205,7 +203,7 @@ class SpaceStore(Store):
     try:
       encoding = metadata['encoding']
     except KeyError:
-      self.logger.warning('Space %s does not have encoding data!', tag)
+      logger.warning('Space %s does not have encoding data!', tag)
       encoding = 'nil'
     if encoding != 'nil' and encoding != 'ascii':
       data = [ d.decode(encoding) for d in data ]
@@ -249,7 +247,7 @@ class SpaceStore(Store):
     assert 'type' in desired_metadata
     assert 'name' in desired_metadata
 
-    self.logger.info( "Adding a %s space '%s' of %d Features"
+    logger.info( "Adding a %s space '%s' of %d Features"
                     , desired_metadata['type']
                     , desired_metadata['name']
                     , len(labels)
@@ -289,11 +287,11 @@ class SpaceStore(Store):
       raise StoreError, "New labels are less than old labels"
 
     if len(labels) == len(space):
-      self.logger.info("Space has not changed, no need to extend")
+      logger.info("Space has not changed, no need to extend")
       return space_tag 
 
     space_name = self.get_Metadata(space_tag)['name'] 
-    self.logger.info("Extending '%s' from %d to %d features", space_name, len(space), len(labels))
+    logger.info("Extending '%s' from %d to %d features", space_name, len(space), len(labels))
     metadata = self.get_Metadata(space_tag)
 
     encoding = metadata['encoding']
@@ -406,7 +404,7 @@ class DatasetStore(SpaceStore):
       raise StoreError, "Should not be encountering dense FeatureData!"
 
     data_type = feature_node._v_attrs.type
-    self.logger.debug("Returning SPARSE matrix of type %s", data_type)
+    logger.debug("Returning SPARSE matrix of type %s", data_type)
     fm = getattr(feature_node, 'feature_map')
     n_inst = len(ds.instance_id) 
     n_feat = len(space)
@@ -456,7 +454,7 @@ class DatasetStore(SpaceStore):
     else:
       raise StoreError, "Unknown data type: %s" % s_type
 
-    self.logger.debug("Retrieved %s data for '%s' in space '%s'", s_type, dsname, s_name)
+    logger.debug("Retrieved %s data for '%s' in space '%s'", s_type, dsname, s_name)
     return data 
 
   def add_Dataset(self, instance_ids, name):
@@ -506,7 +504,7 @@ class DatasetStore(SpaceStore):
     self._check_writeable()
     ds_name = self.get_Metadata(ds_tag)['name']
     space_name = self.get_Metadata(space_tag)['name']
-    self.logger.info("Adding feature map to dataset '%s' in space '%s'", ds_name, space_name)
+    logger.info("Adding feature map to dataset '%s' in space '%s'", ds_name, space_name)
     ds = getattr(self.datasets, str(ds_tag))
     space = getattr(self.spaces, str(space_tag))
 
@@ -556,7 +554,7 @@ class DatasetStore(SpaceStore):
     self._check_writeable()
     ds_name = self.get_Metadata(ds_tag)['name']
     space_name = self.get_Metadata(space_tag)['name']
-    self.logger.info("Adding feature map to dataset '%s' in space '%s'", ds_name, space_name)
+    logger.info("Adding feature map to dataset '%s' in space '%s'", ds_name, space_name)
     ds = getattr(self.datasets, str(ds_tag))
     space = getattr(self.spaces, str(space_tag))
 
@@ -596,7 +594,7 @@ class DatasetStore(SpaceStore):
     self._check_writeable()
     ds_name = self.get_Metadata(ds_tag)['name']
     space_name = self.get_Metadata(space_tag)['name']
-    self.logger.info("Adding Class Map to dataset '%s' in space '%s'", ds_name, space_name)
+    logger.info("Adding Class Map to dataset '%s' in space '%s'", ds_name, space_name)
     ds = getattr(self.datasets, str(ds_tag))
     space = getattr(self.spaces, str(space_tag))
 
@@ -650,7 +648,7 @@ class TaskStore(Store):
     for key in additional_metadata:
       setattr(taskset_entry_attrs, key, additional_metadata[key])
 
-    self.logger.debug('Adding a taskset %s %s', str(taskset.metadata), str(additional_metadata))
+    logger.debug('Adding a taskset %s %s', str(taskset.metadata), str(additional_metadata))
 
     for i,task in enumerate(ProgressIter(taskset.tasks, label="Adding Tasks")):
       self._add_Task(task, taskset_entry, dict(index=i))
@@ -723,7 +721,7 @@ class TaskStore(Store):
     try:
       return self._get_TaskSet(tags[0])
     except tables.NoSuchNodeError:
-      self.logger.warning('Removing damaged TaskSet node with metadata %s', str(desired_metadata))
+      logger.warning('Removing damaged TaskSet node with metadata %s', str(desired_metadata))
       self.fileh.removeNode(self.tasksets, tags[0], recursive=True)
       raise NoData
 
