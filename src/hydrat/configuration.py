@@ -7,13 +7,15 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_CONFIG_FILE = '.hydratrc'
 #TODO:
-# Need to build the default configuration by scanning all the tools and corpora
-# for their individual configuration requirements by some means of introspection
-# Also, check each tool for possible installed locations automagically
-# Need to expand user's home path automatically
-# Allow configurable logging level
+# Build the default configuration by scanning all the tools and corpora
+#   for their individual configuration requirements by some means of introspection
+# Check each tool for possible installed locations automagically
+# Write a logfile alongside our screen output
 
 class HydratConfigParser(ConfigParser.SafeConfigParser):
+  """ HydratConfigParser adds a getpath method, to postprocess paths in a 
+  config file by running expanduser and expandvars on the path.
+  """
   def getpath(self, section, option):
     "Do some post-processing on a received path"
     path = self.get(section, option)
@@ -56,8 +58,11 @@ def default_configuration():
   default_config.set('corpora', 'naacl2010-langid', '%(corpora)s/naacl2010-langid')
 
   default_config.add_section('logging')
-  default_config.set('logging', 'level', 'debug')
-  default_config.set('logging', 'format', '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+  default_config.set('logging', 'console.level', 'info')
+  default_config.set('logging', 'console.format', '%(name)s : %(message)s')
+  default_config.set('logging', 'logfile', '')
+  default_config.set('logging', 'logfile.level', 'debug')
+  default_config.set('logging', 'logfile.format', '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
   default_config.add_section('random')
   default_config.set('random', 'seed', '83441363')
@@ -90,9 +95,13 @@ def read_configuration(additional_path=[]):
 
 logger = logging.getLogger("hydrat")
 logger.setLevel(logging.DEBUG)
+
 console_output = logging.StreamHandler()
 console_output.setLevel(logging.CRITICAL)
 logger.addHandler(console_output)
+
+logfile_output = None
+
 rng = None
 
 LEVELS =\
@@ -110,11 +119,21 @@ def process_configuration(config):
   logger = logging.getLogger('hydrat.process_configuration')
 
   # Process options related to logging
-  global console_output 
-  level = LEVELS.get(config.get('logging','level'), logging.NOTSET)
-  formatter = logging.Formatter(config.get('logging','format',raw=True))
-  console_output.setLevel(level)
-  console_output.setFormatter(formatter)
+  global console_output, logfile_output
+  console_level = LEVELS.get(config.get('logging','console.level'), logging.NOTSET)
+  console_formatter = logging.Formatter(config.get('logging','console.format',raw=True))
+  console_output.setLevel(console_level)
+  console_output.setFormatter(console_formatter)
+
+  if config.get('logging','logfile'):
+    if logfile_output: logfile_output.close()
+    logfile_output = logging.FileHandler(config.getpath('logging','logfile'), delay=True)
+    logfile_level = LEVELS.get(config.get('logging','logfile.level'), logging.NOTSET)
+    logfile_formatter = logging.Formatter(config.get('logging','logfile.format',raw=True))
+    logfile_output.setLevel(logfile_level)
+    logfile_output.setFormatter(logfile_formatter)
+    logger.addHandler(logfile_output)
+    
 
   # Process options related to random number management 
   global rng

@@ -18,11 +18,12 @@ class Learner(object):
   def __call__(self, feature_map, class_map):
     num_docs, num_classes = class_map.shape
     num_features = feature_map.shape[1]
-    self.logger.info( "learning on %d documents in %d classes with %d features"
-                    , num_docs
-                    , num_classes
-                    , num_features
-                    ) 
+    self.logger.debug\
+      ( "learning on %d documents in %d classes with %d features"
+      , num_docs
+      , num_classes
+      , num_features
+      ) 
     start = time.time()
     classifier = self._learn(feature_map, class_map)
     timetaken = time.time() - start
@@ -31,11 +32,13 @@ class Learner(object):
     classifier.metadata['learn_time']       = timetaken
     classifier.metadata['train_feat_count'] = num_features
       
-    self.logger.info("learning took %.1f seconds", timetaken)
+    self.logger.debug("learning took %.1f seconds", timetaken)
     return classifier
 
   def _check_installed(self):
-    """ Check that any external tools required are actually installed """
+    """ Check that any external tools required are actually installed 
+    Should raise an exception if they are not, and not return anything if they are
+    """
     self.logger.warning("Learner '%s' does not implement _check_installed", self.__name__)
 
   @property
@@ -70,7 +73,7 @@ class Classifier(object):
     self.metadata = { 'classifier' : self.__name__ }
 
   def __call__(self, feature_map):
-    self.logger.info("classifying %d documents", feature_map.shape[0])
+    self.logger.debug("classifying %d documents", feature_map.shape[0])
     cl_num_feats = feature_map.shape[1]
     tr_num_feats = self.metadata['train_feat_count']
     if cl_num_feats != tr_num_feats: 
@@ -86,7 +89,7 @@ class Classifier(object):
     classifications                 = self._classify(feature_map)
     timetaken                       = time.time() - start
     self.metadata['classify_time']  = timetaken
-    self.logger.info("classification took %.1f seconds", timetaken)
+    self.logger.debug("classification took %.1f seconds", timetaken)
     return classifications 
 
   def _classify(self, feature_map):

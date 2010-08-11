@@ -20,7 +20,7 @@ from hydrat.preprocessor.features.transform import union
 from hydrat.result.interpreter import SingleHighestValue, NonZero, SingleLowestValue
 from hydrat.display.html import TableSort 
 from hydrat.display.tsr import result_summary_table, render_TaskSetResult
-from hydrat.classifier import majorityL
+from hydrat.classifier.baseline import majorityL
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +97,7 @@ def tasks_combination( data_store
     except StoreError,e:
       # This is how we discovere tasksets that already exist.
       # TODO: find an efficient way to do this! Constructing the whole thing is rather stupid
-      logger.info(e)
+      logger.debug(e)
 
 def tasks_singlefeat( data_store
                     , task_store
@@ -158,10 +158,10 @@ def run_experiment(taskset, learner, result_store):
   m['learner_params'] = learner.params
   taglist = result_store._resolve_TaskSetResults(m)
   logger.debug(m)
-  logger.info("%d previous results match this metadata", len(taglist))
+  logger.debug("%d previous results match this metadata", len(taglist))
   if len(taglist) > 0:
     # Already did this experiment!
-    logger.info("Already have result; Not repeating experiment")
+    logger.debug("Already have result; Not repeating experiment")
     return
 
   exp = Experiment(taskset, learner)
@@ -170,10 +170,15 @@ def run_experiment(taskset, learner, result_store):
     result_store.add_TaskSetResult(tsr)
   except Exception, e:
     logger.critical('Experiment failed with %s', e.__class__.__name__)
-    logger.debug(e.message)
+    logger.debug(e)
     import pdb;pdb.post_mortem()
 
 def run_tasksets(tasksets, result_store, learners):
+  """ Run each learner in a list over a taskset
+  @param tasksets taskset to run over
+  @param result_store Store object where results should go
+  @param learners the list of learners to run
+  """
   for taskset in tasksets:
     for l in learners:
       try:
@@ -221,9 +226,9 @@ def process_results( data_store
     if output_path is not None:
       resultpath_rel = os.path.join(output_path, str(result.metadata['uuid'])+'.html')
       if os.path.exists(resultpath_rel): 
-        logger.info("Not Reprocessing %s", resname)
+        logger.debug("Not Reprocessing %s", resname)
       else:
-        logger.info("Processing %s --> %s",resname,resultpath_rel)
+        logger.debug("Processing %s --> %s",resname,resultpath_rel)
         with TableSort(open(resultpath_rel, 'w')) as result_renderer:
           result_renderer.section(resname) 
           class_space = data_store.get_Space(result.metadata['class_uuid'])
@@ -289,6 +294,7 @@ def default_crossvalidation\
   ####
   ## Process the raw data, calculating all feature values.
   ####
+  logger.info("===== Building Models =====")
   data = open_store(os.path.join(modelP,'model.h5'), 'a')
   ds_name = dataset.__name__
   generate_model(data, [dataset])
@@ -296,27 +302,32 @@ def default_crossvalidation\
   ####
   ## Set up Tasks
   ###
+  logger.info("===== Setting Up Tasks =====")
   task_files = []
   data_store = open_store(os.path.join(modelP,'model.h5'))
   # TODO: selection of which feature combinations to use
   
   # Each featureset in isolation
+  logger.info(" - Each featureset in isolation")
   task_store = open_store(os.path.join(taskP, 'singlefeat.h5'), 'a')
   tasks_singlefeat(data_store, task_store, ds_name, task_classes, all_features, rng)
   task_files.append('singlefeat.h5')
 
   # Feature ablation
+  logger.info(" - Feature ablation")
   task_store = open_store(os.path.join(taskP, 'singlefeat.h5'), 'a')
   tasks_ablation(data_store, task_store, ds_name, task_classes, all_features, rng)
   task_files.append('singlefeat.h5')
 
   if baseline_features is not None:
     # Baseline + 1 feature set
+    logger.info(" - Baseline + 1")
     task_store = open_store(os.path.join(taskP, 'baseplusone.h5'), 'a')
     tasks_baseplus(data_store, task_store, ds_name, task_classes, baseline_features, added_features, 1, rng)
     task_files.append('baseplusone.h5')
 
     # Baseline + 2 feature sets
+    logger.info(" - Baseline + 2")
     task_store = open_store(os.path.join(taskP, 'baseplustwo.h5'), 'a')
     tasks_baseplus(data_store, task_store, ds_name, task_classes, baseline_features, added_features, 2, rng)
     task_files.append('baseplustwo.h5')
@@ -325,26 +336,32 @@ def default_crossvalidation\
   ####
   ## Run Experiments
   ####
+  logger.info("===== Running Experiments =====")
   task = open_store(os.path.join(taskP, 'singlefeat.h5'))
   result_files = []
   
   # Get baseline results from a majority class learner
+  logger.info(" - Baseline Experiments")
   result = open_store(os.path.join(resultP,'baseline.h5'), 'a')
   establish_baseline(task, result, task_classes)
   result_files.append('baseline.h5')
 
   # Run the experiment over each learner, for each class labelling specified
+  logger.info(" - Per-learner")
   result = open_store(os.path.join(resultP, 'result.h5'), 'a')
   result_files.append('result.h5')
   for f in task_files:
+    logger.info(" -- taskfile: %s", f)
     task = open_store(os.path.join(taskP,f))
     for c in task_classes:
+      logger.info(" --- taskclass: %s", c)
       tasksets = load_tasksets(task, dict(class_name=c))
       run_tasksets(tasksets, result, learners)
 
   ####
   ## Produce output
   ####
+  logger.info("===== Producing Output =====")
   # compute per-result summaries
   summary_fn = sf.sf_featuresets
   summaries = []
