@@ -14,15 +14,15 @@ class NAACL2010(ISO639_1, SingleDir):
   """ Mixin for NAACL2010 dataset, which has a standardized format
   for the metadata file.
   """
-  rawdata_path = config.get('corpora', 'naacl2010-langid')
+  rawdata_path = config.getpath('corpora', 'naacl2010-langid')
 
   def data_path(self): return os.path.join(self.rawdata_path, self.__name__)
-  def meta_path(self): return self.data_path+'.meta'
+  def meta_path(self): return self.data_path()+'.meta'
 
   def cm_iso639_1(self):
     cm = {}
     with open(self.meta_path(), 'r') as meta:
-      reader = csv.reader(meta)
+      reader = csv.reader(meta, delimiter='\t')
       for row in reader:
         docid, encoding, lang, partition = row
         cm[docid] = lang

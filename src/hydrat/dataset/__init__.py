@@ -84,4 +84,5 @@ def check_dataset(ds):
   Will raise an exception if something is wrong.
   """
   #TODO IMPLEMENT THIS
+  print len(ds.instance_ids)
   pass
