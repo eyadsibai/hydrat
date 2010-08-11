@@ -11,6 +11,8 @@ class OrdinalClassLearner(Learner):
     Learner.__init__(self)
     self.learner = learner
     self.ordering = ordering
+  
+  def _check_installed(self): pass
 
   def _params(self):
     d = dict( ordering = list(self.ordering)

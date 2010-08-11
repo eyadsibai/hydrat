@@ -1,4 +1,4 @@
-from hydrat.classifier.distance_metrics import dm_cosine, dm_skew, dm_outofplace, NullVector
+from hydrat.common.distance_metrics import dm_cosine, dm_skew, dm_outofplace, NullVector
 from hydrat.classifier.abstract import Learner, Classifier
 from hydrat.classifier.nnstrategy import OneNN, OneNNDist
 
@@ -37,7 +37,7 @@ class KNNClassifier(Classifier):
     self.NN_strategy = NN_strategy
 
   def _classify(self, test_fm):
-    self.logger.info("Calculating Distance Matrix")
+    self.logger.debug("Calculating Distance Matrix")
 
     try:
       vect_dist = self.distance_metric.vector_distances
@@ -51,7 +51,7 @@ class KNNClassifier(Classifier):
         self.logger.error("Unknown vector num!")
       raise e
 
-    self.logger.info("Assigning Classes")
+    self.logger.debug("Assigning Classes")
     assign = self.NN_strategy.assign_class_index
     test_classes = assign(distance_matrix, self.cm)
     return test_classes

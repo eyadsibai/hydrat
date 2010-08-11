@@ -96,13 +96,13 @@ class SVMLearner(Learner):
       self.logger.debug("range path: %s", self.range_path)
       os.close(range_file)
       
-      self.logger.info("scaling training data")
+      self.logger.debug("scaling training data")
       scaling_command ='%s -l 0 -s "%s" "%s" > "%s"' % ( os.path.join(self.toolpath,self.scaler)
                                                        , self.range_path
                                                        , train.name
                                                        , scale.name
                                                        )
-      self.logger.info("Scaling SVM: %s", scaling_command)
+      self.logger.debug("Scaling SVM: %s", scaling_command)
       process = os.popen(scaling_command)
       output = process.read()
       return_value = process.close()
@@ -119,7 +119,7 @@ class SVMLearner(Learner):
                       , train_path
                       , self.model_path 
                       )
-    self.logger.info("Training SVM: %s", training_command)
+    self.logger.debug("Training SVM: %s", training_command)
     process = os.popen(training_command)
     output = process.read()
     return_value = process.close()
@@ -164,13 +164,13 @@ class SVMClassifier(Classifier):
       scale = tempfile.NamedTemporaryFile(delete=self.clear_temp)
       self.logger.debug("scale path: %s", scale.name)
 
-      self.logger.info("scaling test data")
+      self.logger.debug("scaling test data")
       scaling_command ='%s -r "%s" "%s" > "%s"' % ( os.path.join(self.toolpath,self.scaler)
                                                   , self.range_path
                                                   , test_path 
                                                   , scale.name
                                                   )
-      self.logger.info("Scaling SVM: %s", scaling_command)
+      self.logger.debug("Scaling SVM: %s", scaling_command)
       process = os.popen(scaling_command)
       output = process.read()
       return_value = process.close()
@@ -185,7 +185,7 @@ class SVMClassifier(Classifier):
                                       , self.model_path
                                       , result_path
                                       )
-    self.logger.info("Classifying SVM: %s", classif_command)
+    self.logger.debug("Classifying SVM: %s", classif_command)
     process = os.popen(classif_command)
     output = process.read()
     return_value = process.close()
@@ -201,14 +201,14 @@ class SVMClassifier(Classifier):
 
     # Decide the type of file we are dealing with
     if first_line.split()[0] == 'labels':
-      self.logger.info('Parsing libSVM probability output')
+      self.logger.debug('Parsing libSVM probability output')
       classifications = numpy.zeros((num_test_docs, self.num_classes), dtype='float')
       for i, l in enumerate(result_file):
         # Read a list of floats, skipping the first entry which is the predicted class
         classifications[i] = map(float,l.split()[1:])
           
     else:
-      self.logger.info('Parsing svm one-of-m output')
+      self.logger.debug('Parsing svm one-of-m output')
       classifications = numpy.zeros((num_test_docs, self.num_classes), dtype='bool')
       # Set the first class from what we earlier extracted.
       classifications[0, int(first_line)] = True
@@ -272,7 +272,7 @@ class libsvmExtL(SVMLearner):
   -q : quiet mode (no outputs)
   """
   __name__ = 'libsvm_ext'
-  toolpath = config.get('tools','libsvm')
+  toolpath = config.getpath('tools','libsvm')
   learner = 'svm-train'
   classifier = 'svm-predict'
   scaler = 'svm-scale'
@@ -334,7 +334,7 @@ class bsvmL(SVMLearner):
   -v n: n-fold cross validation mode
   """
   __name__ = 'bsvm'
-  toolpath = config.get('tools', 'bsvm')
+  toolpath = config.getpath('tools', 'bsvm')
   learner = 'bsvm-train'
   classifier = 'bsvm-predict'
 

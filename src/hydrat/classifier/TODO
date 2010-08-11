@@ -1,0 +1,2 @@
+- Fix weka interface. The arff writer is labelled as broken.
+- Implement interface to mallet.
