@@ -21,6 +21,10 @@ class nltkLearner(Learner):
       raise ValueError, "Unknown trainer %s for NLTK" % trainer
     self.trainer = trainer
 
+  def _check_installed(self):
+    import nltk
+    pass
+
   def _params(self):
     return dict(trainer=self.trainer)
 

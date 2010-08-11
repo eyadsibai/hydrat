@@ -65,7 +65,7 @@ def open_store(path=None, mode='r'):
   try:
     initialize(path, overwrite=False)
   except IOError:
-    logger.info('Opening existing Store')
+    pass
   return UniversalStore(path, mode=mode)
 
 class Store(object):

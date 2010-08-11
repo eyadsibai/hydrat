@@ -7,6 +7,9 @@ __all__=['randomL','majorityL']
 
 class majorityL(Learner):
   __name__ = 'majority'
+  
+  def _check_installed(self):
+    pass
 
   def _params(self):
     return dict()
@@ -32,18 +35,23 @@ class majorityC(Classifier):
     classifications[:,majority_class] = True
     return classifications
 
+from hydrat.common.sampling import CheckRNG
 class randomL(Learner):
   __name__ = 'random'
   
-  def __init__(self, seed=None):
+  @CheckRNG
+  def __init__(self, rng=None):
     Learner.__init__(self)
-    self.seed = seed
+    self.rng = rng
+
+  def _check_installed(self):
+    pass
 
   def _params(self):
-    return dict(seed=self.seed)
+    return dict(rng_state = rng.get_state())
 
   def _learn(self, feature_map, class_map):
-    return randomC(feature_map, class_map, self.seed)
+    return randomC(feature_map, class_map, self.rng)
 
 
 class randomC(Classifier):
@@ -52,13 +60,11 @@ class randomC(Classifier):
       from it
   """
   __name__ = "randomclass"
-  def __init__(self, feature_map, class_map, seed):
+  def __init__(self, feature_map, class_map, rng):
     Classifier.__init__(self)
     self.fm = feature_map
     self.cm = class_map
-    self.rng = random.Random()
-    if seed != None:
-      self.rng.seed(seed)
+    self.rng = rng
 
   def _classify(self, test_fm):
     train_docs = self.fm.shape[0]
