@@ -1,4 +1,4 @@
-import distance_metrics as dm
+import hydrat.common.distance_metrics as dm
 import prototype as p
 from abstract import Learner
 from knn import KNNClassifier
@@ -25,6 +25,9 @@ class NProtLearner(Learner):
     self.NN_strategy = NN_strategy
     self.prototype = prototype
 
+  def _check_installed(self):
+    pass
+
   def _params(self):
     params = dict( distance_metric = self.distance_metric.params
                  , NN_strategy = self.NN_strategy.params
@@ -34,7 +37,7 @@ class NProtLearner(Learner):
 
   def _learn(self, feature_map, class_map):
     # Training phase
-    self.logger.info("calculating prototypes")
+    self.logger.debug("calculating prototypes")
     p_fv, p_cv = self.prototype.class_prototypes( feature_map 
                                                 , class_map 
                                                 )

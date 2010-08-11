@@ -4,6 +4,7 @@ import uuid
 import numpy
 from hydrat.result.result import result_from_task 
 from hydrat.result.tasksetresult import TaskSetResult
+from hydrat.common.pb import ProgressIter
 
 def run_task( learner, task ):
   logger = logging.getLogger('hydrat.experiment.run_task')
@@ -25,7 +26,11 @@ class Experiment(object):
     self.learner = learner 
 
   def run(self):
-    raw_results = [ run_task(self.learner, task) for task in self.taskset.tasks ]
+    raw_results =\
+      [ run_task(self.learner, task) 
+      for task 
+      in ProgressIter(self.taskset.tasks, "Experiment: %s %s" % (self.learner.__name__, self.learner.params))
+      ]
     metadata = dict(self.taskset.metadata)
     metadata['learner'] = self.learner.__name__
     metadata['learner_params'] = self.learner.params
