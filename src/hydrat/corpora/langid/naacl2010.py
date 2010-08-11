@@ -4,29 +4,11 @@ import csv
 from collections import defaultdict
 
 from hydrat import config
+from hydrat.dataset import SingleDir
 from hydrat.dataset.iso639 import ISO639_1
 from hydrat.dataset.text import ByteUBT
 from hydrat.dataset.encoded import CodepointUBT, UTF8
 
-
-from hydrat.dataset import Dataset
-
-class SingleDir(Dataset):
-  """ Mixin for a dataset that has all of its source text files
-  in a single directory. Requires that the deriving class
-  implements a data_path method.
-  """
-  def data_path(self):
-    raise NotImplementedError, "Deriving class must implement this"
-
-  def text(self):
-    path = self.data_path()
-    instances = {}
-    for filename in os.listdir(path):
-      filepath = os.path.join(path, filename)
-      if os.path.isfile(filepath):
-        instances[filename] = open(filepath).read()
-    return instances
 
 class NAACL2010(ISO639_1, SingleDir):
   """ Mixin for NAACL2010 dataset, which has a standardized format
