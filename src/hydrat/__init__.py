@@ -1,8 +1,7 @@
-import sys
-
 from optparse import OptionParser 
 
 import configuration
+import cli
 
 # Global configuration
 config = configuration.read_configuration()
@@ -10,6 +9,7 @@ configuration.process_configuration(config)
 
 # Global random number generator
 rng = configuration.rng 
+
 
 def main():
   parser = OptionParser()
@@ -19,25 +19,16 @@ def main():
     , help="Read configuration from a file"
     , metavar="FILENAME"
     )
-  parser.add_option\
-    ( "--write_config", dest="write_config" 
-    , help="Write default configuration to a file" 
-    , metavar="FILENAME"
-    )
 
   options, args = parser.parse_args()
 
-  if options.write_config is not None:
-    configuration.write_default_configuration(options.write_config)
-    sys.exit(0)
   if options.config is not None:
     global config
     config = configuration.read_configuration(options.config)
     configuration.process_configuration(config)
 
-  print config.get('paths', 'scratch')
-  #parser.error('Try invoking this program with the --help option')
-  #parser.usage()
+  # Handle commands
+  cli.handle_commands(args)
 
 if __name__ == "__main__":
   main()

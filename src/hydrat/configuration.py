@@ -53,6 +53,7 @@ def default_configuration():
   default_config.set('corpora', 'tcl', '%(corpora)s/TCL')
   default_config.set('corpora', 'udhr', '%(corpora)s/udhr/txt')
   default_config.set('corpora', 'wikipedia', '%(corpora)s/wikipedia')
+  default_config.set('corpora', 'naacl2010-langid', '%(corpora)s/naacl2010-langid')
 
   default_config.add_section('logging')
   default_config.set('logging', 'level', 'debug')

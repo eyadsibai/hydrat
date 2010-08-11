@@ -21,6 +21,18 @@ class Dataset(object):
   def __init__(self):
     self.logger = logging.getLogger('hydrat.preprocessor.Dataset')
 
+  def __str__(self):
+    ret_strs = []
+    ret_strs.append("Name : %s"% self.__name__ )
+    ret_strs.append("Size : %d instances" % len(self.instance_ids))
+    ret_strs.append("Features: ")
+    for f in self.featuremap_names:
+      ret_strs.append("  %s" % f)
+    ret_strs.append("Classes: ")
+    for c in self.classmap_names:
+      ret_strs.append("  %s" % c)
+    return '\n'.join(ret_strs)
+
   def classspace(self, name):
     return getattr(self, 'cs_'+name)()
 
