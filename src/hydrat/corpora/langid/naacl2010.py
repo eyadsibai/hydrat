@@ -46,7 +46,7 @@ class NAACL2010(ISO639_1, SingleDir):
         cm[docid] = lang
     return cm
   
-class EuroGov(NAACL2010, UTF8, ByteUBT, CodepointUBT):
+class EuroGOV(NAACL2010, UTF8, ByteUBT, CodepointUBT):
   __name__ = 'EuroGOV'
 
 class TCL(NAACL2010, ByteUBT, CodepointUBT):
