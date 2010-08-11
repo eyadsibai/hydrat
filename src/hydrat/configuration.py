@@ -13,11 +13,19 @@ DEFAULT_CONFIG_FILE = '.hydratrc'
 # Need to expand user's home path automatically
 # Allow configurable logging level
 
+class HydratConfigParser(ConfigParser.SafeConfigParser):
+  def getpath(self, section, option):
+    "Do some post-processing on a received path"
+    path = self.get(section, option)
+    path = os.path.expanduser(path)
+    path = os.path.expandvars(path)
+    return path
+
 def default_configuration():
   """
   Default configuration options
   """
-  default_config = ConfigParser.SafeConfigParser()
+  default_config = HydratConfigParser()
 
   default_config.add_section('paths')
   default_config.set('paths', 'work', './work')
