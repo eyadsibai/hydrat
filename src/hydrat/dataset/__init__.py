@@ -17,6 +17,7 @@ class Dataset(object):
       Deriving classes should implement a set of methods starting with 'cm_'
       and 'fm_' that return class maps and feature maps respectively.
   """
+
   def __init__(self):
     self.logger = logging.getLogger('hydrat.preprocessor.Dataset')
 
@@ -60,3 +61,10 @@ class Dataset(object):
       except StopIteration:
         raise NotImplementedError, "No feature maps or class maps defined!"
     return list(sorted(ids))
+
+def check_dataset(ds):
+  """ Perform a check on a dataset object to ensure it has been implemented correctly. 
+  Will raise an exception if something is wrong.
+  """
+  #TODO IMPLEMENT THIS
+  pass
