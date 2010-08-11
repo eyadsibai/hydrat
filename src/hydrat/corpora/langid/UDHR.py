@@ -1,7 +1,7 @@
 import os
 from hydrat import config
-from hydrat.preprocessor.dataset.text import ByteUBT
-from hydrat.preprocessor.dataset.encoded import CodepointUBT
+from hydrat.dataset.text import ByteUBT
+from hydrat.dataset.encoded import CodepointUBT
 from collections import defaultdict
 import xml.etree.ElementTree as e
 
@@ -9,7 +9,7 @@ class UDHR(ByteUBT, CodepointUBT):
   """Backend for UDHR data"""
   __name__ = "UDHR"
   __data = None
-  path = config.get('corpora','UDHR')
+  path = config.getpath('corpora','UDHR')
   __index = None
   __docids = None
 
