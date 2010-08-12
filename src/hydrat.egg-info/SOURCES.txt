@@ -3,6 +3,7 @@ NEWS.txt
 README.rst
 setup.py
 src/hydrat/__init__.py
+src/hydrat/cli.py
 src/hydrat/configuration.py
 src/hydrat/experiments.py
 src/hydrat/store.py
@@ -11,6 +12,7 @@ src/hydrat.egg-info/SOURCES.txt
 src/hydrat.egg-info/dependency_links.txt
 src/hydrat.egg-info/entry_points.txt
 src/hydrat.egg-info/not-zip-safe
+src/hydrat.egg-info/requires.txt
 src/hydrat.egg-info/top_level.txt
 src/hydrat/classifier/NLTK.py
 src/hydrat/classifier/SVM.py
@@ -18,7 +20,6 @@ src/hydrat/classifier/__init__.py
 src/hydrat/classifier/abstract.py
 src/hydrat/classifier/baseline.py
 src/hydrat/classifier/common.py
-src/hydrat/classifier/distance_metrics.py
 src/hydrat/classifier/knn.py
 src/hydrat/classifier/libsvm.py
 src/hydrat/classifier/maxent.py
@@ -40,11 +41,13 @@ src/hydrat/common/PorterStemmer.py
 src/hydrat/common/__init__.py
 src/hydrat/common/bootstrap.py
 src/hydrat/common/decorators.py
+src/hydrat/common/distance_metrics.py
 src/hydrat/common/enumerator.py
 src/hydrat/common/invert_dict.py
-src/hydrat/common/log.py
 src/hydrat/common/metadata.py
+src/hydrat/common/pb.py
 src/hydrat/common/richcomp.py
+src/hydrat/common/sampling.py
 src/hydrat/common/stringtools.py
 src/hydrat/common/tokenizers.py
 src/hydrat/common/transform/__init__.py
@@ -52,12 +55,16 @@ src/hydrat/common/transform/featureselect.py
 src/hydrat/common/transform/infogain.py
 src/hydrat/common/transform/weight.py
 src/hydrat/common/transform/weighting_function.py
-src/hydrat/corpora/Reuters.py
 src/hydrat/corpora/__init__.py
 src/hydrat/corpora/bupa.py
 src/hydrat/corpora/dummy.py
+src/hydrat/corpora/reuters.py
+src/hydrat/corpora/langid/UDHR.py
+src/hydrat/corpora/langid/__init__.py
+src/hydrat/corpora/langid/naacl2010.py
 src/hydrat/dataset/__init__.py
 src/hydrat/dataset/encoded.py
+src/hydrat/dataset/iso639.py
 src/hydrat/dataset/text.py
 src/hydrat/display/__init__.py
 src/hydrat/display/graphs.py

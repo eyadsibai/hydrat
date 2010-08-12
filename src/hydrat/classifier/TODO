@@ -1,2 +1,3 @@
 - Fix weka interface. The arff writer is labelled as broken.
 - Implement interface to mallet.
+- Implement Markov classification as a wrapper. Might be best to not live here though, it is not a traditional classifier.
