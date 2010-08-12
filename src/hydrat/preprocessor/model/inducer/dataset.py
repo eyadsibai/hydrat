@@ -1,6 +1,6 @@
 import logging
 import numpy
-from hydrat.store import NoData 
+from hydrat.store import NoData, AlreadyHaveData
 from hydrat.preprocessor.model.inducer import class_matrix 
 
 logger = logging.getLogger(__name__)
@@ -11,7 +11,9 @@ class DatasetInducer(object):
     self.store = store
 
   def process_Dataset(self, dataset, fms=None, cms=None):
-    logger.debug('Processing %s', str(dataset))
+    logger.debug('Processing %s', dataset.__name__)
+    logger.debug('  fms: %s', fms)
+    logger.debug('  cms: %s', cms)
     dsname = dataset.__name__
 
     # Work out if this is the first time we encounter this dataset
@@ -44,16 +46,16 @@ class DatasetInducer(object):
       try:
         c_metadata = {'type':'class','name':key}
         self.store.add_Space(dataset.classspace(key), c_metadata)
-      except ValueError,e :
-        logger.warning(e)
-    
+      except AlreadyHaveData, e:
+        logger.debug(e)
+
     # Handle all the class maps
     for key in cms - present_cm:
       logger.debug("Processing class map '%s'", key)
       try:
         self.add_Classmap(ds_tag, key, dataset.classmap(key))
-      except ValueError,e :
-        logger.warning(e)
+      except AlreadyHaveData,e :
+        logger.debug(e)
 
     # Handle all the feature maps
     for key in fms - present_fm:
@@ -61,8 +63,9 @@ class DatasetInducer(object):
 
       try:
         self.add_Featuremap(ds_tag, key, dataset.featuremap(key))
-      except ValueError,e :
+      except AlreadyHaveData,e :
         logger.warning(e)
+        # TODO: Why are we calling pdb for this?
         import pdb;pdb.post_mortem()
   
   def add_Featuremap(self, ds_tag, name, feat_dict):
