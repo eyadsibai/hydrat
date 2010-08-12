@@ -6,6 +6,7 @@ develop-eggs
 
 *.egg-info
 *.pyc
+*.swp
 
 tmp
 build
