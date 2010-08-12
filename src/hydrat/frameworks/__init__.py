@@ -50,7 +50,7 @@ def run_experiment(taskset, learner, result_store):
   except Exception, e:
     logger.critical('Experiment failed with %s', e.__class__.__name__)
     logger.debug(e)
-    import pdb;pdb.post_mortem()
+    #import pdb;pdb.post_mortem()
 
 def process_results( data_store
                    , result_store

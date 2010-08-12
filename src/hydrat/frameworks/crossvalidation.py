@@ -59,10 +59,10 @@ class CrossValidation(Framework):
     self.class_space = None
 
   def set_feature_space(self, feature_space):
+    self.notify("Setting feature_space to '%s'" % feature_space)
     self.feature_space = feature_space
     if self.class_space is not None:
       self.configure()
-    self.notify("Setting feature_space to '%s'" % feature_space)
 
   def set_class_space(self, class_space):
     self.notify("Setting class_space to '%s'" % class_space)
