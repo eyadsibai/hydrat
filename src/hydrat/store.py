@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 class StoreError(Exception): pass
 class NoData(StoreError): pass
+class AlreadyHaveData(StoreError): pass
 class InsufficientMetadata(StoreError): pass
 
 def initialize(path, overwrite=False):
@@ -241,7 +242,7 @@ class SpaceStore(Store):
     self._check_writeable()
     try:
       self.resolve_Space(desired_metadata)
-      raise StoreError, "Already have a space that matches given metadata"
+      raise AlreadyHaveData, "Already have space %s" % desired_metadata
     except NoData:
       pass
     assert 'type' in desired_metadata
@@ -461,7 +462,7 @@ class DatasetStore(SpaceStore):
     self._check_writeable()
     try:
       self.resolve_Dataset(name)
-      raise StoreError, "Already have dataset by name %s", name
+      raise AlreadyHaveData, "Already have dataset by name %s", name
     except NoData:
       pass
 
@@ -662,7 +663,7 @@ class TaskStore(Store):
     """
     try:
       self.get_TaskSet(taskset.metadata)
-      raise StoreError, "Already have a taskset with matching metadata"
+      raise AlreadyHaveData, "Already have taskset %s" % str(taskset.metadata)
     except NoData:
       pass
     self.add_TaskSet(taskset)

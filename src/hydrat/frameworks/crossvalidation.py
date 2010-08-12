@@ -36,8 +36,6 @@ class CrossValidation(Framework):
   def __init__\
     ( self
     , dataset
-    , feature_space
-    , class_space
     , work_path = None
     , folds = 10
     , rng = hydrat.rng
@@ -45,8 +43,6 @@ class CrossValidation(Framework):
     self.logger = logging.getLogger(__name__+'.'+self.__class__.__name__)
     self.notify('Initializing')
     self.dataset = dataset
-    self.feature_space = feature_space
-    self.class_space = class_space
     self.work_path = work_path
     self.folds = folds
     self.rng = rng
@@ -59,6 +55,22 @@ class CrossValidation(Framework):
     self.outputP  = os.path.join(self.work_path, 'output')
     self.store = open_store(os.path.join(self.work_path,'store.h5'), 'a')
 
+    self.feature_space = None
+    self.class_space = None
+
+  def set_feature_space(self, feature_space):
+    self.feature_space = feature_space
+    if self.class_space is not None:
+      self.configure()
+    self.notify("Setting feature_space to '%s'" % feature_space)
+
+  def set_class_space(self, class_space):
+    self.notify("Setting class_space to '%s'" % class_space)
+    self.class_space = class_space
+    if self.feature_space is not None:
+      self.configure()
+
+  def configure(self):
     self.notify('Generating Model')
     self._generate_model()
     self.notify('Generating Partitioner')
@@ -68,7 +80,10 @@ class CrossValidation(Framework):
 
   def _generate_model(self):
     inducer = DatasetInducer(self.store)
-    inducer.process_Dataset(self.dataset, self.feature_space, self.class_space)
+    try:
+      inducer.process_Dataset(self.dataset, self.feature_space, self.class_space)
+    except StoreError, e:
+      self.logger.debug(e)
 
   def _generate_partitioner(self):
     cv = CrossValidate(folds=self.folds, rng=self.rng)
@@ -80,6 +95,7 @@ class CrossValidation(Framework):
   def _generate_taskset(self):
     ds_name = self.dataset.__name__
     fm = self.store.get_Data(ds_name, {'type':'feature','name':self.feature_space})
+    # TODO
     # This is a stupid way of checking if we already have a taskset. We are building it anyway!!
     # The less stupid way would be to compute the full metadata, and check if that is in
     # the store already, then generate it if need be.
@@ -87,10 +103,14 @@ class CrossValidation(Framework):
     try:
       self.store.new_TaskSet(taskset)
     except StoreError, e:
-      self.notify(e)
+      pass
     return taskset
 
   def run_learner(self, learner):
+    if self.feature_space is None:
+      raise ValueError, "feature_space not yet set"
+    if self.class_space is None:
+      raise ValueError, "class_space not yet set"
     run_experiment(self.taskset, learner, self.store)
 
 

@@ -18,14 +18,20 @@ from hydrat.dataset import check_dataset
 def dataset_info(args):
   corpusname = args[0]
   try:
-    exec('from hydrat.corpora.%s import %s as ds' % tuple(corpusname.rsplit('.',1)))
+    import sys
+    sys.path.append('.')
+    exec('from %s import %s as ds' % tuple(corpusname.rsplit('.',1)))
     print ds()
   except ImportError, e:
-    logger.debug(e)
-    print "Unable to locate %s" % corpusname
-  except TypeError, e:
-    logger.debug(e)
-    print "%s is not a dataset" % corpusname
+    try:
+      exec('from hydrat.corpora.%s import %s as ds' % tuple(corpusname.rsplit('.',1)))
+      print ds()
+    except ImportError, e:
+      logger.debug(e)
+      print "Unable to locate %s" % corpusname
+    except TypeError, e:
+      logger.debug(e)
+      print "%s is not a dataset" % corpusname
 
   
 # Commands supported by the hydrat CLI tool

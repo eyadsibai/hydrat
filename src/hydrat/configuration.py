@@ -116,7 +116,7 @@ def process_configuration(config):
   """ Process the hydrat configuration file. Should be invoked whenever the configuration changes.
       Right now this is mostly only useful for setting up logging.
   """
-  logger = logging.getLogger('hydrat.process_configuration')
+  global logger
 
   # Process options related to logging
   global console_output, logfile_output
@@ -126,7 +126,6 @@ def process_configuration(config):
   console_output.setFormatter(console_formatter)
 
   if config.get('logging','logfile'):
-    if logfile_output: logfile_output.close()
     logfile_output = logging.FileHandler(config.getpath('logging','logfile'), delay=True)
     logfile_level = LEVELS.get(config.get('logging','logfile.level'), logging.NOTSET)
     logfile_formatter = logging.Formatter(config.get('logging','logfile.format',raw=True))
@@ -135,10 +134,11 @@ def process_configuration(config):
     logger.addHandler(logfile_output)
     
 
+  local_logger = logging.getLogger('hydrat.process_configuration')
   # Process options related to random number management 
   global rng
   seed = config.getint('random','seed')
   rng = numpy.random.mtrand.RandomState(seed)
-  logger.debug('Set random seed to %d', seed)
+  local_logger.debug('Set random seed to %d', seed)
    
 
