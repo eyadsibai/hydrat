@@ -10,12 +10,11 @@ class DatasetInducer(object):
   def __init__(self, store):
     self.store = store
 
-  def __call__(self, dataset):
-    self.process_Dataset(dataset)
-
-  def process_Dataset(self, dataset):
+  def process_Dataset(self, dataset, fms=None, cms=None):
     logger.debug('Processing %s', str(dataset))
     dsname = dataset.__name__
+
+    # Work out if this is the first time we encounter this dataset
     try:
       ds_tag = self.store.resolve_Dataset(dsname)
       logger.debug("Already had dataset '%s'", dsname)
@@ -23,8 +22,18 @@ class DatasetInducer(object):
       logger.debug("Adding new dataset '%s'", dsname)
       ds_tag = self.store.add_Dataset(dataset.instance_ids, dsname)
 
+    # Work out which feature maps and/or class maps we have been asked to process
+    def as_set(s):
+      if s is None: return set()
+      if isinstance(s, str): return set([s])
+      else: return set(s)
+
+    fms = as_set(fms)
+    cms = as_set(cms)
+
     present_fm = set(self.store.list_FeatureSpaces(dsname))
     present_cm = set(self.store.list_ClassSpaces(dsname))
+
     logger.debug("present_fm: %s", str(present_fm))
     logger.debug("present_cm: %s", str(present_cm))
 
@@ -39,7 +48,7 @@ class DatasetInducer(object):
         logger.warning(e)
     
     # Handle all the class maps
-    for key in set(dataset.classmap_names) - present_cm:
+    for key in cms - present_cm:
       logger.debug("Processing class map '%s'", key)
       try:
         self.add_Classmap(ds_tag, key, dataset.classmap(key))
@@ -47,7 +56,7 @@ class DatasetInducer(object):
         logger.warning(e)
 
     # Handle all the feature maps
-    for key in set(dataset.featuremap_names) - present_fm:
+    for key in fms - present_fm:
       logger.debug("Processing feature map '%s'", key)
 
       try:

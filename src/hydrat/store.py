@@ -247,7 +247,7 @@ class SpaceStore(Store):
     assert 'type' in desired_metadata
     assert 'name' in desired_metadata
 
-    logger.info( "Adding a %s space '%s' of %d Features"
+    logger.debug( "Adding a %s space '%s' of %d Features"
                     , desired_metadata['type']
                     , desired_metadata['name']
                     , len(labels)
@@ -287,11 +287,11 @@ class SpaceStore(Store):
       raise StoreError, "New labels are less than old labels"
 
     if len(labels) == len(space):
-      logger.info("Space has not changed, no need to extend")
+      logger.debug("Space has not changed, no need to extend")
       return space_tag 
 
     space_name = self.get_Metadata(space_tag)['name'] 
-    logger.info("Extending '%s' from %d to %d features", space_name, len(space), len(labels))
+    logger.debug("Extending '%s' from %d to %d features", space_name, len(space), len(labels))
     metadata = self.get_Metadata(space_tag)
 
     encoding = metadata['encoding']
@@ -504,7 +504,7 @@ class DatasetStore(SpaceStore):
     self._check_writeable()
     ds_name = self.get_Metadata(ds_tag)['name']
     space_name = self.get_Metadata(space_tag)['name']
-    logger.info("Adding feature map to dataset '%s' in space '%s'", ds_name, space_name)
+    logger.debug("Adding feature map to dataset '%s' in space '%s'", ds_name, space_name)
     ds = getattr(self.datasets, str(ds_tag))
     space = getattr(self.spaces, str(space_tag))
 
@@ -554,7 +554,7 @@ class DatasetStore(SpaceStore):
     self._check_writeable()
     ds_name = self.get_Metadata(ds_tag)['name']
     space_name = self.get_Metadata(space_tag)['name']
-    logger.info("Adding feature map to dataset '%s' in space '%s'", ds_name, space_name)
+    logger.debug("Adding feature map to dataset '%s' in space '%s'", ds_name, space_name)
     ds = getattr(self.datasets, str(ds_tag))
     space = getattr(self.spaces, str(space_tag))
 
@@ -594,7 +594,7 @@ class DatasetStore(SpaceStore):
     self._check_writeable()
     ds_name = self.get_Metadata(ds_tag)['name']
     space_name = self.get_Metadata(space_tag)['name']
-    logger.info("Adding Class Map to dataset '%s' in space '%s'", ds_name, space_name)
+    logger.debug("Adding Class Map to dataset '%s' in space '%s'", ds_name, space_name)
     ds = getattr(self.datasets, str(ds_tag))
     space = getattr(self.spaces, str(space_tag))
 

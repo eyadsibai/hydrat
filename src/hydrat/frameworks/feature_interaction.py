@@ -4,6 +4,8 @@ given classification task. It provides implementations of a variety of
 common operations carried out in this process, as well as a single
 unifying method which only requires a dataset as a compulsory parameter, 
 having default options for all other parameters.
+
+This module is a mess of spaghetti code, and could really use a cleanup!
 """
 import os
 import logging
@@ -15,28 +17,15 @@ import hydrat.display.summary_fns as sf
 from hydrat.store import open_store, UniversalStore, StoreError
 from hydrat.preprocessor.model.inducer.dataset import DatasetInducer
 from hydrat.task.sampler import CrossValidate
-from hydrat.experiments import Experiment
 from hydrat.preprocessor.features.transform import union
-from hydrat.result.interpreter import SingleHighestValue, NonZero, SingleLowestValue
 from hydrat.display.html import TableSort 
-from hydrat.display.tsr import result_summary_table, render_TaskSetResult
+from hydrat.display.tsr import result_summary_table
 from hydrat.classifier.baseline import majorityL
+
+from . import init_workdir, run_experiment, process_results 
 
 logger = logging.getLogger(__name__)
 
-def init_workdir(path):
-  """ Initialize the working directory, where various intermediate files will be stored.
-  This is not to be considered a scratch folder, since the files stored here can be re-used.
-  @param path The path to initialize
-  """
-  if os.path.exists(path):
-    logger.warning('%s already exists', path)
-  else:
-    os.makedirs(path)
-    os.mkdir(os.path.join(path, 'models'))
-    os.mkdir(os.path.join(path, 'tasks'))
-    os.mkdir(os.path.join(path, 'results'))
-    os.mkdir(os.path.join(path, 'output'))
 
 def generate_model(store, datasets):
   """ Generate models for given datasets.
@@ -146,33 +135,6 @@ def tasks_baseplus( data_store
       tasks_combination( data_store, task_store, added_features, n, dataset, parts, baseline=baseline, rng=rng)
 
 
-def run_experiment(taskset, learner, result_store):
-  keys = [ 'dataset_uuid'
-         , 'feature_desc'
-         , 'task_type'
-         , 'rng_state'
-         , 'class_uuid'
-         ]
-  m = dict( (k,taskset.metadata[k]) for k in keys )
-  m['learner'] = learner.__name__
-  m['learner_params'] = learner.params
-  taglist = result_store._resolve_TaskSetResults(m)
-  logger.debug(m)
-  logger.debug("%d previous results match this metadata", len(taglist))
-  if len(taglist) > 0:
-    # Already did this experiment!
-    logger.debug("Already have result; Not repeating experiment")
-    return
-
-  exp = Experiment(taskset, learner)
-  try:
-    tsr = exp.run()
-    result_store.add_TaskSetResult(tsr)
-  except Exception, e:
-    logger.critical('Experiment failed with %s', e.__class__.__name__)
-    logger.debug(e)
-    import pdb;pdb.post_mortem()
-
 def run_tasksets(tasksets, result_store, learners):
   """ Run each learner in a list over a taskset
   @param tasksets taskset to run over
@@ -202,40 +164,7 @@ def establish_baseline(task_store, result_store, task_classes):
     tasksets = load_tasksets(task_store, dict(name='+'.join((c,'bag_of_words'))))
     run_tasksets(tasksets, result_store, learners)
 
-def process_results( data_store
-                   , result_store
-                   , summary_fn=sf.sf_basic
-                   , output_path=None
-                   , interpreter=None
-                   ):
-  """
-  If output_path is not None, per-result summaries will be produced in that folder.
-  """
-
-  # Set a default interpreter
-  if interpreter is None:
-    interpreter = SingleHighestValue()
-
-  summaries = []
-  for resname in result_store._resolve_TaskSetResults({}):
-    result = result_store._get_TaskSetResult(resname)
-    summary = summary_fn(result, interpreter)
-    summaries.append(summary)
-
-    # If we are doing per-summary output
-    if output_path is not None:
-      resultpath_rel = os.path.join(output_path, str(result.metadata['uuid'])+'.html')
-      if os.path.exists(resultpath_rel): 
-        logger.debug("Not Reprocessing %s", resname)
-      else:
-        logger.debug("Processing %s --> %s",resname,resultpath_rel)
-        with TableSort(open(resultpath_rel, 'w')) as result_renderer:
-          result_renderer.section(resname) 
-          class_space = data_store.get_Space(result.metadata['class_uuid'])
-          render_TaskSetResult(result_renderer, result, class_space, interpreter, summary)
-  return summaries
-      
-def default_crossvalidation\
+def default_feature_interaction\
   ( dataset
   , work_path = None
   , baseline_features = None
@@ -257,7 +186,7 @@ def default_crossvalidation\
   # Set up a work path in the scratch directory according to the
   # dataset name if None is provided.
   if work_path is None:
-    work_path = os.path.join(hydrat.config.get('paths','work'), 'crossvalidation', dataset.__name__)
+    work_path = os.path.join(hydrat.config.get('paths','work'), 'feature_interaction', dataset.__name__)
 
   if baseline_features is None:
     baseline_features = []
@@ -289,7 +218,6 @@ def default_crossvalidation\
   taskP    = os.path.join(work_path, 'tasks')
   resultP  = os.path.join(work_path, 'results')
   outputP  = os.path.join(work_path, 'output')
-
 
   ####
   ## Process the raw data, calculating all feature values.
