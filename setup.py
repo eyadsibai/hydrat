@@ -8,16 +8,16 @@ NEWS = open(os.path.join(here, 'NEWS.txt')).read()
 
 version = '0.9.0'
 
-install_requires = [
-    # List your project dependencies here.
-    # For more details, see:
-    # http://packages.python.org/distribute/setuptools.html#declaring-dependencies
-    # TODO: 
-    ## numpy
-    ## scipy
-    ## pytables
-    'progressbar==2.2'
-]
+# List your project dependencies here.
+# For more details, see:
+# http://packages.python.org/distribute/setuptools.html#declaring-dependencies
+install_requires =\
+  [ 'progressbar==2.2'
+  , 'cmdln==1.1.2'
+  , 'numpy'
+  , 'scipy'
+  , 'tables'
+  ]
 
 
 setup(name='hydrat',
