@@ -115,6 +115,13 @@ class CrossValidation(Framework):
 
 
   def generate_output(self):
+    """
+    .. todo:
+      Allow the path to generate output to to be speficied. Or maybe use a file-like object
+      The ultimate aim is to allow us to write to files on remote machines. Like hum!
+      It can't be a file-like object because we need to write multiple files in a directory.
+      Maybe an underlying sshfs mount could do the trick?
+    """
     summaries = process_results\
       ( self.store 
       , self.store
