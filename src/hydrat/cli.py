@@ -2,52 +2,54 @@
 CLI interface for hydrat
 Each function should consume the balance of the command-line arguments.
 ..todo: Make this nicer
+        Add commands:
+          - Vizualize all the results in a store
+          - Vizualize datasets in a store
+          - Vizualize tasksets in a store
+           
 """
-import configuration
+import os
 import sys
 import logging
+import cmdln
+
+import configuration
 
 logger = logging.getLogger(__name__)
 
-def write_config(args):
-  path = args[0]
-  configuration.write_default_configuration(path)
-  sys.exit(0)
+class HydratCmdln(cmdln.Cmdln):
+  def do_configure(self, subcmd, opts, *args):
+    """${cmd_name}: write a configuration file
+    Writes the default configuration file to .hydratrc
 
-from hydrat.dataset import check_dataset
-def dataset_info(args):
-  corpusname = args[0]
-  try:
-    import sys
+    ${cmd_usage} 
+    """
+    path = os.path.join(os.getcwd(), '.hydratrc')
+    configuration.write_default_configuration(path)
+    logger.info("Wrote configuration file to '%s'", path)
+
+  def do_dsinfo(self, subcmd, opts, dsname):
+    """${cmd_name}: display basic information about a dataset 
+
+    ${cmd_usage} 
+
+    For example, given a subclass of dataset Foo in a module bar.py,
+    we call ${cmd_name} as follows:
+
+      ${name} ${cmd_name} bar.Foo
+    """
     sys.path.append('.')
-    exec('from %s import %s as ds' % tuple(corpusname.rsplit('.',1)))
-    print ds()
-  except ImportError, e:
     try:
-      exec('from hydrat.corpora.%s import %s as ds' % tuple(corpusname.rsplit('.',1)))
-      print ds()
+      exec('from %s import %s as ds' % tuple(corpusname.rsplit('.',1)))
+      print(ds())
     except ImportError, e:
-      logger.debug(e)
-      print "Unable to locate %s" % corpusname
-    except TypeError, e:
-      logger.debug(e)
-      print "%s is not a dataset" % corpusname
-
-  
-# Commands supported by the hydrat CLI tool
-commands=\
-  { 'write_config': write_config
-  , 'dataset_info': dataset_info
-  }
-
-def handle_commands(args):
-  try:
-    command = args[0]
-  except IndexError:
-    print "No command given!"
-    
-  if command in commands:
-    commands[command](args[1:])
-  else:
-    parser.error('Unknown command %s'% command)
+      try:
+        exec('from hydrat.corpora.%s import %s as ds' % tuple(corpusname.rsplit('.',1)))
+        print(ds())
+      except ImportError, e:
+        logger.debug(e)
+        print("Unable to locate %s" % corpusname)
+      except TypeError, e:
+        logger.debug(e)
+        print("%s is not a dataset" % corpusname)
 
