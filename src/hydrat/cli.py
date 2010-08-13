@@ -20,15 +20,17 @@ logger = logging.getLogger(__name__)
 class HydratCmdln(cmdln.Cmdln):
   def do_configure(self, subcmd, opts, *args):
     """${cmd_name}: write a configuration file
-    Writes the default configuration file to .hydratrc
 
     ${cmd_usage} 
+
+    Writes the default configuration file to .hydratrc
     """
     path = os.path.join(os.getcwd(), '.hydratrc')
     configuration.write_default_configuration(path)
     logger.info("Wrote configuration file to '%s'", path)
 
-  def do_dsinfo(self, subcmd, opts, dsname):
+  @cmdln.alias("dsinfo")
+  def do_dataset_info(self, subcmd, opts, dsname):
     """${cmd_name}: display basic information about a dataset 
 
     ${cmd_usage} 
