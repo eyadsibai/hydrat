@@ -22,10 +22,10 @@ class ProgressIter(object):
     return self
 
   def next(self):
-    self.count += 1
     try:
       next = self.seq.next()
       self.pb.update(self.count)
+      self.count += 1
       return next
     except StopIteration,e :
       self.pb.finish()

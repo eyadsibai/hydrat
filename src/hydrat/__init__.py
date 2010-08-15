@@ -5,7 +5,7 @@ import cli
 
 # Global configuration
 config = configuration.read_configuration()
-configuration.process_configuration(config)
+configuration.load_configuration(config)
 
 # Global random number generator
 rng = configuration.rng 

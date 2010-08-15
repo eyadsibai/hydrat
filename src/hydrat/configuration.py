@@ -1,6 +1,6 @@
 import ConfigParser
 import logging
-import os.path
+import os
 import numpy
 
 logger = logging.getLogger(__name__)
@@ -10,7 +10,13 @@ DEFAULT_CONFIG_FILE = '.hydratrc'
 # Build the default configuration by scanning all the tools and corpora
 #   for their individual configuration requirements by some means of introspection
 # Check each tool for possible installed locations automagically
-# Write a logfile alongside our screen output
+#   - Implemented, set up for svms. Still needs work.
+#   - Will not work for the 'external' package, for libs and svm, since they don't inherit
+#     learner. Might want to have a 'configurable' mixin
+# Configure java-based packages better. Can base on java-wrappers from debian
+# Move back to configObj maybe. Problems with ConfigParser:
+#   1) Outputs key-values in any order in a section
+#   2) Does not allow you to inset comments
 
 class HydratConfigParser(ConfigParser.SafeConfigParser):
   """ HydratConfigParser adds a getpath method, to postprocess paths in a 
@@ -22,6 +28,31 @@ class HydratConfigParser(ConfigParser.SafeConfigParser):
     path = os.path.expanduser(path)
     path = os.path.expandvars(path)
     return path
+
+def all_subclasses(klass):
+  subclasses = klass.__subclasses__()
+  result = set(subclasses)
+  for k in subclasses:
+    result.update(all_subclasses(k))
+  return result
+
+def which(program):
+  # from http://stackoverflow.com/questions/377017/test-if-executable-exists-in-python
+  import os
+  def is_exe(fpath):
+    return os.path.exists(fpath) and os.access(fpath, os.X_OK)
+
+  fpath, fname = os.path.split(program)
+  if fpath:
+    if is_exe(program):
+      return program
+  else:
+    for path in os.environ["PATH"].split(os.pathsep):
+      exe_file = os.path.join(path, program)
+      if is_exe(exe_file):
+        return exe_file
+
+  return None
 
 def default_configuration():
   """
@@ -41,7 +72,6 @@ def default_configuration():
   default_config.set('tools', 'bin', '/usr/bin')
   default_config.set('tools', 'rainbow', '%(bin)s/rainbow')
   default_config.set('tools', 'libsvm', '%(bin)s')
-  default_config.set('tools', 'bsvm', '%(bin)s')
   default_config.set('tools', 'java', '%(bin)s/java')
   default_config.set('tools', 'weka', '%(bin)s/weka.jar')
   default_config.set('tools', 'maxent', '%(bin)s')
@@ -70,13 +100,12 @@ def default_configuration():
 
   return default_config
 
-def write_default_configuration(file=DEFAULT_CONFIG_FILE):
-  """ Write the default configuration to a file
+def write_configuration(config, file=DEFAULT_CONFIG_FILE):
+  """ Write configuration to a file
   @param file File name or file-like object
   """
   if isinstance(file, str):
     file = open(file, 'w')
-  config = default_configuration()
   config.write(file)
 
 def read_configuration(additional_path=[]):
@@ -91,6 +120,23 @@ def read_configuration(additional_path=[]):
   config = default_configuration()
   paths = config.read(all_paths)
   logger.debug("Read configuration from %s", str(paths))
+  return config
+
+def update_configuration(config):
+  """ Receives a config object, then scans hydrat for requirements,
+  e.g. installed packages, tries to satisfy the requirements and 
+  returns an updated configuration.
+  """
+  #TODO: Use all_subclasses on hydat.classifier.abstract, then query
+  # requires on each of them, run which and update the config accordingly
+  import hydrat.classifier as c
+  for klass in all_subclasses(c.abstract.Learner):
+    requires = klass.requires
+    for key in requires:
+      toolpath = which(requires[key])
+      logger.info("Resolved %s to %s", key, toolpath)
+      if toolpath is not None:
+        config.set('tools', key, toolpath)
   return config
 
 logger = logging.getLogger("hydrat")
@@ -112,7 +158,7 @@ LEVELS =\
   , 'critical': logging.CRITICAL
   }
 
-def process_configuration(config):
+def load_configuration(config):
   """ Process the hydrat configuration file. Should be invoked whenever the configuration changes.
       Right now this is mostly only useful for setting up logging.
   """
@@ -134,7 +180,7 @@ def process_configuration(config):
     logger.addHandler(logfile_output)
     
 
-  local_logger = logging.getLogger('hydrat.process_configuration')
+  local_logger = logging.getLogger('hydrat.load_configuration')
   # Process options related to random number management 
   global rng
   seed = config.getint('random','seed')

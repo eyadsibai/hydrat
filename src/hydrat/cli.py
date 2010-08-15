@@ -25,8 +25,17 @@ class HydratCmdln(cmdln.Cmdln):
 
     Writes the default configuration file to .hydratrc
     """
-    path = os.path.join(os.getcwd(), '.hydratrc')
-    configuration.write_default_configuration(path)
+    if len(args) > 0:
+      path = args[0]
+    else:
+      path = configuration.DEFAULT_CONFIG_FILE
+
+    if not os.path.isabs(path):
+      path = os.path.abspath(path)
+
+    config = configuration.default_configuration()
+    config = configuration.update_configuration(config)
+    configuration.write_configuration(config, path)
     logger.info("Wrote configuration file to '%s'", path)
 
   @cmdln.alias("dsinfo")
