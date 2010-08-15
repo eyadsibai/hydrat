@@ -9,6 +9,10 @@ from scipy.sparse import issparse
 from hydrat.classifier.meta.weighted import WeightedLearner
 from hydrat.common.transform.weight import Discretize
 
+# NOTE:
+# Rainbow upstream is pretty much dead McCallum is working on Mallet now, last release was
+# 2002 and ubuntu has pulled it from repos. This wrapper will not be developed any further.
+
 #__all__ = [ "naivebayesL", "prindL", "tfidfL" ]
 __all__ = [ "naivebayesL", "naivebayesdiscreteL", "tfidfL" ] #TODO: Find out why prind crashes
 class RainbowFileWriter(object):

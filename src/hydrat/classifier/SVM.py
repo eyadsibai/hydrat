@@ -65,10 +65,10 @@ class SVMLearner(Learner):
 
   def _check_installed(self):
     def tool_ok(path):
-      return os.path.exists(os.path.join(self.toolpath, path))
+      return os.path.exists(path)
     if not all([tool_ok(self.learner), tool_ok(self.classifier)]):
-      self.logger.error("Tool not found at %s", self.toolpath)
-      raise NotInstalledError, "Tool not installed!"
+      self.logger.error("Tool not found for %s", self.__name__)
+      raise NotInstalledError, "Unable to find required binary"
    
   def _params(self):
     return dict()
@@ -97,7 +97,7 @@ class SVMLearner(Learner):
       os.close(range_file)
       
       self.logger.debug("scaling training data")
-      scaling_command ='%s -l 0 -s "%s" "%s" > "%s"' % ( os.path.join(self.toolpath,self.scaler)
+      scaling_command ='%s -l 0 -s "%s" "%s" > "%s"' % ( self.scaler
                                                        , self.range_path
                                                        , train.name
                                                        , scale.name
@@ -114,7 +114,7 @@ class SVMLearner(Learner):
 
     train_path = scale.name if self.scale else train.name
     training_command =\
-      "%s %s %s %s" % ( os.path.join(self.toolpath,self.learner)
+      "%s %s %s %s" % ( self.learner
                       , '-b 1' if self.output_probability else '' 
                       , train_path
                       , self.model_path 
@@ -130,7 +130,6 @@ class SVMLearner(Learner):
 
     classif_opts = ' -b 1' if self.output_probability else ''
     return SVMClassifier( self.model_path
-                        , self.toolpath
                         , self.classifier + classif_opts
                         , class_map.shape[1]
                         , self.scaler if self.scale else None
@@ -145,10 +144,9 @@ class SVMLearner(Learner):
 class SVMClassifier(Classifier):
   __name__ = "svm"
 
-  def __init__(self, model_path, toolpath, classifier, num_classes, scaler = None, range_path = None):
+  def __init__(self, model_path, classifier, num_classes, scaler = None, range_path = None):
     Classifier.__init__(self)
     self.model_path  = model_path
-    self.toolpath    = toolpath
     self.classifier  = classifier
     self.scaler      = scaler
     self.range_path  = range_path
@@ -165,7 +163,7 @@ class SVMClassifier(Classifier):
       self.logger.debug("scale path: %s", scale.name)
 
       self.logger.debug("scaling test data")
-      scaling_command ='%s -r "%s" "%s" > "%s"' % ( os.path.join(self.toolpath,self.scaler)
+      scaling_command ='%s -r "%s" "%s" > "%s"' % ( self.scaler
                                                   , self.range_path
                                                   , test_path 
                                                   , scale.name
@@ -180,7 +178,7 @@ class SVMClassifier(Classifier):
         raise ValueError, "Scaling SVM returned %s"%(str(return_value))
 
     test_path = test_path if self.scaler is None else scale.name
-    classif_command = "%s %s %s %s" % ( os.path.join(self.toolpath,self.classifier)
+    classif_command = "%s %s %s %s" % ( self.classifier
                                       , test_path
                                       , self.model_path
                                       , result_path
@@ -272,19 +270,23 @@ class libsvmExtL(SVMLearner):
   -q : quiet mode (no outputs)
   """
   __name__ = 'libsvm_ext'
-  toolpath = config.getpath('tools','libsvm')
-  learner = 'svm-train'
-  classifier = 'svm-predict'
-  scaler = 'svm-scale'
+  requires =\
+    { 'libsvmlearner' : 'svm-train' 
+    , 'libsvmclassifier' : 'svm-predict'
+    , 'libsvmscaler' : 'svm-scale'
+    }
 
   def _check_installed(self):
     SVMLearner._check_installed(self)
-    if not os.path.exists(os.path.join(self.toolpath, self.scaler)):
-      self.logger.error("Tool not installed!")
-      raise NotInstalledError, "Tool not installed!"
+    if not os.path.exists(self.scaler):
+      self.logger.error("Unable to find required binaries")
+      raise NotInstalledError, "Unable to find required binaries"
 
 
   def __init__(self, scale=False, output_probability=False, svm_type=0, kernel_type='rbf', additional=''):
+    self.learner = config.getpath('tools', 'libsvmlearner')
+    self.classifier = config.getpath('tools','libsvmclassifier') 
+    self.scaler = config.getpath('tools', 'libsvmscaler')
     SVMLearner.__init__(self)
     self.scale = scale
     self.output_probability = output_probability
@@ -334,11 +336,15 @@ class bsvmL(SVMLearner):
   -v n: n-fold cross validation mode
   """
   __name__ = 'bsvm'
-  toolpath = config.getpath('tools', 'bsvm')
-  learner = 'bsvm-train'
-  classifier = 'bsvm-predict'
+  requires =\
+    { 'bsvmlearner' : 'bsvm-train' 
+    , 'bsvmclassifier' : 'bsvm-predict'
+    }
+
 
   def __init__(self, kernel_type='rbf', svm_type=0, additional=''):
+    self.learner = config.getpath('tools', 'bsvmlearner')
+    self.classifier = config.getpath('tools','bsvmclassifier') 
     SVMLearner.__init__(self)
     self.scale = False #No scaler for bsvm 
     self.output_probability = False # No probability output for bsvm
