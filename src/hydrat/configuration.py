@@ -74,7 +74,6 @@ def default_configuration():
   default_config.set('tools', 'libsvm', '%(bin)s')
   default_config.set('tools', 'java', '%(bin)s/java')
   default_config.set('tools', 'weka', '%(bin)s/weka.jar')
-  default_config.set('tools', 'maxent', '%(bin)s')
   default_config.set('tools', 'textcat', '%(bin)s')
   default_config.set('tools', 'libs', '%(bin)s')
 
@@ -127,8 +126,9 @@ def update_configuration(config):
   e.g. installed packages, tries to satisfy the requirements and 
   returns an updated configuration.
   """
-  #TODO: Use all_subclasses on hydat.classifier.abstract, then query
-  # requires on each of them, run which and update the config accordingly
+  # TODO: 
+  # Check for conflicting keys, and do something about it.
+  # Might not actually be an error: More than one package might ask for java.
   import hydrat.classifier as c
   for klass in all_subclasses(c.abstract.Learner):
     requires = klass.requires

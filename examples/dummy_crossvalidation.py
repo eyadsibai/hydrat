@@ -1,24 +1,29 @@
 from hydrat.frameworks.crossvalidation import CrossValidation
-from hydrat.corpora.dummy import unicode_dummy
-from hydrat.classifier.NLTK import naivebayesL, decisiontreeL
-from hydrat.classifier.SVM import bsvmL, libsvmExtL
-from hydrat.classifier.knn import cosine_1nnL, skew_1nnL, oop_1nnL
-from hydrat.classifier.nearest_prototype import cosine_mean_prototypeL 
-#from hydrat.classifier.weka import weka_majorityclassL
+import hydrat.corpora.dummy as dummy
+
+import hydrat.classifier.NLTK as nltk
+import hydrat.classifier.SVM as svm
+import hydrat.classifier.knn as knn
+import hydrat.classifier.nearest_prototype as np
+import hydrat.classifier.weka as weka
+import hydrat.classifier.maxent as maxent
 
 if __name__ == "__main__":
   learners=\
-    [ cosine_1nnL()
-    #, naivebayesL()
-    #, decisiontreeL()
-    #, libsvmExtL(kernel_type='linear')
-    #, bsvmL(kernel_type='linear')
-    #, skew_1nnL()
-    #, oop_1nnL()
-    #, cosine_mean_prototypeL()
-    #, weka_majorityclassL()
+    [ knn.cosine_1nnL()
+    , nltk.naivebayesL()
+    , nltk.decisiontreeL()
+    , svm.libsvmExtL(kernel_type='linear')
+    , svm.bsvmL(kernel_type='linear')
+    , knn.skew_1nnL()
+    , knn.oop_1nnL()
+    , np.cosine_mean_prototypeL()
+    , maxent.maxentLearner()
+    , weka.majorityclassL()
+    , weka.nbL()
+    , weka.j48L()
     ]
-  cv = CrossValidation(unicode_dummy())
+  cv = CrossValidation(dummy.unicode_dummy())
   cv.set_class_space('dummy_default')
   cv.set_feature_space('byte_unigram')
   for l in learners:

@@ -6,6 +6,8 @@ Each function should consume the balance of the command-line arguments.
           - Vizualize all the results in a store
           - Vizualize datasets in a store
           - Vizualize tasksets in a store
+          - Export a model to ARFF
+          - (?) Import a model from ARFF
            
 """
 import os

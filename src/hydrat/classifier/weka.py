@@ -9,16 +9,22 @@ from hydrat.classifier.common import run_command
 from hydrat.classifier.abstract import Learner, Classifier
 from hydrat import config
 
-java_bin = config.get('tools','java')
+java_bin = config.get('tools','java-bin')
 weka_jar = config.get('tools','weka')
 
 class WekaLearner(Learner):
+  __name__ = 'weka'
+  requires=\
+    {'java-bin' : 'java'
+    }
 
   def __init__(self, cl_name, options = ""):
-    self.__name__ = 'weka_' + cl_name
     Learner.__init__(self)
     self.cl_name = cl_name
     self.options  = options
+
+  def _params(self):
+    return {'cl_name':self.cl_name, 'options':self.options}
 
   def _learn(self, feature_map, class_map):
     model = ImmediateModel(feature_map, class_map)
@@ -100,23 +106,23 @@ class WekaClassifier(Classifier):
        
     return class_map
 
-def weka_nbL():
+def nbL():
   return WekaLearner('bayes.NaiveBayes')
 
-def weka_bayesnetL():
+def bayesnetL():
   return WekaLearner('bayes.BayesNet')
 
-def weka_perceptronL():
+def perceptronL():
   return WekaLearner('functions.MultilayerPerceptron')
 
-def weka_baggingL():
+def baggingL():
   return WekaLearner('meta.Bagging')
 
-def weka_stackingL():
+def stackingL():
   return WekaLearner('meta.Stacking')
 
-def weka_j48L():
+def j48L():
   return WekaLearner('trees.J48')
 
-def weka_majorityclassL():
+def majorityclassL():
   return WekaLearner('rules.ZeroR')
