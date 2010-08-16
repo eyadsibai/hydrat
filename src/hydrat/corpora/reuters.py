@@ -1,13 +1,13 @@
-from __future__ import with_statement
-from sgmllib import SGMLParser
-from hydrat.dataset.encoded import BagOfWords
-from hydrat import config
+import os
 import logging
 from time import time
+from sgmllib import SGMLParser
 from collections import defaultdict
-import os
 
-logger = logging.getLogger('hydrat.datasets.Reuters21578')
+from hydrat import config
+from hydrat.dataset.encoded import BagOfWords, ASCII
+
+logger = logging.getLogger(__name__)
 
 class ReutersParser(SGMLParser):
   def __init__(self, verbose=0):
@@ -80,24 +80,33 @@ class ReutersParser(SGMLParser):
     return (self.docmap, self.classmap, self.lewissplit)
 
 
-class Reuters21578(BagOfWords):
+class Reuters21578(BagOfWords, ASCII):
   __name__ = 'Reuters21578'
   __parser = None
 
-  @property
   def _parser(self):
     if self.__parser is None:
       self.__parser = ReutersParser()
       self.__parser.run()
     return self.__parser
 
-  def encodings(self):
-    return defaultdict(lambda:'ascii')
+  @property
+  def instance_ids(self):
+    # Overrode instance_ids to avoid having to parse the entire dataset to do dsinfo from CLI
+    ids = map(str,range(1, 21579))
+    if self.__parser is not None:
+      # Sanity check if we have already parsed the dataset.
+      assert set(self.classmap(self.classmap_names.next()).keys()) == set(ids)
+    return list(sorted(ids)) 
 
   def text(self):
-    p = self._parser
+    p = self._parser()
     return p.docmap
     
   def cm_reuters21578_topics(self):
-    p = self._parser
+    p = self._parser()
     return p.classmap
+
+  def sp_lewis(self):
+    p = self.parser()
+    return p.lewissplit

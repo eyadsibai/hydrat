@@ -31,6 +31,11 @@ class Dataset(object):
     ret_strs.append("Classes: ")
     for c in self.classmap_names:
       ret_strs.append("  %s" % c)
+    splits = list(self.split_names)
+    if len(splits) > 0:
+      ret_strs.append("Splits: ")
+      for s in splits:
+        ret_strs.append("  %s" % s)
     return '\n'.join(ret_strs)
 
   def classspace(self, name):
@@ -41,6 +46,9 @@ class Dataset(object):
 
   def featuremap(self, name):
     return getattr(self, 'fm_'+name)()
+
+  def split(self, name):
+    return getattr(self, 'sp_'+name)()
 
   def prefixed_names(self, prefix):
     for key in dir(self):
@@ -58,6 +66,10 @@ class Dataset(object):
   @property 
   def classspace_names(self): 
     return self.prefixed_names('cs')
+
+  @property 
+  def split_names(self): 
+    return self.prefixed_names('sp')
 
   @property
   def instance_ids(self):
