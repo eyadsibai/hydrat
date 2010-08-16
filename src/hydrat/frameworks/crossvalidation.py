@@ -57,6 +57,7 @@ class CrossValidation(Framework):
 
     self.feature_space = None
     self.class_space = None
+    self.learner = None
 
   def set_feature_space(self, feature_space):
     self.notify("Setting feature_space to '%s'" % feature_space)
@@ -69,6 +70,10 @@ class CrossValidation(Framework):
     self.class_space = class_space
     if self.feature_space is not None:
       self.configure()
+
+  def set_learner(self, learner):
+    self.notify("Setting learner to '%s'" % learner)
+    self.learner = learner
 
   def configure(self):
     self.notify('Generating Model')
@@ -106,12 +111,14 @@ class CrossValidation(Framework):
       pass
     return taskset
 
-  def run_learner(self, learner):
+  def run(self):
     if self.feature_space is None:
       raise ValueError, "feature_space not yet set"
     if self.class_space is None:
       raise ValueError, "class_space not yet set"
-    run_experiment(self.taskset, learner, self.store)
+    if self.learner is None:
+      raise ValueError, "learner not yet set"
+    run_experiment(self.taskset, self.learner, self.store)
 
 
   def generate_output(self):

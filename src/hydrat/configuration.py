@@ -36,12 +36,11 @@ def all_subclasses(klass):
     result.update(all_subclasses(k))
   return result
 
+def is_exe(fpath):
+  return os.path.exists(fpath) and os.access(fpath, os.X_OK)
+
 def which(program):
   # from http://stackoverflow.com/questions/377017/test-if-executable-exists-in-python
-  import os
-  def is_exe(fpath):
-    return os.path.exists(fpath) and os.access(fpath, os.X_OK)
-
   fpath, fname = os.path.split(program)
   if fpath:
     if is_exe(program):

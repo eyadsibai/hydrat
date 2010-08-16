@@ -27,5 +27,6 @@ if __name__ == "__main__":
   cv.set_class_space('dummy_default')
   cv.set_feature_space('byte_unigram')
   for l in learners:
-    cv.run_learner(l)
+    cv.set_learner(l)
+    cv.run()
   cv.generate_output()
