@@ -1,6 +1,11 @@
 """
 SVM classifier using libsvm's python API
 Results are unexpectedly different from the CLI version (and worse!)
+
+http://www.csie.ntu.edu.tw/~cjlin/libsvm/
+
+..todo:
+  Update to using the python interface from LIBSVM 2.91
 """
 from hydrat.classifier.abstract import Learner, Classifier
 from hydrat.classifier.common import sparse2sparse_dict

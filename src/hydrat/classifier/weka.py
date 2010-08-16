@@ -8,7 +8,19 @@ from hydrat.preprocessor.model import ImmediateModel
 from hydrat.classifier.common import run_command
 from hydrat.classifier.abstract import Learner, Classifier
 from hydrat import config
+from hydrat.configuration import is_exe
 
+"""
+Wrapper for WEKA
+
+Mark Hall, Eibe Frank, Geoffrey Holmes, Bernhard Pfahringer, Peter Reutemann, 
+Ian H. Witten (2009); The WEKA Data Mining Software: An Update; 
+SIGKDD Explorations, Volume 11, Issue 1.
+
+http://www.cs.waikato.ac.nz/ml/weka/
+
+..todo: Check that the interfacing is done correctly. Results are surprisingly low at times.
+"""
 java_bin = config.get('tools','java-bin')
 weka_jar = config.get('tools','weka')
 
@@ -22,6 +34,13 @@ class WekaLearner(Learner):
     Learner.__init__(self)
     self.cl_name = cl_name
     self.options  = options
+
+  def _check_installed(self):
+    if not is_exe(java_bin):
+      raise ValueError, "java not installed"
+    if not os.path.exists(weka_jar):
+      raise ValueError, "weka.jar not found at %s" % weka_jar
+
 
   def _params(self):
     return {'cl_name':self.cl_name, 'options':self.options}
