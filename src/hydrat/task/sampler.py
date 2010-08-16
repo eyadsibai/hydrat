@@ -25,11 +25,13 @@ def stratify(class_map):
   assert(class_map.dtype == 'bool')
   num_docs = class_map.shape[0]
 
+  # Build strata identifiers, which are a bit patern indicating 
+  # set-of-classes membership
   strata_identifiers = numpy.zeros(num_docs)
   for i, row in enumerate(class_map):
     identifier = 0
     for entry in row:
-      identifier << 1
+      identifier = identifier << 1
       if entry:
         identifier += 1
     strata_identifiers[i] = identifier
@@ -47,7 +49,9 @@ def stratify(class_map):
 
 def allocate(strata_map, weights, probabilistic = False, rng = None):
   """
-  Stratified allocation of items into partitions
+  Allocation of items into partitions
+  Stratification must be performed separately, but this function will
+  only work on 1-of-m classmaps
   @return: map of doc_index -> partition membership
   @rtype: numpy boolean array
   """
@@ -71,7 +75,7 @@ from hydrat.task.task import InMemoryTask
 class Partitioning(object):
   """ Represents a partitioning on a set of data """
   def __init__(self, class_map, partitions, metadata):
-    # TODO: partitions needs to become a 3-d array. instances X partitions X train/test
+    # partitions is a 3-d array. instances X partitions X train/test(note order!)
     self.class_map = class_map
     self.parts = partitions
     self.metadata = dict(class_map.metadata)
@@ -88,10 +92,9 @@ class Partitioning(object):
     metadata.update(feature_map.metadata)
     metadata.update(additional_metadata)
     for i in range(self.parts.shape[1]):
-      partition  = self.parts[:,i]
-      test_ids   = partition 
-      # TODO: This assumption is problematic! What if we dont want some docs?
-      train_ids  = numpy.logical_not(partition)
+      train_ids  = self.parts[:,i,0]
+      test_ids   = self.parts[:,i,1]
+
       md = dict(metadata)
       md['part_index'] = i
       tasklist.append( InMemoryTask   ( feature_map.raw
@@ -134,6 +137,8 @@ class TrainTest(Sampler):
                      , probabilistic = False
                      , rng=self.rng
                      ) 
+    # Build train/test by stacking to the correct shape
+    parts = numpy.dstack((parts[:,0], parts[:,1])).swapaxes(0,1)
     metadata = dict()
     metadata['task_type'] = 'train_test'
     metadata['rng_state'] = self.rng.get_state()
@@ -152,6 +157,9 @@ class CrossValidate(Sampler):
                     , probabilistic = False
                     , rng=self.rng
                     ) 
+    # We build train/test. Axis 0 is train, so it is the logical not of each fold, which represents
+    # the test instances.
+    folds = numpy.dstack((numpy.logical_not(folds), folds))
     metadata = dict()
     metadata['task_type'] = 'crossvalidate'
     metadata['rng_state'] = self.rng.get_state()
