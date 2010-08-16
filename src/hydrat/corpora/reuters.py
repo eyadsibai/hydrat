@@ -109,4 +109,4 @@ class Reuters21578(BagOfWords, ASCII):
 
   def sp_lewis(self):
     p = self.parser()
-    return p.lewissplit
+    return dict(train=p.lewissplit['TRAIN'], test=p.lewissplit['TEST'], unused=p.lewissplit['NOT-USED'])
