@@ -6,6 +6,7 @@ import os
 import numpy
 
 from hydrat.classifier.SVM import SVMFileWriter
+from hydrat.configuration import is_exe
 
 """
 Wrapper for Le Zhang's maxent toolkit
@@ -27,6 +28,10 @@ class maxentLearner(Learner):
     self.method = method
     self.model_path = None
     self.clear_temp = True 
+
+  def _check_installed(self):
+    if not is_exe(self.toolpath):
+      raise ValueError, "Tool not installed!"
 
   def _params(self):
     return dict( iterations = self.iterations
