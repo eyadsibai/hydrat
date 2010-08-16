@@ -6,7 +6,7 @@ README = open(os.path.join(here, 'README.rst')).read()
 NEWS = open(os.path.join(here, 'NEWS.txt')).read()
 
 
-version = '0.9.0'
+version = '0.9.1'
 
 # List your project dependencies here.
 # For more details, see:
@@ -24,8 +24,15 @@ setup(name='hydrat',
     version=version,
     description="Classifier comparison framework",
     long_description=README + '\n\n' + NEWS,
-    classifiers=[
-      # Get strings from http://pypi.python.org/pypi?%3Aaction=list_classifiers
+    # Get strings from http://pypi.python.org/pypi?%3Aaction=list_classifiers
+    classifiers=\
+    [ "Development Status :: 3 - Alpha"
+    , "Environment :: Console"
+    , "Intended Audience :: Science/Research"
+    , "License :: OSI Approved :: BSD License"
+    , "Operating System :: POSIX :: Linux"
+    , "Programming Language :: Python"
+    , "Topic :: Utilities"
     ],
     keywords='machinelearning textclassification documentprocessing',
     author='Marco Lui',
