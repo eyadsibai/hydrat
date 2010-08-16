@@ -1,6 +1,6 @@
 Metadata-Version: 1.0
 Name: hydrat
-Version: 0.9.0
+Version: 0.9.1
 Summary: Classifier comparison framework
 Home-page: http://hydrat.googlecode.com
 Author: Marco Lui
@@ -49,3 +49,10 @@ Description: hydrat - Classifier Comparison Framework
         
 Keywords: machinelearning textclassification documentprocessing
 Platform: UNKNOWN
+Classifier: Development Status :: 3 - Alpha
+Classifier: Environment :: Console
+Classifier: Intended Audience :: Science/Research
+Classifier: License :: OSI Approved :: BSD License
+Classifier: Operating System :: POSIX :: Linux
+Classifier: Programming Language :: Python
+Classifier: Topic :: Utilities

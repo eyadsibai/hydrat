@@ -78,9 +78,9 @@ class maxentLearner(Learner):
 
 class maxentClassifier(Classifier):
   __name__ = "maxent"
-  toolpath = config.get('tools','maxent')
 
   def __init__(self, model_path, num_classes, name=None):
+    self.toolpath = config.get('tools','maxent')
     if name:
       self.__name__ = name
     Classifier.__init__(self)
