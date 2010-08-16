@@ -53,16 +53,16 @@ class HydratCmdln(cmdln.Cmdln):
     """
     sys.path.append('.')
     try:
-      exec('from %s import %s as ds' % tuple(corpusname.rsplit('.',1)))
+      exec('from %s import %s as ds' % tuple(dsname.rsplit('.',1)))
       print(ds())
     except ImportError, e:
       try:
-        exec('from hydrat.corpora.%s import %s as ds' % tuple(corpusname.rsplit('.',1)))
+        exec('from hydrat.corpora.%s import %s as ds' % tuple(dsname.rsplit('.',1)))
         print(ds())
       except ImportError, e:
         logger.debug(e)
-        print("Unable to locate %s" % corpusname)
+        print("Unable to locate %s" % dsname)
       except TypeError, e:
         logger.debug(e)
-        print("%s is not a dataset" % corpusname)
+        print("%s is not a dataset" % dsname)
 
