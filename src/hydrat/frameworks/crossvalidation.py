@@ -62,26 +62,25 @@ class CrossValidation(Framework):
   def set_feature_space(self, feature_space):
     self.notify("Setting feature_space to '%s'" % feature_space)
     self.feature_space = feature_space
-    if self.class_space is not None:
-      self.configure()
+    self.configure()
 
   def set_class_space(self, class_space):
     self.notify("Setting class_space to '%s'" % class_space)
     self.class_space = class_space
-    if self.feature_space is not None:
-      self.configure()
+    self.configure()
 
   def set_learner(self, learner):
     self.notify("Setting learner to '%s'" % learner)
     self.learner = learner
 
   def configure(self):
-    self.notify('Generating Model')
-    self._generate_model()
-    self.notify('Generating Partitioner')
-    self.partitioner = self._generate_partitioner()
-    self.notify('Generating Task')
-    self.taskset = self._generate_taskset()
+    if self.feature_space is not None and self.class_space is not None:
+      self.notify('Generating Model')
+      self._generate_model()
+      self.notify('Generating Partitioner')
+      self.partitioner = self._generate_partitioner()
+      self.notify('Generating Task')
+      self.taskset = self._generate_taskset()
 
   def _generate_model(self):
     inducer = DatasetInducer(self.store)

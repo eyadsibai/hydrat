@@ -71,6 +71,7 @@ from hydrat.task.task import InMemoryTask
 class Partitioning(object):
   """ Represents a partitioning on a set of data """
   def __init__(self, class_map, partitions, metadata):
+    # TODO: partitions needs to become a 3-d array. instances X partitions X train/test
     self.class_map = class_map
     self.parts = partitions
     self.metadata = dict(class_map.metadata)
@@ -89,6 +90,7 @@ class Partitioning(object):
     for i in range(self.parts.shape[1]):
       partition  = self.parts[:,i]
       test_ids   = partition 
+      # TODO: This assumption is problematic! What if we dont want some docs?
       train_ids  = numpy.logical_not(partition)
       md = dict(metadata)
       md['part_index'] = i
@@ -116,13 +118,17 @@ class Sampler(object):
     raise NotImplementedError
 
 class TrainTest(Sampler):
+  # TODO: We end up with too many parts! Need to work this out with the Partitioning 
+  # class. If we work with the 1 vs rest model, we must submit only one column to it.
+  # However, that makes it impossible to handle cases where we want to ignore certain
+  # instances.
   def __init__(self, ratio=4, rng=None):
     Sampler.__init__(self, rng)
     self.ratio = ratio
 
   def sample(self, class_map):
     strata_map = stratify(class_map.raw)
-    partition_proportions = numpy.array([ratio, 1])
+    partition_proportions = numpy.array([self.ratio, 1])
     parts  = allocate( strata_map
                      , partition_proportions
                      , probabilistic = False
