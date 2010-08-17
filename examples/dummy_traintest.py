@@ -1,4 +1,4 @@
-from hydrat.frameworks.crossvalidation import CrossValidationFramework
+from hydrat.frameworks.traintest import TrainTestFramework 
 import hydrat.corpora.dummy as dummy
 
 import hydrat.classifier.NLTK as nltk
@@ -23,10 +23,10 @@ if __name__ == "__main__":
     , weka.nbL()
     , weka.j48L()
     ]
-  cv = CrossValidationFramework(dummy.unicode_dummy())
-  cv.set_class_space('dummy_default')
-  cv.set_feature_space('byte_unigram')
+  tt = TrainTestFramework(dummy.unicode_dummy())
+  tt.set_class_space('dummy_default')
+  tt.set_feature_space('byte_unigram')
   for l in learners:
-    cv.set_learner(l)
-    cv.run()
-  cv.generate_output()
+    tt.set_learner(l)
+    tt.run()
+  tt.generate_output()
