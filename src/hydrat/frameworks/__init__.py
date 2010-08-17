@@ -74,8 +74,11 @@ class Framework(object):
     self.notify("Setting learner to '%s'" % learner)
     self.learner = learner
 
+  def is_configurable(self):
+    return self.feature_space is not None and self.class_space is not None
+
   def configure(self):
-    if self.feature_space is not None and self.class_space is not None:
+    if self.is_configurable():
       self.notify('Generating Model')
       self._generate_model()
       self.notify('Generating Partitioner')
