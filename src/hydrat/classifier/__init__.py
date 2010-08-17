@@ -3,3 +3,4 @@ import abstract
 import SVM
 import knn
 import maxent
+import weka

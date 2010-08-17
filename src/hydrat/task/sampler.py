@@ -120,11 +120,21 @@ class Sampler(object):
     """ Classes deriving sampler must implement this """
     raise NotImplementedError
 
+def membership_vector(superset, subset):
+  return numpy.fromiter((s in subset for s in superset), dtype=bool)
+  
+class PresetSplit(Sampler):
+  def __init__(self, split, rng=None):
+    Sampler.__init__(self, rng)
+    self.split = split
+
+  def sample(self, class_map):
+    metadata = dict()
+    metadata['task_type'] = 'preset_split'
+    metadata['rng_state'] = self.rng.get_state()
+    return Partitioning(class_map, self.split, metadata) 
+
 class TrainTest(Sampler):
-  # TODO: We end up with too many parts! Need to work this out with the Partitioning 
-  # class. If we work with the 1 vs rest model, we must submit only one column to it.
-  # However, that makes it impossible to handle cases where we want to ignore certain
-  # instances.
   def __init__(self, ratio=4, rng=None):
     Sampler.__init__(self, rng)
     self.ratio = ratio

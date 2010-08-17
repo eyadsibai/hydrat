@@ -30,6 +30,13 @@ class dummy(ByteUBT, CodepointUBT):
         classmap["%04d"%(i * self.max_times + j)] = [u'class' + unicode(i) ]
     return classmap
 
+  def sp_dummy_default(self):
+    return dict( train = self.instance_ids[:-(2*self.max_times)]
+               , test = self.instance_ids[-(2*self.max_times):-self.max_times]
+               , unused = self.instance_ids[-self.max_times:]
+               )
+    
+
 class unicode_dummy(dummy):
   """Unicode dummy dataset"""
   __name__ = "dummy-unicode"

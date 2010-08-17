@@ -21,8 +21,6 @@ http://www.cs.waikato.ac.nz/ml/weka/
 
 ..todo: Check that the interfacing is done correctly. Results are surprisingly low at times.
 """
-java_bin = config.get('tools','java-bin')
-weka_jar = config.get('tools','weka')
 
 class WekaLearner(Learner):
   __name__ = 'weka'
@@ -36,10 +34,10 @@ class WekaLearner(Learner):
     self.options  = options
 
   def _check_installed(self):
-    if not is_exe(java_bin):
+    if not is_exe(config.get('tools','java-bin')):
       raise ValueError, "java not installed"
-    if not os.path.exists(weka_jar):
-      raise ValueError, "weka.jar not found at %s" % weka_jar
+    if not os.path.exists(config.get('tools','weka')):
+      raise ValueError, "weka.jar not found at %s" % config.get('tools','weka')
 
 
   def _params(self):
@@ -58,8 +56,8 @@ class WekaLearner(Learner):
     os.close(model_file)
     self.logger.debug("model path: %s", model_path)
 
-    weka_command = " ".join(( java_bin
-                            , "-cp", weka_jar
+    weka_command = " ".join(( config.get('tools','java-bin')
+                            , "-cp", config.get('tools','weka')
                             , "weka.classifiers." + self.cl_name
                             , self.options
                             , "-t", train_file.name
@@ -95,8 +93,8 @@ class WekaClassifier(Classifier):
     test_file.flush()
     self.logger.debug('test path: %s', test_file.name)
 
-    weka_command = " ".join(( java_bin
-                            , "-cp", weka_jar
+    weka_command = " ".join(( config.get('tools','java-bin')
+                            , "-cp", config.get('tools','weka')
                             , "weka.classifiers." + self.cl_name
                             , "-l", self.model_path
                             , "-T", test_file.name

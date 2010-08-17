@@ -1,3 +1,6 @@
+"""
+http://www.daviddlewis.com/resources/testcollections/reuters21578/reuters21578.tar.gz
+"""
 import os
 import logging
 from time import time
@@ -108,5 +111,5 @@ class Reuters21578(BagOfWords, ASCII):
     return p.classmap
 
   def sp_lewis(self):
-    p = self.parser()
+    p = self._parser()
     return dict(train=p.lewissplit['TRAIN'], test=p.lewissplit['TEST'], unused=p.lewissplit['NOT-USED'])
