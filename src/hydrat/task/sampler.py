@@ -81,6 +81,12 @@ class Partitioning(object):
     self.metadata = dict(class_map.metadata)
     self.metadata.update(metadata)
 
+  def generate_metadata(self, feature_map, additional_metadata):
+    metadata = dict(self.metadata)
+    metadata.update(feature_map.metadata)
+    metadata.update(additional_metadata)
+    return metadata
+
   def __call__(self, feature_map, additional_metadata={}):
     """Transform a feature map into a TaskSet"""
     # Check the number of instances match
@@ -88,9 +94,7 @@ class Partitioning(object):
     # Check the feature map and class map are over the same dataset
     assert feature_map.metadata['dataset_uuid'] == self.class_map.metadata['dataset_uuid']
     tasklist = []
-    metadata = dict(self.metadata)
-    metadata.update(feature_map.metadata)
-    metadata.update(additional_metadata)
+    metadata = self.generate_metadata(feature_map, additional_metadata)
     for i in range(self.parts.shape[1]):
       train_ids  = self.parts[:,i,0]
       test_ids   = self.parts[:,i,1]

@@ -8,7 +8,7 @@ from hydrat.display.tsr import render_TaskSetResult
 from hydrat.result.interpreter import SingleHighestValue, NonZero, SingleLowestValue
 from hydrat.display.html import TableSort 
 from hydrat.preprocessor.model.inducer.dataset import DatasetInducer
-from hydrat.store import open_store, UniversalStore, StoreError
+from hydrat.store import open_store, UniversalStore, StoreError, NoData
 from hydrat.display.summary_fns import sf_featuresets
 from hydrat.display.html import TableSort 
 from hydrat.display.tsr import result_summary_table
@@ -99,15 +99,13 @@ class Framework(object):
   def _generate_taskset(self):
     ds_name = self.dataset.__name__
     fm = self.store.get_Data(ds_name, {'type':'feature','name':self.feature_space})
-    # TODO
-    # This is a stupid way of checking if we already have a taskset. We are building it anyway!!
-    # The less stupid way would be to compute the full metadata, and check if that is in
-    # the store already, then generate it if need be.
-    taskset = self.partitioner(fm, {'name':'+'.join((self.feature_space, self.class_space))})
+    md = {'name':'+'.join((self.feature_space, self.class_space))}
+    taskset_md = self.partitioner.generate_metadata(fm, md)
     try:
-      self.store.new_TaskSet(taskset)
-    except StoreError, e:
-      pass
+      taskset = self.store.get_TaskSet(taskset_md)
+    except NoData:
+      taskset = self.partitioner(fm, md)
+      self.store.add_TaskSet(taskset)
     return taskset
 
   def run(self):
