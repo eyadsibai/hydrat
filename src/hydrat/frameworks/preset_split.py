@@ -13,9 +13,11 @@ labels of the test instances, so we can analyze performance.
 """
 import logging
 import os
+import numpy
 
 import hydrat
 from hydrat.frameworks import Framework
+from hydrat.task.sampler import membership_vector, PresetSplit
 
 class PresetSplitFramework(Framework):
   def __init__\
