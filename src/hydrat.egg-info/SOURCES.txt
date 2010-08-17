@@ -83,6 +83,8 @@ src/hydrat/external/textcat.py
 src/hydrat/frameworks/__init__.py
 src/hydrat/frameworks/crossvalidation.py
 src/hydrat/frameworks/feature_interaction.py
+src/hydrat/frameworks/preset_split.py
+src/hydrat/frameworks/traintest.py
 src/hydrat/preprocessor/__init__.py
 src/hydrat/preprocessor/features/__init__.py
 src/hydrat/preprocessor/features/transform.py

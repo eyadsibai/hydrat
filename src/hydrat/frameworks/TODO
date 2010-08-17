@@ -1,4 +1,1 @@
-- Simplify the crossvalidation framework to do one dataset, one feature map on one class (all user-specified)
-- Rename the current crossvalidation framework to something else
-- Set up a train/test framework
 - Set up an unseenclassification framework, whereby we learn on an entire dataset, and then classify new instances
