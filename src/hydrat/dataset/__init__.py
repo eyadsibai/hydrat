@@ -7,6 +7,7 @@ hydrat's dataset interface.
 """
 
 import logging
+import os
 
 class Dataset(object):
   """ Base class for all datasets. A Dataset is essentially
