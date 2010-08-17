@@ -9,7 +9,6 @@ from hydrat.result.interpreter import SingleHighestValue, NonZero, SingleLowestV
 from hydrat.display.html import TableSort 
 from hydrat.preprocessor.model.inducer.dataset import DatasetInducer
 from hydrat.store import open_store, UniversalStore, StoreError
-from hydrat.task.sampler import CrossValidate
 from hydrat.display.summary_fns import sf_featuresets
 from hydrat.display.html import TableSort 
 from hydrat.display.tsr import result_summary_table
