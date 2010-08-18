@@ -1,9 +1,10 @@
 #!/usr/bin/env python
+# TODO: Merge this into the CLI tool!
 import sys
 from optparse import OptionParser
 
 from hydrat.tools import parse_metatags
-from hydrat.store import UniversalStore
+from hydrat.store import Store
 
 if __name__ == "__main__":
   usage = "usage: %prog [options] filename"
@@ -19,7 +20,7 @@ if __name__ == "__main__":
   else: 
     parser.error("Incorrect number of arguments")
 
-  store = UniversalStore(path) 
+  store = Store(path) 
 
   # List datasets
   print store

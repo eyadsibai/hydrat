@@ -5,3 +5,4 @@
   - OnlineSharedTask - Implements an "annotation server" of sorts. Alot like unseenclassification. Are they the same?
   	  issues:
   	    # How do we ensure consistency of tokenization? Looks like we need tokenizers to export metadata, and we need a tokenizer registry, so we can find them!
+- Update the featureinteraction framework to make it more approachable.

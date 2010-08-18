@@ -14,7 +14,7 @@ from itertools import combinations
 
 import hydrat
 import hydrat.display.summary_fns as sf
-from hydrat.store import open_store, UniversalStore, StoreError
+from hydrat.store import open_store, StoreError
 from hydrat.preprocessor.model.inducer.dataset import DatasetInducer
 from hydrat.task.sampler import CrossValidate
 from hydrat.preprocessor.features.transform import union

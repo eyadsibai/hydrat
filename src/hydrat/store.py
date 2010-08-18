@@ -27,47 +27,26 @@ class NoData(StoreError): pass
 class AlreadyHaveData(StoreError): pass
 class InsufficientMetadata(StoreError): pass
 
-def initialize(path, overwrite=False):
-  """ Initialize a Store object.
-  This is separate from Store.__init__ because the Store constructor
-  is used to open an existing store as well.
+# Features are internally stored as sparse arrays, which are serialized at the
+# pytables level to tables of instance, feature, value triplets. We support
+# both Integer and Real features.
 
-  ..todo: Refactor this back into Store, deteching if we are starting a new store
-  """
-  if not overwrite and os.path.exists(path):
-    raise IOError, "Refusing to overwrite existing file at %s" % path
-  store = Store(path, mode = 'w')
-  logger.debug("Creating 'datasets'")
-  store.fileh.createGroup( store.root
-                        , 'datasets'
-                        , 'Per-dataset Data'
-                        )
+class IntFeature(tables.IsDescription):
+  instance_index = tables.UInt64Col()
+  feature_index  = tables.UInt64Col()
+  value          = tables.UInt64Col()
 
-  logger.debug("Creating 'spaces'")
-  store.fileh.createGroup( store.root
-                        , 'spaces'
-                        , 'Space Information'
-                        )
+class RealFeature(tables.IsDescription):
+  instance_index = tables.UInt64Col()
+  feature_index  = tables.UInt64Col()
+  value          = tables.Float64Col()
 
-  logger.debug("Creating 'tasksets'")
-  store.fileh.createGroup( store.root
-                        , 'tasksets'
-                        , 'TaskSet Data'
-                        )
 
-  logger.debug("Creating 'results'")
-  store.fileh.createGroup( store.root
-                        , 'results'
-                        , 'TaskSetResult Data'
-                        )
-
-def open_store(path=None, mode='r'):
-  """ Convenience function to create a store on demand if needed"""
-  try:
-    initialize(path, overwrite=False)
-  except IOError:
-    pass
-  return UniversalStore(path, mode=mode)
+"""
+TODO:
+  Refactor the different store types into a single master store object.
+  We never used the diversity anyway.
+"""
 
 class Store(object):
   """
@@ -75,12 +54,59 @@ class Store(object):
   to and from disk.
   """
   def __init__(self, path=None, mode='r', default_path = 'store'):
+    """
+    The store object has four major nodes:
+    # spaces
+    # datasets
+    # tasksets
+    # results
+
+    The __init__ constructor for Store instances assumes that the store has already
+    been initialized, and that the four major nodes exist.
+
+    """
     self.path = os.path.join(config.get('paths','work'), default_path) if path is None else path
     self.fileh = tables.openFile(self.path, mode=mode)
     self.mode = mode
     logger.debug("Opening Store at '%s', mode '%s'", self.path, mode)
     self.root = self.fileh.root
-    super(Store, self).__init__()
+
+    try:
+      self.datasets = self.root.datasets
+    except tables.exceptions.NoSuchNodeError:
+      self._check_writeable()
+      self.datasets = self.fileh.createGroup( self.root
+                            , 'datasets'
+                            , 'Per-dataset Data'
+                            )
+
+    try:
+      self.spaces = self.root.spaces
+    except tables.exceptions.NoSuchNodeError:
+      self._check_writeable()
+      self.spaces = self.fileh.createGroup( self.root
+                            , 'spaces'
+                            , 'Space Information'
+                            )
+
+    try:
+      self.tasksets = self.root.tasksets
+    except tables.exceptions.NoSuchNodeError:
+      self._check_writeable()
+      self.tasksets = self.fileh.createGroup( self.root
+                            , 'tasksets'
+                            , 'TaskSet Data'
+                            )
+
+    try:
+      self.results = self.root.results
+    except tables.exceptions.NoSuchNodeError:
+      self._check_writeable()
+      self.results = self.fileh.createGroup( self.root
+                            , 'results'
+                            , 'TaskSetResult Data'
+                            )
+
 
   def __del__(self):
     self.fileh.close()
@@ -134,12 +160,6 @@ class Store(object):
         feature.append()
     self.fileh.flush()
     
-
-class SpaceStore(Store):
-  def __init__(self, *args, **kwargs):
-    super(SpaceStore, self).__init__(*args, **kwargs)
-    self.spaces = self.root.spaces
-
   def resolve_Space(self, desired_metadata):
     """
     Uniquely resolve a single space
@@ -167,9 +187,12 @@ class SpaceStore(Store):
 
     return tags
 
-  #TODO: Use co-operative super stuff to make this awesome
   def get_Metadata(self, tag):
     """
+    ..todo:
+      this needs to be rewritten, possibly as two separate methods.
+      Does it really make sense that datasets and spaces share the same
+      tag namespace for metadata?
     @param tag: Identifier of the relevant space
     @type tag: uuid
     @rtype: dict of metadata key-value pairs
@@ -317,21 +340,6 @@ class SpaceStore(Store):
     self.fileh.flush()
 
     return space_tag
-
-class IntFeature(tables.IsDescription):
-  instance_index = tables.UInt64Col()
-  feature_index  = tables.UInt64Col()
-  value          = tables.UInt64Col()
-
-class RealFeature(tables.IsDescription):
-  instance_index = tables.UInt64Col()
-  feature_index  = tables.UInt64Col()
-  value          = tables.Float64Col()
-
-class DatasetStore(SpaceStore):
-  def __init__(self, *args, **kwargs):
-    super(DatasetStore, self).__init__(*args, **kwargs)
-    self.datasets = self.root.datasets
 
   def list_Datasets(self):
     datasets = set()
@@ -623,12 +631,6 @@ class DatasetStore(SpaceStore):
     cm_node[:] = class_map
     cm_node.flush()
                                
-
-class TaskStore(Store):
-  def __init__(self, *args, **kwargs):
-    super(TaskStore, self).__init__(*args, **kwargs)
-    self.tasksets = self.root.tasksets
-
   def add_TaskSet(self, taskset, additional_metadata={}):
     self._check_writeable()
     try:
@@ -760,11 +762,6 @@ class TaskStore(Store):
         desired_keys.append(node)
     return desired_keys
 
-class ResultStore(SpaceStore):
-  def __init__(self, *args, **kwargs):
-    super(ResultStore, self).__init__(*args, **kwargs)
-    self.results = self.root.results
-
   def get_TaskSetResult(self, desired_metadata):
     """ Convenience function to bypass tag resolution """
     tags = self._resolve_TaskSetResults(desired_metadata)
@@ -853,9 +850,3 @@ class ResultStore(SpaceStore):
     self.fileh.createArray(result_entry, 'classifications', result.classifications)
     self.fileh.createArray(result_entry, 'goldstandard', result.goldstandard)
     self.fileh.createArray(result_entry, 'instance_indices', result.instance_indices)
-
-
-class UniversalStore(DatasetStore, TaskStore, ResultStore):
-  def __init__(self, *args, **kwargs):
-    super(UniversalStore, self).__init__(*args, **kwargs)
-

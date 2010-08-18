@@ -8,7 +8,7 @@ from hydrat.display.tsr import render_TaskSetResult
 from hydrat.result.interpreter import SingleHighestValue, NonZero, SingleLowestValue
 from hydrat.display.html import TableSort 
 from hydrat.preprocessor.model.inducer.dataset import DatasetInducer
-from hydrat.store import open_store, UniversalStore, StoreError, NoData
+from hydrat.store import Store, StoreError, NoData
 from hydrat.display.summary_fns import sf_featuresets
 from hydrat.display.html import TableSort 
 from hydrat.display.tsr import result_summary_table
@@ -51,7 +51,7 @@ class Framework(object):
     
     init_workdir(self.work_path, ["output"])
     self.outputP  = os.path.join(self.work_path, 'output')
-    self.store = open_store(os.path.join(self.work_path,'store.h5'), 'a')
+    self.store = Store(os.path.join(self.work_path,'store.h5'), 'a')
 
     self.feature_space = None
     self.class_space = None
