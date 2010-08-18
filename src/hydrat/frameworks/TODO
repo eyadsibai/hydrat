@@ -1,0 +1,7 @@
+- Set up an unseenclassification framework, whereby we learn on an entire dataset, and then classify new instances
+- Set up two additional frameworks:
+	- OfflineSharedTask - to work with train/dev/test datasets. Should consider how to enable the addition of dev and test at later date than train. might require some
+		  cleverness at the store level.
+  - OnlineSharedTask - Implements an "annotation server" of sorts. Alot like unseenclassification. Are they the same?
+  	  issues:
+  	    # How do we ensure consistency of tokenization? Looks like we need tokenizers to export metadata, and we need a tokenizer registry, so we can find them!
