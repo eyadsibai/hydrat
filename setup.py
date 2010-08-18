@@ -14,6 +14,7 @@ version = '0.9.1.1'
 install_requires =\
   [ 'progressbar==2.2'
   , 'cmdln==1.1.2'
+  , 'updatedir>=0.1'
   , 'numpy'
   , 'scipy'
   , 'tables'

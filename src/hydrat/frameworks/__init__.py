@@ -117,20 +117,17 @@ class Framework(object):
       raise ValueError, "learner not yet set"
     run_experiment(self.taskset, self.learner, self.store)
 
-
-  def generate_output(self):
+  def generate_output(self, summary_fn=sf_featuresets):
     """
-    .. todo:
-      Allow the path to generate output to to be speficied. Or maybe use a file-like object
-      The ultimate aim is to allow us to write to files on remote machines. Like hum!
-      It can't be a file-like object because we need to write multiple files in a directory.
-      Maybe an underlying sshfs mount could do the trick?
+    Generate HTML output
     """
+    #import tempfile
+    #temp_output_path = tempfile.mkdtemp(dir=hydrat.config.getpath('paths','scratch'))
     summaries = process_results\
       ( self.store 
       , self.store
-      , summary_fn=sf_featuresets
-      , output_path=self.outputP
+      , summary_fn = summary_fn
+      , output_path= self.outputP
       ) 
 
     # render a HTML version of the summaries
@@ -141,6 +138,17 @@ class Framework(object):
     indexpath = os.path.join(self.outputP, 'index.html')
     with TableSort(open(indexpath, "w")) as renderer:
       result_summary_table(summaries, renderer, relevant = relevant)
+
+    #return temp_output_path
+
+  def upload_output(self, target):
+    """
+    Copy output to a sepecified destination.
+    Useful for transferring results to a webserver
+    """
+    import updatedir
+    updatedir.updatetree(self.outputP, target)
+    
 
 def init_workdir(path, newdirs=["models","tasks","results","output"]):
   """ Initialize the working directory, where various intermediate files will be stored.
