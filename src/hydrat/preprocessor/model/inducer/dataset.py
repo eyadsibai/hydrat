@@ -92,7 +92,7 @@ class DatasetInducer(object):
       logger.debug("Creating a new space")
       space_tag = self.store.add_Space(feat_labels, metadata)
 
-    instance_ids = self.store.instance_identifiers(ds_tag)
+    instance_ids = self.store.get_InstanceIds(ds_tag)
     assert set(instance_ids) == set(feat_dict.keys())
 
     n_inst = len(feat_dict)
@@ -130,7 +130,7 @@ class DatasetInducer(object):
       class_name = self.store.get_Metadata(class_tag)['name']
       raise ValueError, "Already have data for dataset '%s' in space '%s'"% (ds_tag, class_name)
 
-    instance_ids = self.store.instance_identifiers(ds_tag)
+    instance_ids = self.store.get_InstanceIds(ds_tag)
     class_map = class_matrix(docclassmap, instance_ids, classlabels)
     self.store.add_ClassMap(ds_tag, class_tag, class_map)
 

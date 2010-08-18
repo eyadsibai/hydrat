@@ -111,6 +111,10 @@ class Store(object):
   def __del__(self):
     self.fileh.close()
 
+  ###
+  # Utility Methods
+  ###
+
   def _check_writeable(self):
     if self.mode not in "wa":
       raise IOError, "Store is not writeable!"
@@ -159,108 +163,10 @@ class Store(object):
         feature['value'] = v
         feature.append()
     self.fileh.flush()
-    
-  def resolve_Space(self, desired_metadata):
-    """
-    Uniquely resolve a single space
-    """
-    spaces = self.resolve_Spaces(desired_metadata)
-    if spaces == []:
-      raise NoData, "No space matching given metadata"
-    elif len(spaces) > 1:
-      raise InsufficientMetadata, "%d spaces matching given metadata" % len(spaces)
-    else:
-      return spaces[0]
-
-  def resolve_Spaces(self, desired_metadata):
-    """
-    Linear search for matching spaces
-    @param desired_metadata: key-value pairs that the desired space must satisfy
-    @type desired_metadata: dict
-    @return: tags corresponding to spaces with the desired metadata
-    @rtype: list of strings
-    """
-    tags = []
-    for space in self.spaces:
-      if metadata_matches(space.attrs, desired_metadata):
-        tags.append(space._v_name)
-
-    return tags
-
-  def get_Metadata(self, tag):
-    """
-    ..todo:
-      this needs to be rewritten, possibly as two separate methods.
-      Does it really make sense that datasets and spaces share the same
-      tag namespace for metadata?
-    @param tag: Identifier of the relevant space
-    @type tag: uuid
-    @rtype: dict of metadata key-value pairs
-    """
-    tag = str(tag)
-    if hasattr(self.spaces, tag):
-      space = getattr(self.spaces, tag)
-      metadata = dict(   (key, getattr(space._v_attrs,key)) 
-                    for  key 
-                    in   space._v_attrs._v_attrnamesuser
-                    )
-      return metadata
-    elif hasattr(self.datasets, tag):
-      ds = getattr(self.datasets, tag)
-      metadata = dict(   (key, getattr(ds._v_attrs,key)) 
-                    for  key 
-                    in   ds._v_attrs._v_attrnamesuser
-                    )
-      return metadata
-    else:
-      raise StoreError, "Unknown tag %s" % tag
-
-  def get_Space(self, tag):
-    """
-    @param tag: Identifier of the relevant space
-    @type tag: uuid
-    @rtype: pytables array
-    """
-    space = getattr(self.spaces, str(tag))
-    metadata = self.get_Metadata(tag)
-    data = space.read()
-    try:
-      encoding = metadata['encoding']
-    except KeyError:
-      logger.warning('Space %s does not have encoding data!', tag)
-      encoding = 'nil'
-    if encoding != 'nil' and encoding != 'ascii':
-      data = [ d.decode(encoding) for d in data ]
-    return data
-
-  def list_ClassSpaces(self, dsname = None):
-    tags = None
-    if dsname is not None:
-      ds_tag = self.resolve_Dataset(dsname)
-      ds = getattr(self.datasets, ds_tag)
-      tags = set(node._v_name for node in ds.class_data)
-    s = set()
-    for space in self.spaces:
-      if tags is None and space._v_attrs.type == 'class':
-        s.add(space._v_attrs.name)
-      elif tags is not None and space._v_name in tags:
-        s.add(space._v_attrs.name)
-    return s
-
-  def list_FeatureSpaces(self, dsname = None):
-    tags = None
-    if dsname is not None:
-      ds_tag = self.resolve_Dataset(dsname)
-      ds = getattr(self.datasets, ds_tag)
-      tags = set(node._v_name for node in ds.feature_data)
-    s = set()
-    for space in self.spaces:
-      if tags is None and space._v_attrs.type == 'feature':
-        s.add(space._v_attrs.name)
-      elif tags is not None and space._v_name in tags:
-        s.add(space._v_attrs.name)
-    return s
   
+  ###
+  # Add
+  ###
   def add_Space(self, labels, desired_metadata):
     self._check_writeable()
     try:
@@ -341,131 +247,6 @@ class Store(object):
 
     return space_tag
 
-  def list_Datasets(self):
-    datasets = set()
-    for ds in self.datasets:
-      datasets.add(ds._v_attrs.name)
-    return datasets
-
-  def resolve_Dataset(self, dsname):
-    """
-    Resolve a dataset name to its uuid.
-    Linear search, assumes dataset names are unique.
-    @param dsname: Name of dataset required
-    @type dsname: string
-    @return dataset's uuid tag 
-    """
-    for ds in self.datasets:
-      if ds._v_attrs.name == dsname:
-        return ds._v_name
-
-    raise NoData, 'No dataset %s' % dsname
-       
-  def instance_identifiers(self, ds_tag):
-    """
-    @param ds_tag: Tag obtained from resolve_Dataset
-    @return: Instance identifiers for dataset
-    @rtype: List of strings
-    """
-    ds = getattr(self.datasets, str(ds_tag))
-    return [ i.decode() for i in ds.instance_id ]
-
-  def has_Data(self, ds_tag, space_tag):
-    ds = getattr(self.datasets, str(ds_tag))
-    return (  hasattr(ds.class_data,   str(space_tag)) 
-           or hasattr(ds.feature_data, str(space_tag))
-           )
-
-  def get_ClassMap(self, ds_tag, space_tag):
-    """
-    @param ds_tag: Tag obtained from resolve_Dataset
-    @param space_tag: Tag obtained from resolve_Space
-    @return: data corresponding to the given dataset in the given class space
-    @rtype: pytables array
-    """
-    ds = getattr(self.datasets, str(ds_tag))
-    try:
-      class_node = getattr(ds.class_data, str(space_tag)) 
-      data = getattr(class_node, 'class_map')
-    except AttributeError:
-      raise NoData
-
-    metadata = dict()
-    metadata['dataset_uuid'] = ds_tag
-    metadata['class_uuid']   = space_tag
-    return ClassMap(data.read(), metadata)
-
-  def get_FeatureMap(self, ds_tag, space_tag):
-    """
-    @param ds_tag: Tag obtained from resolve_Dataset
-    @param space_tag: Tag obtained from resolve_Space
-    @return: data corresponding to the given dataset in the given feature space
-    @rtype: varies 
-    """
-    ds = getattr(self.datasets, str(ds_tag))
-    space = self.get_Space(space_tag)
-    try:
-      feature_node = getattr(ds.feature_data, str(space_tag)) 
-    except AttributeError:
-      raise NoData
-
-    if feature_node._v_attrs.dense:
-      raise StoreError, "Should not be encountering dense FeatureData!"
-
-    data_type = feature_node._v_attrs.type
-    logger.debug("Returning SPARSE matrix of type %s", data_type)
-    fm = getattr(feature_node, 'feature_map')
-    n_inst = len(ds.instance_id) 
-    n_feat = len(space)
-    m = self._read_sparse_node(fm,shape=(n_inst, n_feat))
-    metadata = dict(dataset_uuid=ds_tag, feature_uuid=space_tag)
-    return FeatureMap(m, metadata) 
-
-  def get_SizeData(self, ds_tag, space_tag):
-    """
-    TODO: Generalize this to getInstanceWeightData, which is a vector we can use
-    to weight instances in a given feature space. For token-based spaces, this 
-    represents the number of tokens in the space.
-
-    @param ds_tag: Tag obtained from resolve_Dataset
-    @param space_tag: Tag obtained from resolve_Space
-    @return: data corresponding to the size of each instance in this space
-    @rtype: pytables array
-    """
-    ds = getattr(self.datasets, str(ds_tag))
-    try:
-      feature_node = getattr(ds.feature_data, str(space_tag)) 
-      data = getattr(feature_node, 'instance_size')
-    except AttributeError:
-      raise NoData
-    return data.read()
-
-  def get_Data(self, dsname, space_metadata):
-    """
-    Convenience method which combines the tag resolution step
-    with the data access step.
-    """
-    ds_tag = self.resolve_Dataset(dsname)
-
-    space_tag = self.resolve_Space(space_metadata)
-    s_type = space_metadata['type']
-    s_name = space_metadata['name']
-
-    if s_type == 'class':
-      data = self.get_ClassMap(ds_tag, space_tag)
-      ds_meta = self.get_Metadata(ds_tag)
-      cl_meta = self.get_Metadata(space_tag)
-      data.metadata['dataset']      = ds_meta['name']
-      data.metadata['class_name']   = cl_meta['name']
-    elif s_type == 'feature':
-      data = self.get_FeatureMap(ds_tag, space_tag)
-      data.metadata['feature_desc']+= (s_name,)
-    else:
-      raise StoreError, "Unknown data type: %s" % s_type
-
-    logger.debug("Retrieved %s data for '%s' in space '%s'", s_type, dsname, s_name)
-    return data 
-
   def add_Dataset(self, instance_ids, name):
     self._check_writeable()
     try:
@@ -534,7 +315,7 @@ class Store(object):
                                     )
 
     # Initialize space to store instance sizes.
-    n_inst = len(self.instance_identifiers(ds_tag))
+    n_inst = len(self.get_InstanceIds(ds_tag))
     instance_sizes = numpy.zeros(n_inst, dtype='uint64')
     
     attrs = fm_node._v_attrs
@@ -658,6 +439,243 @@ class Store(object):
     self.fileh.flush()
 
     return taskset_entry_tag
+
+  ###
+  # Resolve
+  ###
+  def resolve_Space(self, desired_metadata):
+    """
+    Uniquely resolve a single space
+    """
+    spaces = self.resolve_Spaces(desired_metadata)
+    if spaces == []:
+      raise NoData, "No space matching given metadata"
+    elif len(spaces) > 1:
+      raise InsufficientMetadata, "%d spaces matching given metadata" % len(spaces)
+    else:
+      return spaces[0]
+
+  def resolve_Spaces(self, desired_metadata):
+    """
+    Linear search for matching spaces
+    @param desired_metadata: key-value pairs that the desired space must satisfy
+    @type desired_metadata: dict
+    @return: tags corresponding to spaces with the desired metadata
+    @rtype: list of strings
+    """
+    tags = []
+    for space in self.spaces:
+      if metadata_matches(space.attrs, desired_metadata):
+        tags.append(space._v_name)
+
+    return tags
+
+  def resolve_Dataset(self, dsname):
+    """
+    Resolve a dataset name to its uuid.
+    Linear search, assumes dataset names are unique.
+    @param dsname: Name of dataset required
+    @type dsname: string
+    @return dataset's uuid tag 
+    """
+    for ds in self.datasets:
+      if ds._v_attrs.name == dsname:
+        return ds._v_name
+
+    raise NoData, 'No dataset %s' % dsname
+
+  ###
+  # List
+  ###
+  def list_ClassSpaces(self, dsname = None):
+    tags = None
+    if dsname is not None:
+      ds_tag = self.resolve_Dataset(dsname)
+      ds = getattr(self.datasets, ds_tag)
+      tags = set(node._v_name for node in ds.class_data)
+    s = set()
+    for space in self.spaces:
+      if tags is None and space._v_attrs.type == 'class':
+        s.add(space._v_attrs.name)
+      elif tags is not None and space._v_name in tags:
+        s.add(space._v_attrs.name)
+    return s
+
+  def list_FeatureSpaces(self, dsname = None):
+    tags = None
+    if dsname is not None:
+      ds_tag = self.resolve_Dataset(dsname)
+      ds = getattr(self.datasets, ds_tag)
+      tags = set(node._v_name for node in ds.feature_data)
+    s = set()
+    for space in self.spaces:
+      if tags is None and space._v_attrs.type == 'feature':
+        s.add(space._v_attrs.name)
+      elif tags is not None and space._v_name in tags:
+        s.add(space._v_attrs.name)
+    return s
+  
+  def list_Datasets(self):
+    datasets = set()
+    for ds in self.datasets:
+      datasets.add(ds._v_attrs.name)
+    return datasets
+
+
+  ###
+  # Get
+  ###
+  def get_Metadata(self, tag):
+    """
+    ..todo:
+      this needs to be rewritten, possibly as two separate methods.
+      Does it really make sense that datasets and spaces share the same
+      tag namespace for metadata?
+    @param tag: Identifier of the relevant space
+    @type tag: uuid
+    @rtype: dict of metadata key-value pairs
+    """
+    tag = str(tag)
+    if hasattr(self.spaces, tag):
+      space = getattr(self.spaces, tag)
+      metadata = dict(   (key, getattr(space._v_attrs,key)) 
+                    for  key 
+                    in   space._v_attrs._v_attrnamesuser
+                    )
+      return metadata
+    elif hasattr(self.datasets, tag):
+      ds = getattr(self.datasets, tag)
+      metadata = dict(   (key, getattr(ds._v_attrs,key)) 
+                    for  key 
+                    in   ds._v_attrs._v_attrnamesuser
+                    )
+      return metadata
+    else:
+      raise StoreError, "Unknown tag %s" % tag
+
+  def get_Space(self, tag):
+    """
+    @param tag: Identifier of the relevant space
+    @type tag: uuid
+    @rtype: pytables array
+    """
+    space = getattr(self.spaces, str(tag))
+    metadata = self.get_Metadata(tag)
+    data = space.read()
+    try:
+      encoding = metadata['encoding']
+    except KeyError:
+      logger.warning('Space %s does not have encoding data!', tag)
+      encoding = 'nil'
+    if encoding != 'nil' and encoding != 'ascii':
+      data = [ d.decode(encoding) for d in data ]
+    return data
+
+  def get_InstanceIds(self, ds_tag):
+    """
+    @param ds_tag: Tag obtained from resolve_Dataset
+    @return: Instance identifiers for dataset
+    @rtype: List of strings
+    """
+    ds = getattr(self.datasets, str(ds_tag))
+    return [ i.decode() for i in ds.instance_id ]
+
+  def has_Data(self, ds_tag, space_tag):
+    ds = getattr(self.datasets, str(ds_tag))
+    return (  hasattr(ds.class_data,   str(space_tag)) 
+           or hasattr(ds.feature_data, str(space_tag))
+           )
+
+  def get_ClassMap(self, ds_tag, space_tag):
+    """
+    @param ds_tag: Tag obtained from resolve_Dataset
+    @param space_tag: Tag obtained from resolve_Space
+    @return: data corresponding to the given dataset in the given class space
+    @rtype: pytables array
+    """
+    ds = getattr(self.datasets, str(ds_tag))
+    try:
+      class_node = getattr(ds.class_data, str(space_tag)) 
+      data = getattr(class_node, 'class_map')
+    except AttributeError:
+      raise NoData
+
+    metadata = dict()
+    metadata['dataset_uuid'] = ds_tag
+    metadata['class_uuid']   = space_tag
+    return ClassMap(data.read(), metadata)
+
+  def get_FeatureMap(self, ds_tag, space_tag):
+    """
+    @param ds_tag: Tag obtained from resolve_Dataset
+    @param space_tag: Tag obtained from resolve_Space
+    @return: data corresponding to the given dataset in the given feature space
+    @rtype: varies 
+    """
+    ds = getattr(self.datasets, str(ds_tag))
+    space = self.get_Space(space_tag)
+    try:
+      feature_node = getattr(ds.feature_data, str(space_tag)) 
+    except AttributeError:
+      raise NoData
+
+    if feature_node._v_attrs.dense:
+      raise StoreError, "Should not be encountering dense FeatureData!"
+
+    data_type = feature_node._v_attrs.type
+    logger.debug("Returning SPARSE matrix of type %s", data_type)
+    fm = getattr(feature_node, 'feature_map')
+    n_inst = len(ds.instance_id) 
+    n_feat = len(space)
+    m = self._read_sparse_node(fm,shape=(n_inst, n_feat))
+    metadata = dict(dataset_uuid=ds_tag, feature_uuid=space_tag)
+    return FeatureMap(m, metadata) 
+
+  def get_SizeData(self, ds_tag, space_tag):
+    """
+    TODO: Generalize this to getInstanceWeightData, which is a vector we can use
+    to weight instances in a given feature space. For token-based spaces, this 
+    represents the number of tokens in the space.
+
+    @param ds_tag: Tag obtained from resolve_Dataset
+    @param space_tag: Tag obtained from resolve_Space
+    @return: data corresponding to the size of each instance in this space
+    @rtype: pytables array
+    """
+    ds = getattr(self.datasets, str(ds_tag))
+    try:
+      feature_node = getattr(ds.feature_data, str(space_tag)) 
+      data = getattr(feature_node, 'instance_size')
+    except AttributeError:
+      raise NoData
+    return data.read()
+
+  def get_Data(self, dsname, space_metadata):
+    """
+    Convenience method which combines the tag resolution step
+    with the data access step.
+    """
+    ds_tag = self.resolve_Dataset(dsname)
+
+    space_tag = self.resolve_Space(space_metadata)
+    s_type = space_metadata['type']
+    s_name = space_metadata['name']
+
+    if s_type == 'class':
+      data = self.get_ClassMap(ds_tag, space_tag)
+      ds_meta = self.get_Metadata(ds_tag)
+      cl_meta = self.get_Metadata(space_tag)
+      data.metadata['dataset']      = ds_meta['name']
+      data.metadata['class_name']   = cl_meta['name']
+    elif s_type == 'feature':
+      data = self.get_FeatureMap(ds_tag, space_tag)
+      data.metadata['feature_desc']+= (s_name,)
+    else:
+      raise StoreError, "Unknown data type: %s" % s_type
+
+    logger.debug("Retrieved %s data for '%s' in space '%s'", s_type, dsname, s_name)
+    return data 
+
 
   def new_TaskSet(self, taskset):
     """Convenience method which checks no previous taskset has matching 
