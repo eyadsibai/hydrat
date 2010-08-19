@@ -6,6 +6,8 @@ that take TextDataset objects, and produce standard Result objects, which can
 then be evaluated using all the usual metrics, and have their results included 
 with results from the hydrat-managed classifications.
 """
+# TODO: UPDATE!!
+raise NotImplementedError, "Need to update this to the new store structre"
 import time
 import random
 import numpy
@@ -115,10 +117,9 @@ def process(store, cache, classif, ds, class_name, seed = None, repeat = False):
   data = [ text[i] for i in store.instance_identifiers(ds_tag) ]
 
   tsr_metadata = { 'dataset' : ds.__name__
-                 , 'class_name' : class_name
-                 , 'class_uuid' : space_tag 
-                 , 'feature_name' : 'EXTERNAL'
-                 , 'dataset_uuid' : ds_tag
+                 , 'class_space' : class_name
+                 , 'feature_desc' : '(,EXTERNAL)'
+                 , 'dataset' : ds_tag
                  , 'classifier' : classif.__name__
                  , 'seed' : seed
                  }

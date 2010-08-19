@@ -98,8 +98,8 @@ class Result(RichComparisonMixin):
     """
     metadata_conditons = [    self.metadata[c] == other.metadata[c]
                         for  c
-                        in   [ "class_uuid"
-                             , "dataset_uuid"
+                        in   [ "class_space"
+                             , "dataset"
                              , "classifier"
                              , "feature_desc"
                              , "task_type"

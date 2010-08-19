@@ -163,11 +163,11 @@ def init_workdir(path, newdirs=["models","tasks","results","output"]):
       os.mkdir(os.path.join(path,dir))
 
 def run_experiment(taskset, learner, result_store):
-  keys = [ 'dataset_uuid'
+  keys = [ 'dataset'
          , 'feature_desc'
          , 'task_type'
          , 'rng_state'
-         , 'class_uuid'
+         , 'class_space'
          ]
   m = dict( (k,taskset.metadata[k]) for k in keys )
   m['learner'] = learner.__name__
@@ -218,7 +218,7 @@ def process_results( data_store
         logger.debug("Processing %s --> %s",resname,resultpath_rel)
         with TableSort(open(resultpath_rel, 'w')) as result_renderer:
           result_renderer.section(resname) 
-          class_space = data_store.get_Space(result.metadata['class_uuid'])
+          class_space = data_store.get_Space(result.metadata['class_space'])
           render_TaskSetResult(result_renderer, result, class_space, interpreter, summary)
   return summaries
       

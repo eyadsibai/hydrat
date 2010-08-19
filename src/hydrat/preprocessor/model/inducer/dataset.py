@@ -17,12 +17,11 @@ class DatasetInducer(object):
     dsname = dataset.__name__
 
     # Work out if this is the first time we encounter this dataset
-    try:
-      ds_tag = self.store.resolve_Dataset(dsname)
+    if hasattr(self.store.datasets, dsname):
       logger.debug("Already had dataset '%s'", dsname)
-    except NoData:
+    else:
       logger.debug("Adding new dataset '%s'", dsname)
-      ds_tag = self.store.add_Dataset(dataset.instance_ids, dsname)
+      self.store.add_Dataset(dsname, dataset.instance_ids)
 
     # Work out which feature maps and/or class maps we have been asked to process
     def as_set(s):
@@ -53,7 +52,7 @@ class DatasetInducer(object):
     for key in cms - present_cm:
       logger.debug("Processing class map '%s'", key)
       try:
-        self.add_Classmap(ds_tag, key, dataset.classmap(key))
+        self.add_Classmap(dsname, key, dataset.classmap(key))
       except AlreadyHaveData,e :
         logger.debug(e)
 
@@ -62,14 +61,14 @@ class DatasetInducer(object):
       logger.debug("Processing feature map '%s'", key)
 
       try:
-        self.add_Featuremap(ds_tag, key, dataset.featuremap(key))
+        self.add_Featuremap(dsname, key, dataset.featuremap(key))
       except AlreadyHaveData,e :
         logger.warning(e)
         # TODO: Why are we calling pdb for this?
         import pdb;pdb.post_mortem()
   
-  def add_Featuremap(self, ds_tag, name, feat_dict):
-    metadata = {'type':'feature','name':name}
+  def add_Featuremap(self, dsname, space_name, feat_dict):
+    metadata = {'type':'feature','name':space_name}
 
     # One pass to compute the full set of features
     logger.debug("Computing Feature Set")
@@ -78,21 +77,20 @@ class DatasetInducer(object):
 
     # Handle the feature space information
     try:
-      space_tag = self.store.resolve_Space(metadata)
+      space = self.store.get_Space(space_name)
       logger.debug("Extending a previous space")
-      space = self.store.get_Space(space_tag)
       new_labels = list(feat_labels - set(space))
       new_labels.sort()
       feat_labels = space
       feat_labels.extend(new_labels)
-      space_tag = self.store.extend_Space(feat_labels, space_tag)
+      space_tag = self.store.extend_Space(space_name, feat_labels)
     except NoData:
       feat_labels = list(feat_labels)
       feat_labels.sort()
       logger.debug("Creating a new space")
-      space_tag = self.store.add_Space(feat_labels, metadata)
+      self.store.add_Space(feat_labels, metadata)
 
-    instance_ids = self.store.get_InstanceIds(ds_tag)
+    instance_ids = self.store.get_InstanceIds(dsname)
     assert set(instance_ids) == set(feat_dict.keys())
 
     n_inst = len(feat_dict)
@@ -109,28 +107,26 @@ class DatasetInducer(object):
         feat_map.append((i,j,feat_dict[id][feat]))
 
     logger.debug("Adding map to store")
-    self.store.add_FeatureDict(ds_tag, space_tag, feat_map)
+    self.store.add_FeatureDict(dsname, space_name, feat_map)
 
-  def add_Classmap(self, ds_tag, name, docclassmap):
+  def add_Classmap(self, dsname, space_name, docclassmap):
     classlabels = reduce(set.union, (set(d) for d in docclassmap.values()))
-    c_metadata = {'type':'class','name':name}
+    c_metadata = {'type':'class','name':space_name}
     try:
-      class_tag = self.store.resolve_Space(c_metadata)
-      c_space = self.store.get_Space(class_tag)
-      #TODO: Being a subset of a stored space is OK!!!
+      c_space = self.store.get_Space(space_name)
+      #TODO: Being a subset of a stored space is OK!!! - has this been sorted?
       if not classlabels <= set(c_space):
         raise ValueError, "Superfluous classes: %s" % (classlabels - set(c_space))
       # Replace with the stored one, as ordering is important
       classlabels = c_space
     except NoData:
       classlabels = sorted(classlabels)
-      class_tag = self.store.add_Space(classlabels, c_metadata)
+      self.store.add_Space(classlabels, c_metadata)
 
-    if self.store.has_Data(ds_tag, class_tag):
-      class_name = self.store.get_Metadata(class_tag)['name']
-      raise ValueError, "Already have data for dataset '%s' in space '%s'"% (ds_tag, class_name)
+    if self.store.has_Data(dsname, space_name):
+      raise ValueError, "Already have data for dataset '%s' in space '%s'"% (dsname, space_name)
 
-    instance_ids = self.store.get_InstanceIds(ds_tag)
+    instance_ids = self.store.get_InstanceIds(dsname)
     class_map = class_matrix(docclassmap, instance_ids, classlabels)
-    self.store.add_ClassMap(ds_tag, class_tag, class_map)
+    self.store.add_ClassMap(dsname, space_name, class_map)
 
