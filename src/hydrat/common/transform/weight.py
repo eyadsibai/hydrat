@@ -24,24 +24,24 @@ class TFIDF(LearnlessTransformer):
     LearnlessTransformer.__init__(self)
 
   def apply(self, feature_map):
-    weighted_fm = lil_matrix(fm.raw.shape, dtype=float)
-    instance_sizes = fm.raw.sum(axis=1)
+    weighted_fm = lil_matrix(feature_map.shape, dtype=float)
+    instance_sizes = feature_map.sum(axis=1)
     
     # Frequency of each term is the sum alog axis 0
-    tf = fm.raw.sum(axis=0)
+    tf = feature_map.sum(axis=0)
     # Total number of terms in fm
     total_terms = tf.sum()
     
     #IDF for each term
-    idf = numpy.zeros(fm.raw.shape[1])
-    for f in fm.raw.nonzero()[1]:
+    idf = numpy.zeros(feature_map.shape[1])
+    for f in feature_map.nonzero()[1]:
       idf[f] += 1
               
-    for i,instance in enumerate(fm.raw):
+    for i,instance in enumerate(feature_map):
       size = instance_sizes[i]
       # For each term in the instance
       for j in instance.nonzero()[1]: 
-        v = fm.raw[i, j] 
+        v = feature_map[i, j] 
         term_freq =  float(v) / float(size) #TF        
         weighted_fm[i, j] = term_freq * idf[j] #W_{d,t}
     
