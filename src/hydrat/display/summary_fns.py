@@ -151,8 +151,8 @@ class RMSError(object):
     self.data = data
 
   def __call__(self, result, interpreter):
-    tag = result.metadata['class_uuid']
-    space = self.data.get_Space(tag)
+    space_name = result.metadata['class_space']
+    space = self.data.get_Space(space_name)
     ordering = numpy.array(space).argsort()
     matrix = result.overall_classification_matrix(interpreter)
     assert matrix.shape[0] == matrix.shape[1] == len(ordering)
@@ -191,8 +191,8 @@ class MAEError(object):
     self.data = data
 
   def __call__(self, result, interpreter):
-    tag = result.metadata['class_uuid']
-    space = self.data.get_Space(tag)
+    space_name = result.metadata['class_space']
+    space = self.data.get_Space(space_name)
     ordering = numpy.array(space).argsort()
     matrix = result.overall_classification_matrix(interpreter)
     err = mean_absolute_error(matrix, ordering)
@@ -228,8 +228,8 @@ class PerfoldClassificationMetric:
   def __call__(self, result, interpreter):
     fold_results = {}
     for r in result.raw_results:
-      tag = result.metadata['class_uuid']
-      space = self.data.get_Space(tag)
+      space_name = result.metadata['class_space']
+      space = self.data.get_Space(space_name)
       #TODO ranklist might be what we actually want!
       ordering = numpy.array(space).argsort()
       index = r.metadata['index']
