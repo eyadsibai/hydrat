@@ -117,7 +117,7 @@ class Framework(object):
       raise ValueError, "learner not yet set"
     run_experiment(self.taskset, self.learner, self.store)
 
-  def generate_output(self, summary_fn=sf_featuresets):
+  def generate_output(self, summary_fn=sf_featuresets, fields = summary_fields):
     """
     Generate HTML output
     """
@@ -131,7 +131,7 @@ class Framework(object):
       ) 
 
     # render a HTML version of the summaries
-    relevant = list(summary_fields)
+    relevant = list(fields)
     for f_name in self.dataset.featuremap_names:
       relevant.append( ({'label':f_name, 'searchable':True}, 'feat_' + f_name) )
 
@@ -147,7 +147,8 @@ class Framework(object):
     Useful for transferring results to a webserver
     """
     import updatedir
-    updatedir.updatetree(self.outputP, target)
+    updatedir.logger = logger
+    updatedir.updatetree(self.outputP, target, overwrite=True)
     
 
 def init_workdir(path, newdirs=["models","tasks","results","output"]):
