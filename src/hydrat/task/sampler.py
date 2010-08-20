@@ -22,6 +22,9 @@ def stratify(class_map):
   @type class_map: boolean class_map
   @rtype: boolean class_map
   """
+  return stratify_with_index(class_map)[0]
+
+def stratify_with_index(class_map):
   assert(class_map.dtype == 'bool')
   num_docs = class_map.shape[0]
 
@@ -45,7 +48,7 @@ def stratify(class_map):
   for doc_index, id in enumerate(strata_identifiers):
     strata_index                         = strata_indices[id]
     strata_map[doc_index, strata_index]  = True
-  return strata_map
+  return strata_map, strata_indices
 
 def allocate(strata_map, weights, probabilistic = False, rng = None):
   """
