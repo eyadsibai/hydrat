@@ -495,10 +495,10 @@ class Store(object):
   def get_DatasetMetadata(self, dsname):
     """
     @param dsname: Identifier of the relevant dataset
-    @type tag: string
+    @type dsname: string
     @rtype: dict of metadata key-value pairs
     """
-    ds = getattr(self.datasets, tag)
+    ds = getattr(self.datasets, dsname)
     metadata = dict(   (key, getattr(ds._v_attrs,key)) 
                   for  key 
                   in   ds._v_attrs._v_attrnamesuser
