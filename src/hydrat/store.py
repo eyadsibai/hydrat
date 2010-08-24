@@ -27,6 +27,8 @@ class NoData(StoreError): pass
 class AlreadyHaveData(StoreError): pass
 class InsufficientMetadata(StoreError): pass
 
+# TODO: Provide a facility for saving splits
+
 # Features are internally stored as sparse arrays, which are serialized at the
 # pytables level to tables of instance, feature, value triplets. We support
 # both Integer and Real features.
@@ -283,6 +285,12 @@ class Store(object):
     self.fileh.createGroup( ds
                           , "class_data"
                           , "Class Data"
+                          )
+
+    # Create a group for Token Streams
+    self.fileh.createGroup( ds
+                          , "tokenstreams"
+                          , "Token Streams"
                           )
 
   def add_FeatureDict(self, dsname, space_name, feat_map):
@@ -812,3 +820,22 @@ class Store(object):
     self.fileh.createArray(result_entry, 'classifications', result.classifications)
     self.fileh.createArray(result_entry, 'goldstandard', result.goldstandard)
     self.fileh.createArray(result_entry, 'instance_indices', result.instance_indices)
+     
+  ###
+  # TokenStream
+  ###
+
+  def add_TokenStreams(self, dsname, stream_name, tokenstreams):
+    dsnode = getattr(self.datasets, dsname)
+    stream_array = self.fileh.createVLArray(dsnode.tokenstreams, stream_name, tables.ObjectAtom())
+    for stream in ProgressIter(tokenstreams, label='Adding TokenStreams'):
+      stream_array.append(stream)
+
+  def get_TokenStreams(self, dsname, stream_name):
+    dsnode = getattr(self.datasets, dsname)
+    tsnode = getattr(dsnode.tokenstreams, stream_name)
+    return list(t for t in tsnode)
+
+  def list_TokenStreams(self, dsname):
+    dsnode = getattr(self.datasets, dsname)
+    return set(node._v_name for node in dsnode.tokenstreams)

@@ -2,6 +2,7 @@ import logging
 import numpy
 from hydrat.common import entropy
 from hydrat.common.transform.weighting_function import WeightingFunction
+from hydrat.common.pb import ProgressIter
 
 def bernoulli(v):
   nonzero = v.nonzero()[0]
@@ -46,10 +47,10 @@ class InfoGain(WeightingFunction):
     
     # Calculate  the entropy of the class distribution over all instances 
     H_P = entropy(overall_class_distribution)
-    self.logger.info("Overall entropy: %.2f", H_P)
+    self.logger.debug("Overall entropy: %.2f", H_P)
       
     feature_weights = numpy.zeros(feature_map.shape[1], dtype=float)
-    for i in range(len(feature_weights)):
+    for i in ProgressIter(range(len(feature_weights)), 'Calculating InfoGain'):
       H_i = 0.0
       for f_mask in self.feature_discretizer(feature_map[:,i]):
         f_count = len(f_mask) 

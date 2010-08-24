@@ -28,6 +28,8 @@ class PresetSplitFramework(Framework):
     ):
     Framework.__init__(self, dataset, work_path, rng)
     self.split = None
+    # Split name is important because it is the only way to distinguish tasks via metadata
+    self.split_name = None
 
   def set_split(self, split):
     self.notify("Setting split to '%s'" % split)
@@ -36,6 +38,7 @@ class PresetSplitFramework(Framework):
     train_ids = membership_vector(all_ids, split_raw['train'])
     test_ids = membership_vector(all_ids, split_raw['test'])
     self.split = numpy.dstack((train_ids, test_ids)).swapaxes(0,1)
+    self.split_name = split
     self.configure()
 
   def is_configurable(self):
@@ -44,7 +47,8 @@ class PresetSplitFramework(Framework):
       and self.split is not None
 
   def _generate_partitioner(self):
-    ps = PresetSplit(self.split, rng=self.rng)
+    md = {'split_name': self.split_name }
+    ps = PresetSplit(self.split, metadata=md,rng=self.rng)
     ds_name = self.dataset.__name__
     classmap = self.store.get_Data(ds_name, {'type':'class','name':self.class_space})
     partitioner = ps(classmap)

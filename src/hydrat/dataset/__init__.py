@@ -37,6 +37,11 @@ class Dataset(object):
       ret_strs.append("Splits: ")
       for s in splits:
         ret_strs.append("  %s" % s)
+    tokenstreams = list(self.tokenstream_names)
+    if len(tokenstreams) > 0:
+      ret_strs.append("TokenStreams: ")
+      for t in tokenstreams:
+        ret_strs.append("  %s" % t)
     return '\n'.join(ret_strs)
 
   def classspace(self, name):
@@ -50,6 +55,9 @@ class Dataset(object):
 
   def split(self, name):
     return getattr(self, 'sp_'+name)()
+
+  def tokenstream(self, name):
+    return getattr(self, 'ts_'+name)()
 
   def prefixed_names(self, prefix):
     for key in dir(self):
@@ -71,6 +79,10 @@ class Dataset(object):
   @property 
   def split_names(self): 
     return self.prefixed_names('sp')
+
+  @property 
+  def tokenstream_names(self): 
+    return self.prefixed_names('ts')
 
   @property
   def instance_ids(self):
