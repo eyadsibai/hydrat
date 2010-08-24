@@ -544,7 +544,10 @@ class Store(object):
     return [ i.decode() for i in ds.instance_id ]
 
   def has_Data(self, dsname, space_name):
-    ds = getattr(self.datasets, dsname)
+    try:
+      ds = getattr(self.datasets, dsname)
+    except tables.exceptions.NoSuchNodeError:
+      return False
     return (  hasattr(ds.class_data,   space_name) 
            or hasattr(ds.feature_data, space_name)
            )

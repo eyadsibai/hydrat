@@ -16,6 +16,11 @@ from hydrat.common.pb import ProgressIter
 
 logger = logging.getLogger(__name__)
 
+# TODO:
+# Implement a method for transforming tasksets, and saving the transformed taskset, including
+# handling the metadata. Should use hydrat.task.transform.transform_taskset, should be implemented
+# similar to process_tokenstream.
+
 summary_fields=\
   [ ( {'label':"Dataset", 'searchable':True}       , "dataset"       )
   , ( {'label':"Class Space",'searchable':True}     , "class_name"     )
