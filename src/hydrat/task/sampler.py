@@ -131,12 +131,13 @@ def membership_vector(superset, subset):
   return numpy.fromiter((s in subset for s in superset), dtype=bool)
   
 class PresetSplit(Sampler):
-  def __init__(self, split, rng=None):
+  def __init__(self, split, metadata={}, rng=None):
     Sampler.__init__(self, rng)
+    self.metadata = metadata
     self.split = split
 
   def sample(self, class_map):
-    metadata = dict()
+    metadata = dict(self.metadata)
     metadata['task_type'] = 'preset_split'
     metadata['rng_state'] = self.rng.get_state()
     return Partitioning(class_map, self.split, metadata) 

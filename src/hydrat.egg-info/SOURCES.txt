@@ -33,6 +33,7 @@ src/hydrat/classifier/weka.py
 src/hydrat/classifier/meta/__init__.py
 src/hydrat/classifier/meta/binary.py
 src/hydrat/classifier/meta/stacking.py
+src/hydrat/classifier/meta/stratified.py
 src/hydrat/classifier/meta/weighted.py
 src/hydrat/classifier/tree/ClassTree.py
 src/hydrat/classifier/tree/ClassTreeClassifier.py

@@ -12,6 +12,7 @@ from hydrat.store import Store, StoreError, NoData
 from hydrat.display.summary_fns import sf_featuresets
 from hydrat.display.html import TableSort 
 from hydrat.display.tsr import result_summary_table
+from hydrat.common.pb import ProgressIter
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +53,7 @@ class Framework(object):
     init_workdir(self.work_path, ["output"])
     self.outputP  = os.path.join(self.work_path, 'output')
     self.store = Store(os.path.join(self.work_path,'store.h5'), 'a')
+    self.inducer = DatasetInducer(self.store)
 
     self.feature_space = None
     self.class_space = None
@@ -74,6 +76,23 @@ class Framework(object):
     self.notify("Setting learner to '%s'" % learner)
     self.learner = learner
 
+  def process_tokenstream(self, tsname, ts_processor):
+    dsname = self.dataset.__name__
+    space_name = ts_processor.__name__
+    if not self.store.has_Data(dsname, space_name):
+      self.notify("Inducing TokenStream '%s'" % tsname)
+      # We always call this as if the ts has already been processed it is a fairly 
+      # cheap no-op
+      self.inducer.process_Dataset(self.dataset, tss=tsname)
+
+      self.notify("Reading TokenStream '%s'" % tsname)
+      tss = self.store.get_TokenStreams(dsname, tsname)
+      instance_ids = self.store.get_InstanceIds(dsname)
+      feat_dict = dict()
+      for i, id in enumerate(ProgressIter(instance_ids, 'Processing TokenStream')):
+        feat_dict[id] = ts_processor(tss[i])
+      self.inducer.add_Featuremap(dsname, space_name, feat_dict)
+
   def is_configurable(self):
     return self.feature_space is not None and self.class_space is not None
 
@@ -90,9 +109,8 @@ class Framework(object):
     raise NotImplementedError, "_generate_partitioner not implemented"
 
   def _generate_model(self):
-    inducer = DatasetInducer(self.store)
     try:
-      inducer.process_Dataset(self.dataset, self.feature_space, self.class_space)
+      self.inducer.process_Dataset(self.dataset, self.feature_space, self.class_space)
     except StoreError, e:
       self.logger.debug(e)
 
@@ -132,7 +150,7 @@ class Framework(object):
 
     # render a HTML version of the summaries
     relevant = list(fields)
-    for f_name in self.dataset.featuremap_names:
+    for f_name in self.store.list_FeatureSpaces():
       relevant.append( ({'label':f_name, 'searchable':True}, 'feat_' + f_name) )
 
     indexpath = os.path.join(self.outputP, 'index.html')
