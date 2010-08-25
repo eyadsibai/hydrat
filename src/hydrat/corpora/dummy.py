@@ -45,3 +45,38 @@ class unicode_dummy(dummy):
 class single_char_dummy(dummy):
   __name__ = "dummy-single"
   words = [u'A',u'B',u'C',u'D',u'E']
+
+class unicode_dummy_multiclass(dummy):
+  """Unicode dummy dataset with multiclass labels"""
+  __name__ = "dummy-multiclass-unicode"
+  words = [u"\N{POUND SIGN}pound",u'\N{BLACK STAR}blackstar',u'\N{WHITE STAR}whitestar']
+
+  def text(self):
+    docmap = {}
+    for i in xrange(len(self.words)):
+      for j in xrange(self.max_times):
+        docmap["%04d"%(j)+str(i)] = (self.words[i].encode('utf8') + " ") * (j+1)
+    for i in xrange(len(self.words)):
+      for j in xrange(len(self.words)):
+        for n in xrange(self.max_times):
+          docmap["%04d"%(n)+str(i)+str(j)] = (self.words[i].encode('utf8')+" "+self.words[j].encode('utf8')+" ")*(n+1)
+    for n in xrange(self.max_times):
+      docmap["%04d"%(n)+"012"] = (" ".join(self.words[i].encode('utf8') for i in xrange(len(self.words)))+" ")*(n+1)
+    import pdb
+    pdb.set_trace()
+    return docmap 
+
+  def cm_dummy_multiclass(self):
+    classmap = {}
+    for i in xrange(len(self.words)):
+      for j in xrange(self.max_times):
+        classmap["%04d"%(j)+str(i)] = [u'class' + unicode(i)]
+    for i in xrange(len(self.words)):
+      for j in xrange(len(self.words)):
+        for n in xrange(self.max_times):
+          classmap["%04d"%(n)+str(i)+str(j)] = [u'class'+unicode(i), u'class'+unicode(j)]
+    for n in xrange(self.max_times):
+      classmap["%04d"%(n)+"012"] = [u'class'+unicode(i) for i in xrange(len(self.words))]
+    return classmap
+  
+  
