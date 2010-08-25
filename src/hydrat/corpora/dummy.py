@@ -1,8 +1,8 @@
 from hydrat.dataset.text import ByteUBT
-from hydrat.dataset.encoded import CodepointUBT
+from hydrat.dataset.encoded import CodepointUBT, UTF8
 from collections import defaultdict
 
-class dummy(ByteUBT, CodepointUBT):
+class dummy(ByteUBT, CodepointUBT, UTF8):
   """Dummy backend for development use"""
   __name__ = "dummy"
   words = [u"test", u"exam", u"eggs", u"spam", u"blah"]
@@ -12,9 +12,6 @@ class dummy(ByteUBT, CodepointUBT):
     CodepointUBT.__init__(self)
     self.max_times = max_times
     self.__name__ += str(max_times)
-
-  def encodings(self):
-    return defaultdict(lambda:'utf-8')
 
   def text(self):
     docmap = {}
@@ -46,10 +43,16 @@ class single_char_dummy(dummy):
   __name__ = "dummy-single"
   words = [u'A',u'B',u'C',u'D',u'E']
 
-class unicode_dummy_multiclass(dummy):
+class unicode_dummy_multiclass(ByteUBT, CodepointUBT, UTF8):
   """Unicode dummy dataset with multiclass labels"""
   __name__ = "dummy-multiclass-unicode"
   words = [u"\N{POUND SIGN}pound",u'\N{BLACK STAR}blackstar',u'\N{WHITE STAR}whitestar']
+
+  def __init__(self, max_times = 100):
+    ByteUBT.__init__(self)
+    CodepointUBT.__init__(self)
+    self.max_times = max_times
+    self.__name__ += str(max_times)
 
   def text(self):
     docmap = {}
@@ -62,8 +65,6 @@ class unicode_dummy_multiclass(dummy):
           docmap["%04d"%(n)+str(i)+str(j)] = (self.words[i].encode('utf8')+" "+self.words[j].encode('utf8')+" ")*(n+1)
     for n in xrange(self.max_times):
       docmap["%04d"%(n)+"012"] = (" ".join(self.words[i].encode('utf8') for i in xrange(len(self.words)))+" ")*(n+1)
-    import pdb
-    pdb.set_trace()
     return docmap 
 
   def cm_dummy_multiclass(self):
