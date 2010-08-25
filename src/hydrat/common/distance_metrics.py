@@ -6,6 +6,7 @@ from numpy import concatenate
 from numpy import logical_xor
 from numpy.linalg import norm
 from hydrat.common import progress, timed_report
+from hydrat.common.pb import ProgressIter
 
 def dot(q,r):
   return (q * r.T)[0,0]
@@ -77,7 +78,8 @@ class dm_cosine(distance_metric):
  
     def report(i, t): self.logger.debug('Processing entry %d', i+1 )
 
-    for i,(p,np) in enumerate(timed_report(n_v1,10,report)):
+    piter = ProgressIter(n_v1, label = "Cosine")
+    for i,(p,np) in enumerate(timed_report(piter,10,report)):
       for j,(q,nq) in enumerate(n_v2):
         n = np * nq
         results[i,j] = numpy.dot(p,q) / n if n != 0 else 1.0
@@ -125,7 +127,8 @@ class dm_skew(distance_metric):
 
     def report(i, t): self.logger.debug('Processing entry %d', i+1 )
 
-    for i,r_p in enumerate(timed_report(n1,10,report)):
+    piter = ProgressIter(n1, label = "Skew Divergence")
+    for i,r_p in enumerate(timed_report(piter,10,report)):
       for j,(q, r_q) in enumerate(izip(n2, n3)):
         r = r_p + r_q
         r = r[q>0]
