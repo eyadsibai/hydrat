@@ -11,22 +11,23 @@ def transform_task(task, transformer):
   t.train_indices = task.train_indices
   t.test_indices  = task.test_indices
   t.metadata      = dict(task.metadata)
-  # Eliminate feature name
-  if 'feature_name' in t.metadata: 
-    t.metadata['feature_desc'] = ( t.metadata['feature_name'], )
-    del t.metadata['feature_name']
   t.metadata['feature_desc']+=(transformer.__name__,)
   return t
   
 def transform_taskset(taskset, transformer):
+  metadata = update_metadata(taskset, transformer)
   tasklist = [ transform_task(t, transformer) for t in taskset.tasks ]
+  return TaskSet(tasklist, metadata)
+
+def update_metadata(taskset, transformer):
   metadata = dict(taskset.metadata)
   # Eliminate feature name
   if 'feature_name' in metadata: 
-    if 'feature_desc' in metadata:
-      raise ValueError, "Metadata contained both feature_name and feature_desc"
-    metadata['feature_desc'] = ( metadata['feature_name'], )
-    del metadata['feature_name']
+    raise ValueError, "Should not be encountering feature_name"
+  # Remove the old taskset's uuid.
+  del metadata['uuid']
   metadata['feature_desc']+=(transformer.__name__,)
-  return TaskSet(tasklist, metadata)
+  return metadata
+
+
 

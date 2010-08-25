@@ -41,6 +41,7 @@ src/hydrat/classifier/tree/__init__.py
 src/hydrat/common/PorterStemmer.py
 src/hydrat/common/__init__.py
 src/hydrat/common/bootstrap.py
+src/hydrat/common/counter.py
 src/hydrat/common/decorators.py
 src/hydrat/common/distance_metrics.py
 src/hydrat/common/enumerator.py
@@ -67,6 +68,7 @@ src/hydrat/dataset/__init__.py
 src/hydrat/dataset/encoded.py
 src/hydrat/dataset/iso639.py
 src/hydrat/dataset/text.py
+src/hydrat/dataset/tokenstream.py
 src/hydrat/display/__init__.py
 src/hydrat/display/graphs.py
 src/hydrat/display/html.py
@@ -93,6 +95,9 @@ src/hydrat/preprocessor/model/__init__.py
 src/hydrat/preprocessor/model/arff.py
 src/hydrat/preprocessor/model/inducer/__init__.py
 src/hydrat/preprocessor/model/inducer/dataset.py
+src/hydrat/preprocessor/tokenstream/__init__.py
+src/hydrat/preprocessor/tokenstream/genia.py
+src/hydrat/preprocessor/tokenstream/porterstem.py
 src/hydrat/result/__init__.py
 src/hydrat/result/interpreter.py
 src/hydrat/result/result.py
