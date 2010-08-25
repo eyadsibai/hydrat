@@ -3,12 +3,13 @@ import os
 
 import hydrat
 import hydrat.display.summary_fns as sf
+import hydrat.task.transform as tx
 from hydrat.experiments import Experiment
 from hydrat.display.tsr import render_TaskSetResult
 from hydrat.result.interpreter import SingleHighestValue, NonZero, SingleLowestValue
 from hydrat.display.html import TableSort 
 from hydrat.preprocessor.model.inducer.dataset import DatasetInducer
-from hydrat.store import Store, StoreError, NoData
+from hydrat.store import Store, StoreError, NoData, AlreadyHaveData
 from hydrat.display.summary_fns import sf_featuresets
 from hydrat.display.html import TableSort 
 from hydrat.display.tsr import result_summary_table
@@ -97,6 +98,19 @@ class Framework(object):
       for i, id in enumerate(ProgressIter(instance_ids, 'Processing TokenStream')):
         feat_dict[id] = ts_processor(tss[i])
       self.inducer.add_Featuremap(dsname, space_name, feat_dict)
+
+  def transform_taskset(self, transformer):
+    metadata = tx.update_metadata(self.taskset, transformer)
+    if self.store.has_TaskSet(metadata):
+      # Load from store
+      self.taskset = self.store.get_TaskSet(metadata)
+    else:
+      self.taskset = tx.transform_taskset(self.taskset, transformer)
+      # Save to store
+      try:
+        self.store.new_TaskSet(self.taskset)
+      except AlreadyHaveData:
+        import pdb;pdb.set_trace()
 
   def is_configurable(self):
     return self.feature_space is not None and self.class_space is not None
