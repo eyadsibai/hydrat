@@ -43,13 +43,6 @@ class RealFeature(tables.IsDescription):
   feature_index  = tables.UInt64Col()
   value          = tables.Float64Col()
 
-
-"""
-TODO:
-  Refactor the different store types into a single master store object.
-  We never used the diversity anyway.
-"""
-
 class Store(object):
   """
   This is the master store class for hydrat. It manages all of the movement of data
@@ -108,6 +101,18 @@ class Store(object):
                             , 'results'
                             , 'TaskSetResult Data'
                             )
+    self.__update_format()
+
+  def __update_format(self):
+    for dsnode in self.datasets:
+      if not hasattr(dsnode, 'tokenstreams'):
+        logger.warning('Node %s did not have tokenstreams node; adding.', dsnode._v_name)
+        # Create a group for Token Streams
+        self.fileh.createGroup( dsnode
+                              , "tokenstreams"
+                              , "Token Streams"
+                              )
+        
 
 
   def __del__(self):
@@ -642,7 +647,10 @@ class Store(object):
       raise AlreadyHaveData, "Already have taskset %s" % str(taskset.metadata)
     except NoData:
       pass
-    self.add_TaskSet(taskset)
+    try:
+      self.add_TaskSet(taskset)
+    except tables.exceptions.NodeError:
+      raise AlreadyHaveData, "Node already exists in store!"
       
 
   def _add_Task(self, task, ts_entry, additional_metadata={}): 
@@ -689,6 +697,10 @@ class Store(object):
                          , filters = tables.Filters(complevel=5, complib='zlib') 
                          )
     self.fileh.flush()
+
+  def has_TaskSet(self, desired_metadata):
+    """ Check if any taskset matches the specified metadata """
+    return bool(self._resolve_TaskSet(desired_metadata))
 
   def get_TaskSet(self, desired_metadata):
     """ Convenience function to bypass tag resolution """
