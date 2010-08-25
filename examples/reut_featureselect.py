@@ -18,12 +18,6 @@ class ReutersSubset(Reuters21578, PorterStem):
   def sp_hydrat_test_subset(self):
     return dict(train=map(str,range(1,1001)),test=map(str,range(1001,2001)),unused=map(str,range(2001,21579)))
 
-from hydrat.common.counter import Counter
-def stem_unigram(tokenstream):
-  """ Returns the unigram distribution of stems in the TokenStream
-  """
-  return Counter( token['stem'] for token in tokenstream )
-
 if __name__ == "__main__":
   ps = PresetSplitFramework(ReutersSubset())
 
