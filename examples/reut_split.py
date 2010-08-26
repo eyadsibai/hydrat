@@ -26,7 +26,7 @@ if __name__ == "__main__":
     ]
   ps = PresetSplitFramework(reuters.Reuters21578())
   ps.set_class_space('reuters21578_topics')
-  ps.set_feature_space('bag_of_words')
+  ps.set_feature_spaces('bag_of_words')
   ps.set_split('lewis')
   for l in learners:
     ps.set_learner(l)
