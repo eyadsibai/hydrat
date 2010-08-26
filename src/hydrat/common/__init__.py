@@ -72,14 +72,12 @@ def as_set(s):
   if the item is iterable, return a set
   else return a single-element set
   """
-  # Work out which feature maps and/or class maps we have been asked to process
-  def as_set(s):
-    if s is None: return set()
-    elif isinstance(s, str): return set([s])
-    elif isinstance(s, unicode): return set([s])
-    else: 
-      try:
-        return set(s)
-      except TypeError:
-        return set([s])
+  if s is None: return set()
+  elif isinstance(s, str): return set([s])
+  elif isinstance(s, unicode): return set([s])
+  else: 
+    try:
+      return set(s)
+    except TypeError:
+      return set([s])
 
