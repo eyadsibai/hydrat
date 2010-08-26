@@ -42,7 +42,7 @@ class PresetSplitFramework(Framework):
     self.configure()
 
   def is_configurable(self):
-    return self.feature_space is not None\
+    return self.feature_spaces is not None\
       and self.class_space is not None\
       and self.split is not None
 
