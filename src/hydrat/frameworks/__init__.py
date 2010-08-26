@@ -262,6 +262,9 @@ def process_results( data_store
     interpreter = SingleHighestValue()
 
   summaries = []
+  # TODO: Must only allow the framework to process results
+  # relevant to it. Need to look into TaskSetResult metadata
+  # to do this. 
   for resname in result_store._resolve_TaskSetResults({}):
     result = result_store._get_TaskSetResult(resname)
     summary = summary_fn(result, interpreter)
