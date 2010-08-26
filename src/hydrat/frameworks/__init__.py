@@ -14,6 +14,8 @@ from hydrat.display.summary_fns import sf_featuresets
 from hydrat.display.html import TableSort 
 from hydrat.display.tsr import result_summary_table
 from hydrat.common.pb import ProgressIter
+from hydrat.common import as_set
+from hydrat.preprocessor.features.transform import union
 
 logger = logging.getLogger(__name__)
 
@@ -60,14 +62,14 @@ class Framework(object):
     self.store = Store(os.path.join(self.work_path,'store.h5'), 'a')
     self.inducer = DatasetInducer(self.store)
 
-    self.feature_space = None
+    self.feature_spaces = None
     self.class_space = None
     self.learner = None
 
   def notify(self, str):
     self.logger.info(str)
 
-  def set_feature_space(self, feature_space):
+  def set_feature_spaces(self, feature_spaces):
     # TODO: rescue code from tasks_combination to allow us to 
     #       combine feature spaces. We should be able to 
     #       handle a list of feature spaces (or set or tuple),
@@ -84,18 +86,18 @@ class Framework(object):
     #       Check that this doesn't break any derivin classes
     #       Fix the later plumbing to ensure that union is called if needed.
 
-    self.notify("Setting feature_space to '%s'" % feature_space)
-    self.feature_space = feature_space
+    self.feature_spaces = as_set(feature_spaces)
+    self.notify("Set feature_spaces to '%s'" % feature_spaces)
     self.configure()
 
   def set_class_space(self, class_space):
-    self.notify("Setting class_space to '%s'" % class_space)
     self.class_space = class_space
+    self.notify("Set class_space to '%s'" % class_space)
     self.configure()
 
   def set_learner(self, learner):
-    self.notify("Setting learner to '%s'" % learner)
     self.learner = learner
+    self.notify("Set learner to '%s'" % learner)
 
   def process_tokenstream(self, tsname, ts_processor):
     dsname = self.dataset.__name__
@@ -128,7 +130,7 @@ class Framework(object):
         import pdb;pdb.set_trace()
 
   def is_configurable(self):
-    return self.feature_space is not None and self.class_space is not None
+    return self.feature_spaces is not None and self.class_space is not None
 
   def configure(self):
     if self.is_configurable():
@@ -143,28 +145,29 @@ class Framework(object):
     raise NotImplementedError, "_generate_partitioner not implemented"
 
   def _generate_model(self):
-    # TODO: deal with feature-space sequences. Must iterate over each member of the union
-    try:
-      self.inducer.process_Dataset(self.dataset, self.feature_space, self.class_space)
-    except StoreError, e:
-      self.logger.debug(e)
+    self.inducer.process_Dataset(self.dataset, fms=self.feature_spaces, cms=self.class_space)
 
   def _generate_taskset(self):
     ds_name = self.dataset.__name__
-    # TODO: build a union classmap at this point if necessary
-    fm = self.store.get_Data(ds_name, {'type':'feature','name':self.feature_space})
-    md = {'name':'+'.join((self.feature_space, self.class_space))}
-    taskset_md = self.partitioner.generate_metadata(fm, md)
+    featuremaps = []
+    for feature_space in sorted(self.feature_spaces):
+      featuremaps.append(self.store.get_Data(ds_name, {'type':'feature','name':feature_space}))
+
+    # Join the featuremaps into a single featuremap
+    fm = union(*featuremaps)
+
+    additional_metadata = {}
+    taskset_metadata = self.partitioner.generate_metadata(fm, additional_metadata)
     try:
-      taskset = self.store.get_TaskSet(taskset_md)
+      taskset = self.store.get_TaskSet(taskset_metadata)
     except NoData:
-      taskset = self.partitioner(fm, md)
+      taskset = self.partitioner(fm, additional_metadata)
       self.store.add_TaskSet(taskset)
     return taskset
 
   def run(self):
-    if self.feature_space is None:
-      raise ValueError, "feature_space not yet set"
+    if self.feature_spaces is None:
+      raise ValueError, "feature_spaces not yet set"
     if self.class_space is None:
       raise ValueError, "class_space not yet set"
     if self.learner is None:
@@ -259,6 +262,9 @@ def process_results( data_store
     interpreter = SingleHighestValue()
 
   summaries = []
+  # TODO: Must only allow the framework to process results
+  # relevant to it. Need to look into TaskSetResult metadata
+  # to do this. 
   for resname in result_store._resolve_TaskSetResults({}):
     result = result_store._get_TaskSetResult(resname)
     summary = summary_fn(result, interpreter)
