@@ -31,7 +31,7 @@ if __name__ == "__main__":
   ps.set_learner(np.cosine_mean_prototypeL())
 
   # Use featuremaps in the bag_of_words feature space
-  ps.set_feature_space('bag_of_words')
+  ps.set_feature_spaces('bag_of_words')
   
   # Create a new taskset by carrying out infogain-based top500 feature selection
   ps.transform_taskset(ig_bern_top500)
