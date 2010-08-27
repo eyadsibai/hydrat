@@ -4,6 +4,7 @@
 
 import numpy
 from hydrat.classifier.abstract import Learner, Classifier
+from hydrat.common.pb import ProgressIter
 
 class BinaryLearner(Learner):
   def __init__(self, learner):
@@ -19,7 +20,7 @@ class BinaryLearner(Learner):
   def _learn(self, feature_map, class_map):
     num_classes = class_map.shape[1]
     classifiers = []
-    for cl in range(num_classes):
+    for cl in ProgressIter(range(num_classes),label='Binary Learn'):
       mask = class_map[:,cl]
       # Build a two-class task
       # The second class is the "True" class
@@ -35,7 +36,7 @@ class BinaryClassifier(Classifier):
 
   def _classify(self, feature_map):
     outcomes = []
-    for c in self.classifiers:
+    for c in ProgressIter(self.classifiers, label="Binary Classify"):
       # We only want the members of the second class
       r = c(feature_map)
       outcomes.append(r[:,1])
