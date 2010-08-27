@@ -25,7 +25,7 @@ class NAACL2010(ISO639_1, SingleDir):
       reader = csv.reader(meta, delimiter='\t')
       for row in reader:
         docid, encoding, lang, partition = row
-        cm[docid] = lang
+        cm[docid] = [lang]
     return cm
   
 class EuroGOV(NAACL2010, UTF8, ByteUBT, CodepointUBT):
