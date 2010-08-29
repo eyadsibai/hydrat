@@ -27,6 +27,8 @@ class NoData(StoreError): pass
 class AlreadyHaveData(StoreError): pass
 class InsufficientMetadata(StoreError): pass
 
+# TODO: Provide a facility for saving splits
+
 # Features are internally stored as sparse arrays, which are serialized at the
 # pytables level to tables of instance, feature, value triplets. We support
 # both Integer and Real features.
@@ -40,13 +42,6 @@ class RealFeature(tables.IsDescription):
   instance_index = tables.UInt64Col()
   feature_index  = tables.UInt64Col()
   value          = tables.Float64Col()
-
-
-"""
-TODO:
-  Refactor the different store types into a single master store object.
-  We never used the diversity anyway.
-"""
 
 class Store(object):
   """
@@ -106,6 +101,18 @@ class Store(object):
                             , 'results'
                             , 'TaskSetResult Data'
                             )
+    self.__update_format()
+
+  def __update_format(self):
+    for dsnode in self.datasets:
+      if not hasattr(dsnode, 'tokenstreams'):
+        logger.warning('Node %s did not have tokenstreams node; adding.', dsnode._v_name)
+        # Create a group for Token Streams
+        self.fileh.createGroup( dsnode
+                              , "tokenstreams"
+                              , "Token Streams"
+                              )
+        
 
 
   def __del__(self):
@@ -283,6 +290,12 @@ class Store(object):
     self.fileh.createGroup( ds
                           , "class_data"
                           , "Class Data"
+                          )
+
+    # Create a group for Token Streams
+    self.fileh.createGroup( ds
+                          , "tokenstreams"
+                          , "Token Streams"
                           )
 
   def add_FeatureDict(self, dsname, space_name, feat_map):
@@ -495,10 +508,10 @@ class Store(object):
   def get_DatasetMetadata(self, dsname):
     """
     @param dsname: Identifier of the relevant dataset
-    @type tag: string
+    @type dsname: string
     @rtype: dict of metadata key-value pairs
     """
-    ds = getattr(self.datasets, tag)
+    ds = getattr(self.datasets, dsname)
     metadata = dict(   (key, getattr(ds._v_attrs,key)) 
                   for  key 
                   in   ds._v_attrs._v_attrnamesuser
@@ -536,7 +549,10 @@ class Store(object):
     return [ i.decode() for i in ds.instance_id ]
 
   def has_Data(self, dsname, space_name):
-    ds = getattr(self.datasets, dsname)
+    try:
+      ds = getattr(self.datasets, dsname)
+    except tables.exceptions.NoSuchNodeError:
+      return False
     return (  hasattr(ds.class_data,   space_name) 
            or hasattr(ds.feature_data, space_name)
            )
@@ -631,7 +647,10 @@ class Store(object):
       raise AlreadyHaveData, "Already have taskset %s" % str(taskset.metadata)
     except NoData:
       pass
-    self.add_TaskSet(taskset)
+    try:
+      self.add_TaskSet(taskset)
+    except tables.exceptions.NodeError:
+      raise AlreadyHaveData, "Node already exists in store!"
       
 
   def _add_Task(self, task, ts_entry, additional_metadata={}): 
@@ -678,6 +697,10 @@ class Store(object):
                          , filters = tables.Filters(complevel=5, complib='zlib') 
                          )
     self.fileh.flush()
+
+  def has_TaskSet(self, desired_metadata):
+    """ Check if any taskset matches the specified metadata """
+    return bool(self._resolve_TaskSet(desired_metadata))
 
   def get_TaskSet(self, desired_metadata):
     """ Convenience function to bypass tag resolution """
@@ -812,3 +835,22 @@ class Store(object):
     self.fileh.createArray(result_entry, 'classifications', result.classifications)
     self.fileh.createArray(result_entry, 'goldstandard', result.goldstandard)
     self.fileh.createArray(result_entry, 'instance_indices', result.instance_indices)
+     
+  ###
+  # TokenStream
+  ###
+
+  def add_TokenStreams(self, dsname, stream_name, tokenstreams):
+    dsnode = getattr(self.datasets, dsname)
+    stream_array = self.fileh.createVLArray(dsnode.tokenstreams, stream_name, tables.ObjectAtom())
+    for stream in ProgressIter(tokenstreams, label='Adding TokenStreams'):
+      stream_array.append(stream)
+
+  def get_TokenStreams(self, dsname, stream_name):
+    dsnode = getattr(self.datasets, dsname)
+    tsnode = getattr(dsnode.tokenstreams, stream_name)
+    return list(t for t in tsnode)
+
+  def list_TokenStreams(self, dsname):
+    dsnode = getattr(self.datasets, dsname)
+    return set(node._v_name for node in dsnode.tokenstreams)

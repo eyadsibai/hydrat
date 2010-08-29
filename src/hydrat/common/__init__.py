@@ -64,4 +64,20 @@ def entropy(v):
   numpy.seterr(**o)
   return r
 
+def as_set(s):
+  """Return the argument as a set
+  Useful for handling arguments that can be items or sequences of items
+  if none, return an empty set
+  if the argument is a string or unicode, return a single-element set
+  if the item is iterable, return a set
+  else return a single-element set
+  """
+  if s is None: return set()
+  elif isinstance(s, str): return set([s])
+  elif isinstance(s, unicode): return set([s])
+  else: 
+    try:
+      return set(s)
+    except TypeError:
+      return set([s])
 
