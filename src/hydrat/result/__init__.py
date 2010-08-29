@@ -106,6 +106,23 @@ class PRF(FScore):
     f = fscore(p,r,self.beta)
     return numpy.array((p,r,f))
 
+class MCC(ConfusionMatrixMetric):
+  """
+  Matthew's Correlation Coefficient. Described in (1) and used for the BioCreative series of shared tasks (2).
+
+  1. Matthews B. Comparison of the predicted and observed secondary structure of T4 phage lysozyme. 
+     Biochimica et Biophysica Acta (BBA) - Protein Structure. 1975;405(2):442-451. 
+     Available at: http://dx.doi.org/10.1016/0005-2795(75)90109-9.
+  2. Leitner F, Mardis Sa, Krallinger M, et al. An Overview of BioCreative II.5. 
+     IEEE/ACM transactions on computational biology and bioinformatics / IEEE, ACM. 2010;7(3):385-99. 
+     Available at: http://www.ncbi.nlm.nih.gov/pubmed/20704011.
+  """
+  def compute(self):
+    tp, tn, fp, fn = map(int,(self.tp, self.tn, self.fp, self.fn))
+    x = tp*tn-fp*fn
+    y = (tp+fp)*(tp+fn)*(tn+fp)*(tn+fn)
+    return x / numpy.sqrt(y) 
+
 class CombinedMicroAverage(object):
   def __init__(self, matrix):
     n_res, n_class, n_items = matrix.shape

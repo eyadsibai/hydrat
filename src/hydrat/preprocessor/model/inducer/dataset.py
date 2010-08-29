@@ -2,6 +2,8 @@ import logging
 import numpy
 from hydrat.store import NoData, AlreadyHaveData
 from hydrat.preprocessor.model.inducer import class_matrix 
+from hydrat.common.pb import ProgressIter
+from hydrat.common import as_set
 
 logger = logging.getLogger(__name__)
 
@@ -10,10 +12,11 @@ class DatasetInducer(object):
   def __init__(self, store):
     self.store = store
 
-  def process_Dataset(self, dataset, fms=None, cms=None):
+  def process_Dataset(self, dataset, fms=None, cms=None, tss=None):
     logger.debug('Processing %s', dataset.__name__)
     logger.debug('  fms: %s', fms)
     logger.debug('  cms: %s', cms)
+    logger.debug('  tss: %s', tss)
     dsname = dataset.__name__
 
     # Work out if this is the first time we encounter this dataset
@@ -23,22 +26,23 @@ class DatasetInducer(object):
       logger.debug("Adding new dataset '%s'", dsname)
       self.store.add_Dataset(dsname, dataset.instance_ids)
 
-    # Work out which feature maps and/or class maps we have been asked to process
-    def as_set(s):
-      if s is None: return set()
-      if isinstance(s, str): return set([s])
-      else: return set(s)
-
     fms = as_set(fms)
     cms = as_set(cms)
+    tss = as_set(tss)
 
     present_fm = set(self.store.list_FeatureSpaces(dsname))
     present_cm = set(self.store.list_ClassSpaces(dsname))
+    present_ts = set(self.store.list_TokenStreams(dsname))
 
     logger.debug("present_fm: %s", str(present_fm))
     logger.debug("present_cm: %s", str(present_cm))
+    logger.debug("present_ts: %s", str(present_ts))
 
-    logger.debug("Store has %d Feature Maps and %d Class Maps for dataset '%s'", len(present_fm), len(present_cm), dsname)
+    logger.debug("For dataset '%s', Store has:", dsname)
+    logger.debug("  %d Feature Maps", len(present_fm))
+    logger.debug("  %d Class Maps", len(present_cm))
+    logger.debug("  %d Token Streams", len(present_ts))
+
     # Handle explicit class spaces 
     for key in set(dataset.classspace_names):
       logger.debug("Processing explicit class space '%s'", key)
@@ -59,20 +63,46 @@ class DatasetInducer(object):
     # Handle all the feature maps
     for key in fms - present_fm:
       logger.debug("Processing feature map '%s'", key)
-
       try:
         self.add_Featuremap(dsname, key, dataset.featuremap(key))
       except AlreadyHaveData,e :
         logger.warning(e)
         # TODO: Why are we calling pdb for this?
         import pdb;pdb.post_mortem()
+
+    # Handle all the token streams
+    for key in tss - present_ts:
+      logger.debug("Processing token stream '%s'", key)
+
+      try:
+        self.add_TokenStreams(dsname, key, dataset.tokenstream(key))
+      except AlreadyHaveData,e :
+        logger.warning(e)
+
+  def add_TokenStreams(self, dsname, stream_name, tokenstreams):
+    metadata = dict()
+    instance_ids = self.store.get_InstanceIds(dsname)
+
+    tslist = [tokenstreams[i] for i in instance_ids]
+    logger.debug("Adding Token Stream '%s' to Dataset '%s'", stream_name, dsname)
+    self.store.add_TokenStreams(dsname, stream_name, tslist)
+
+    #TODO: Attach metadata to the tokenstream node
+      
+
   
   def add_Featuremap(self, dsname, space_name, feat_dict):
     metadata = {'type':'feature','name':space_name}
 
     # One pass to compute the full set of features
     logger.debug("Computing Feature Set")
-    feat_labels = reduce(set.union, (set(f.keys()) for f in feat_dict.values()))
+    feat_labels = reduce\
+                    ( set.union
+                    , (    set(f.keys()) 
+                      for  f 
+                      in   ProgressIter(feat_dict.values(),"Computing Feature Set")
+                      )
+                    )
     logger.debug("  Identified %d unique features", len(feat_labels))
 
     # Handle the feature space information
@@ -101,7 +131,7 @@ class DatasetInducer(object):
     # (instance#, feat#, value)
     feat_map = []
     feat_index = dict( (k,v) for v, k in enumerate(feat_labels) )
-    for i, id in enumerate(instance_ids):
+    for i, id in enumerate(ProgressIter(instance_ids,label='Computing Feature Map')):
       for feat in feat_dict[id]:
         j = feat_index[feat]
         feat_map.append((i,j,feat_dict[id][feat]))

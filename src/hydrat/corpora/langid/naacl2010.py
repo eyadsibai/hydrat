@@ -20,13 +20,24 @@ class NAACL2010(ISO639_1, SingleDir):
   def meta_path(self): return self.data_path()+'.meta'
 
   def cm_iso639_1(self):
+    "Read in the class information provided with the metadata"
     cm = {}
     with open(self.meta_path(), 'r') as meta:
       reader = csv.reader(meta, delimiter='\t')
       for row in reader:
         docid, encoding, lang, partition = row
-        cm[docid] = lang
+        cm[docid] = [lang]
     return cm
+
+  def sp_crossvalidation(self):
+    "Read in the crossvalidation folds provided with the metadata"
+    split_map = defaultdict(list)
+    with open(self.meta_path(), 'r') as meta:
+      reader = csv.reader(meta, delimiter='\t')
+      for row in reader:
+        docid, encoding, lang, partition = row
+        split_map['fold%d' % int(partition)].append(docid)
+    return split_map
   
 class EuroGOV(NAACL2010, UTF8, ByteUBT, CodepointUBT):
   __name__ = 'EuroGOV'
