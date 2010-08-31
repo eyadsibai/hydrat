@@ -116,9 +116,15 @@ class maxentClassifier(Classifier):
       terms = line.split()
       while terms != []:
         # Read pairs of outcome, probability
-        outcome = int(terms.pop(0))
+        # TODO: Maxent handles multiclass by computing the joint probability.
+        #       We hackishly assign the same probability to both classes.
+        #       This will cause problems if we interpret as singlehighest 
+        #         - it makes us worse than we really are
+        #         - it really is an interpretation issue
+        outcomes = map(int,terms.pop(0).split(','))
         probability = float(terms.pop(0))
-        classifications[i, outcome] = probability
+        for outcome in outcomes:
+          classifications[i, outcome] = probability
 
     # Dispose of the unneeded output file
     result_file.close()
