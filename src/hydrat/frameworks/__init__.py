@@ -16,6 +16,9 @@ from hydrat.display.tsr import result_summary_table
 from hydrat.common.pb import ProgressIter
 from hydrat.common import as_set
 from hydrat.preprocessor.features.transform import union
+from hydrat.task.task import Task
+from hydrat.task.taskset import TaskSet
+import scipy.sparse
 
 logger = logging.getLogger(__name__)
 
@@ -128,6 +131,25 @@ class Framework(object):
         self.store.new_TaskSet(self.taskset)
       except AlreadyHaveData:
         import pdb;pdb.set_trace()
+
+  def extend_taskset(self, feature_spaces):
+    feature_spaces = as_set(feature_spaces)
+    ds_name = self.dataset.__name__
+    featuremaps = []
+    for feature_space in sorted(feature_spaces):
+      featuremaps.append(self.store.get_Data(ds_name, {'type':'feature','name':feature_space}))
+    fm = union(*featuremaps)
+    if False:
+      # TODO: Check if we have it already via metadata!!
+      pass
+    else:
+      self.taskset = append_features(self.taskset, fm)
+      # Save to store
+      try:
+        self.store.new_TaskSet(self.taskset)
+      except AlreadyHaveData:
+        pass
+        #import pdb;pdb.set_trace()
 
   def is_configurable(self):
     return self.feature_spaces is not None and self.class_space is not None
@@ -283,3 +305,28 @@ def process_results( data_store
           render_TaskSetResult(result_renderer, result, class_space, interpreter, summary)
   return summaries
       
+def append_features(taskset, fm):
+  new_tasks = []
+  for task in taskset.tasks:
+    assert len(task.train_indices) == len(task.test_indices) == fm.raw.shape[0]
+    t = Task()
+    t.train_indices = task.train_indices
+    t.test_indices = task.test_indices
+    t.train_classes = task.train_classes
+    t.test_classes = task.test_classes
+
+    # Extend vectors
+    t.train_vectors = scipy.sparse.hstack((task.train_vectors,fm.raw[task.train_indices.nonzero()[0]])).tocsr()
+    t.test_vectors = scipy.sparse.hstack((task.test_vectors,fm.raw[task.test_indices.nonzero()[0]])).tocsr()
+
+    # Handle metadata
+    metadata = dict(task.metadata)
+    del metadata['uuid'] # This is the old task's uuid
+    metadata['feature_desc'] += fm.metadata['feature_desc']
+    t.metadata = metadata
+    new_tasks.append(t)
+
+  metadata = dict(taskset.metadata)
+  metadata['feature_desc'] += fm.metadata['feature_desc']
+  ts = TaskSet(new_tasks, metadata)
+  return ts

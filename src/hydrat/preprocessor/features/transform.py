@@ -11,7 +11,7 @@ def union(*fms):
   fm = s.hstack([ f.raw for f in fms ])
   #TODO: Think about how to properly reconcile metadata
   metadata = dict()
-  feature_desc = tuple
+  feature_desc = tuple()
   for f in fms:
     metadata.update(deepcopy(f.metadata))
     feature_desc += deepcopy(f.metadata['feature_desc'])
