@@ -25,7 +25,7 @@ if __name__ == "__main__":
     ]
   tt = TrainTestFramework(dummy.unicode_dummy())
   tt.set_class_space('dummy_default')
-  tt.set_feature_space('byte_unigram')
+  tt.set_feature_spaces('byte_unigram')
   for l in learners:
     tt.set_learner(l)
     tt.run()
