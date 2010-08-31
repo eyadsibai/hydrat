@@ -308,6 +308,7 @@ class libsvmExtL(SVMLearner):
     p.update(self.__params)
     return p
 
+# TODO: Deal with mutliclass fed to BSVM. Seems to choke, probably some error output on stderr.
 class bsvmL(SVMLearner):
   """
   -s svm_type : set type of SVM (default 0)
