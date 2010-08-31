@@ -196,7 +196,7 @@ class Framework(object):
       raise ValueError, "learner not yet set"
     run_experiment(self.taskset, self.learner, self.store)
 
-  def generate_output(self, summary_fn=sf_featuresets, fields = summary_fields):
+  def generate_output(self, summary_fn=sf_featuresets, fields = summary_fields, interpreter = None):
     """
     Generate HTML output
     """
@@ -207,6 +207,7 @@ class Framework(object):
       , self.store
       , summary_fn = summary_fn
       , output_path= self.outputP
+      , interpreter = interpreter
       ) 
 
     # render a HTML version of the summaries
@@ -267,7 +268,8 @@ def run_experiment(taskset, learner, result_store):
   except Exception, e:
     logger.critical('Experiment failed with %s', e.__class__.__name__)
     logger.debug(e)
-    #import pdb;pdb.post_mortem()
+    if hydrat.config.getboolean('debug','pdb_on_classifier_exception'):
+      import pdb;pdb.post_mortem()
 
 def process_results( data_store
                    , result_store
