@@ -11,13 +11,13 @@ def union(*fms):
   fm = s.hstack([ f.raw for f in fms ])
   #TODO: Think about how to properly reconcile metadata
   metadata = dict()
-  feature_desc = list()
+  feature_desc = tuple
   for f in fms:
     metadata.update(deepcopy(f.metadata))
-    feature_desc.append(deepcopy(f.metadata['feature_desc']))
+    feature_desc += deepcopy(f.metadata['feature_desc'])
   if 'feature_uuid' in metadata: raise ValueError, "Should not have feature_uuid"
   if 'feature_name' in metadata: raise ValueError, "Should not have feature_name"
-  metadata['feature_desc'] = tuple(feature_desc)
+  metadata['feature_desc'] = feature_desc
     
   return FeatureMap(fm.tocsr(), metadata) 
 
