@@ -26,7 +26,7 @@ if __name__ == "__main__":
     ]
   ps = PresetSplitFramework(dummy.unicode_dummy())
   ps.set_class_space('dummy_default')
-  ps.set_feature_space('byte_unigram')
+  ps.set_feature_spaces('byte_unigram')
   ps.set_split('dummy_default')
   for l in learners:
     ps.set_learner(l)

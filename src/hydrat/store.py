@@ -630,6 +630,7 @@ class Store(object):
       data.metadata['class_name']   = s_name 
     elif s_type == 'feature':
       data = self.get_FeatureMap(dsname, s_name)
+      #TODO : Why is this happening here?
       data.metadata['feature_desc']+= (s_name,)
     else:
       raise StoreError, "Unknown data type: %s" % s_type
