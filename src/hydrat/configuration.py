@@ -1,6 +1,7 @@
 import ConfigParser
 import logging
 import os
+import sys
 import numpy
 
 logger = logging.getLogger(__name__)
@@ -100,6 +101,7 @@ def default_configuration():
 
   default_config.add_section('debug')
   default_config.set('debug', 'pdb_on_classifier_exception', 'False')
+  default_config.set('debug', 'pdb_on_unhandled_exception', 'False')
 
   return default_config
 
@@ -190,5 +192,25 @@ def load_configuration(config):
   seed = config.getint('random','seed')
   rng = numpy.random.mtrand.RandomState(seed)
   local_logger.debug('Set random seed to %d', seed)
+
+  # Process options related to debugging
+  # Based on http://ynniv.com/blog/2007/11/debugging-python.html
+  def info(type, value, tb):
+    if (#hasattr(sys, "ps1") or
+        not sys.stderr.isatty() or 
+        not sys.stdin.isatty()):
+        # stdin or stderr is redirected, just do the normal thing
+        original_hook(type, value, tb)
+    else:
+        # a terminal is attached and stderr is not redirected, debug 
+        import traceback, pdb
+        traceback.print_exception(type, value, tb)
+        print
+        pdb.pm()
+        #traceback.print_stack()
+
+  original_hook = sys.excepthook
+  if config.getboolean('debug','pdb_on_unhandled_exception'):
+    sys.excepthook = info
    
 
