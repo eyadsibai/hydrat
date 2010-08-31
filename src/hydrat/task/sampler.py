@@ -123,6 +123,15 @@ class Sampler(object):
   def __call__(self, class_map):
     return self.sample(class_map)
     
+  @property
+  def metadata(self):
+    # Note that when this method is called is important: the RNG state
+    # may change.
+    metadata = {}
+    metadata['task_type'] = self.__class__.__name__
+    metadata['rng_state'] = self.rng.get_state()
+    return metadata
+
   def sample(self, class_map):
     """ Classes deriving sampler must implement this """
     raise NotImplementedError
@@ -133,13 +142,12 @@ def membership_vector(superset, subset):
 class PresetSplit(Sampler):
   def __init__(self, split, metadata={}, rng=None):
     Sampler.__init__(self, rng)
-    self.metadata = metadata
+    self.additional_metadata = metadata
     self.split = split
 
   def sample(self, class_map):
-    metadata = dict(self.metadata)
-    metadata['task_type'] = 'preset_split'
-    metadata['rng_state'] = self.rng.get_state()
+    metadata = self.metadata
+    metadata.update(self.additional_metadata)
     return Partitioning(class_map, self.split, metadata) 
 
 class TrainTest(Sampler):
@@ -148,6 +156,10 @@ class TrainTest(Sampler):
     self.ratio = ratio
 
   def sample(self, class_map):
+    # We must generate the metadata first as we need to know the RNG state
+    # when we got here, in order to re-create the partitioning.
+    metadata = self.metadata
+
     strata_map = stratify(class_map.raw)
     partition_proportions = numpy.array([self.ratio, 1])
     parts  = allocate( strata_map
@@ -157,9 +169,6 @@ class TrainTest(Sampler):
                      ) 
     # Build train/test by stacking to the correct shape
     parts = numpy.dstack((parts[:,0], parts[:,1])).swapaxes(0,1)
-    metadata = dict()
-    metadata['task_type'] = 'train_test'
-    metadata['rng_state'] = self.rng.get_state()
     return Partitioning(class_map, parts, metadata) 
 
 class CrossValidate(Sampler):
@@ -168,6 +177,10 @@ class CrossValidate(Sampler):
     self.folds = folds
 
   def sample(self, class_map):
+    # We must generate the metadata first as we need to know the RNG state
+    # when we got here, in order to re-create the partitioning.
+    metadata = self.metadata
+
     strata_map = stratify(class_map.raw)
     partition_proportions = numpy.array([1] * self.folds )
     folds = allocate( strata_map
@@ -178,7 +191,4 @@ class CrossValidate(Sampler):
     # We build train/test. Axis 0 is train, so it is the logical not of each fold, which represents
     # the test instances.
     folds = numpy.dstack((numpy.logical_not(folds), folds))
-    metadata = dict()
-    metadata['task_type'] = 'crossvalidate'
-    metadata['rng_state'] = self.rng.get_state()
     return Partitioning(class_map, folds, metadata) 

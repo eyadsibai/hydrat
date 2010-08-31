@@ -211,6 +211,8 @@ class SVMClassifier(Classifier):
       # Set the first class from what we earlier extracted.
       classifications[0, int(first_line)] = True
       for doc_index, l in enumerate(result_file):
+        # TODO: Work out libSVM splits out class labels that are clearly out of the range
+        #       of possible values. Seen it happen in multiclass contexts.
         class_index = int(l)
         classifications[doc_index+1, class_index] = True
 
