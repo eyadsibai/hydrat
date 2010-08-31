@@ -242,7 +242,8 @@ def run_experiment(taskset, learner, result_store):
   except Exception, e:
     logger.critical('Experiment failed with %s', e.__class__.__name__)
     logger.debug(e)
-    #import pdb;pdb.post_mortem()
+    if hydrat.config.getboolean('debug','pdb_on_classifier_exception'):
+      import pdb;pdb.post_mortem()
 
 def process_results( data_store
                    , result_store

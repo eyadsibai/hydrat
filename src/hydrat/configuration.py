@@ -98,6 +98,9 @@ def default_configuration():
   default_config.set('random', 'seed', '83441363')
   default_config.set('random', 'allow_default_rng', 'False')
 
+  default_config.add_section('debug')
+  default_config.set('debug', 'pdb_on_classifier_exception', 'False')
+
   return default_config
 
 def write_configuration(config, file=DEFAULT_CONFIG_FILE):
