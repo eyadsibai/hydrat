@@ -171,7 +171,7 @@ class Framework(object):
       raise ValueError, "learner not yet set"
     run_experiment(self.taskset, self.learner, self.store)
 
-  def generate_output(self, summary_fn=sf_featuresets, fields = summary_fields):
+  def generate_output(self, summary_fn=sf_featuresets, fields = summary_fields, interpreter = None):
     """
     Generate HTML output
     """
@@ -182,6 +182,7 @@ class Framework(object):
       , self.store
       , summary_fn = summary_fn
       , output_path= self.outputP
+      , interpreter = interpreter
       ) 
 
     # render a HTML version of the summaries
