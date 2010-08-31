@@ -3,6 +3,7 @@ import numpy
 from hydrat.store import NoData, AlreadyHaveData
 from hydrat.preprocessor.model.inducer import class_matrix 
 from hydrat.common.pb import ProgressIter
+from hydrat.common import as_set
 
 logger = logging.getLogger(__name__)
 
@@ -24,12 +25,6 @@ class DatasetInducer(object):
     else:
       logger.debug("Adding new dataset '%s'", dsname)
       self.store.add_Dataset(dsname, dataset.instance_ids)
-
-    # Work out which feature maps and/or class maps we have been asked to process
-    def as_set(s):
-      if s is None: return set()
-      if isinstance(s, str): return set([s])
-      else: return set(s)
 
     fms = as_set(fms)
     cms = as_set(cms)

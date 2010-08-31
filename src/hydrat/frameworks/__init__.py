@@ -18,9 +18,8 @@ from hydrat.common.pb import ProgressIter
 logger = logging.getLogger(__name__)
 
 # TODO:
-# Implement a method for transforming tasksets, and saving the transformed taskset, including
-# handling the metadata. Should use hydrat.task.transform.transform_taskset, should be implemented
-# similar to process_tokenstream.
+# set_feature_space should be able to deal with a list of feature spaces being passed.
+# Ideally, it should receive a feature_desc object, but that is for further work.
 
 summary_fields=\
   [ ( {'label':"Dataset", 'searchable':True}       , "dataset"       )
@@ -69,6 +68,22 @@ class Framework(object):
     self.logger.info(str)
 
   def set_feature_space(self, feature_space):
+    # TODO: rescue code from tasks_combination to allow us to 
+    #       combine feature spaces. We should be able to 
+    #       handle a list of feature spaces (or set or tuple),
+    #       which we then union to create a new feature space.
+    #       This directly impacts the creation of TaskSets. We
+    #       should automatically recognize a task that we already 
+    #       have, in terms of the feature spaces contained in it.
+    #       Do we care about the ordering of feature spaces? 
+    #       Intuitively no, but practically it might make some difference.
+    #       We could handle this by sorting first, or by treating the
+    #       joined feature spaces as a set.
+    #
+    #       Receive via hydrat.common.as_set, so feature_space is always a set.
+    #       Check that this doesn't break any derivin classes
+    #       Fix the later plumbing to ensure that union is called if needed.
+
     self.notify("Setting feature_space to '%s'" % feature_space)
     self.feature_space = feature_space
     self.configure()
@@ -128,6 +143,7 @@ class Framework(object):
     raise NotImplementedError, "_generate_partitioner not implemented"
 
   def _generate_model(self):
+    # TODO: deal with feature-space sequences. Must iterate over each member of the union
     try:
       self.inducer.process_Dataset(self.dataset, self.feature_space, self.class_space)
     except StoreError, e:
@@ -135,6 +151,7 @@ class Framework(object):
 
   def _generate_taskset(self):
     ds_name = self.dataset.__name__
+    # TODO: build a union classmap at this point if necessary
     fm = self.store.get_Data(ds_name, {'type':'feature','name':self.feature_space})
     md = {'name':'+'.join((self.feature_space, self.class_space))}
     taskset_md = self.partitioner.generate_metadata(fm, md)
