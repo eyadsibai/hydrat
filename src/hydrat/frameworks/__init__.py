@@ -187,14 +187,18 @@ class Framework(object):
       self.store.add_TaskSet(taskset)
     return taskset
 
-  def run(self):
+  def has_run(self):
     if self.feature_spaces is None:
       raise ValueError, "feature_spaces not yet set"
     if self.class_space is None:
       raise ValueError, "class_space not yet set"
     if self.learner is None:
       raise ValueError, "learner not yet set"
-    run_experiment(self.taskset, self.learner, self.store)
+    return have_experiment(self.taskset, self.learner, self.store)
+
+  def run(self):
+    if not self.has_run():
+      run_experiment(self.taskset, self.learner, self.store)
 
   def generate_output(self, summary_fn=sf_featuresets, fields = summary_fields, interpreter = None):
     """
@@ -243,7 +247,7 @@ def init_workdir(path, newdirs=["models","tasks","results","output"]):
     for dir in newdirs:
       os.mkdir(os.path.join(path,dir))
 
-def run_experiment(taskset, learner, result_store):
+def have_experiment(taskset, learner, result_store):
   keys = [ 'dataset'
          , 'feature_desc'
          , 'task_type'
@@ -256,11 +260,10 @@ def run_experiment(taskset, learner, result_store):
   taglist = result_store._resolve_TaskSetResults(m)
   logger.debug(m)
   logger.debug("%d previous results match this metadata", len(taglist))
-  if len(taglist) > 0:
-    # Already did this experiment!
-    logger.debug("Already have result; Not repeating experiment")
-    return
+  return len(taglist) > 0
 
+  
+def run_experiment(taskset, learner, result_store):
   exp = Experiment(taskset, learner)
   try:
     tsr = exp.run()
