@@ -1,6 +1,7 @@
 """
 External SVM classifiers using a command-line interface
 TODO: Why does SVM using 'output probability' perform different from without?
+TODO: Use pexpect instead of popen, tie in with progressbar output
 """
 from hydrat.classifier.abstract import Learner, Classifier, NotInstalledError
 from hydrat import config
