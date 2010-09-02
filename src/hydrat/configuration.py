@@ -129,7 +129,7 @@ def read_configuration(additional_path=[]):
   logger.debug("Read configuration from %s", str(paths))
   return config
 
-def update_configuration(config):
+def update_configuration(config, rescan=False):
   """ Receives a config object, then scans hydrat for requirements,
   e.g. installed packages, tries to satisfy the requirements and 
   returns an updated configuration.
@@ -141,10 +141,25 @@ def update_configuration(config):
   for klass in all_subclasses(c.abstract.Learner):
     requires = klass.requires
     for key in requires:
-      toolpath = which(requires[key])
-      logger.info("Resolved %s to %s", key, toolpath)
-      if toolpath is not None:
-        config.set('tools', key, toolpath)
+      if config.has_option('tools', key):
+        existing = config.getpath('tools', key)
+        # Already have a setting
+        if rescan:
+          toolpath = which(requires[key])
+          if toolpath is not None:
+            logger.info("%s --> %s (updated)", key, toolpath)
+            config.set('tools', key, toolpath)
+          else:
+            logger.info("%s --> %s (no update)", key, existing)
+        else:
+          logger.info("%s --> %s (existing configuration)", key, existing)
+      else:
+        toolpath = which(requires[key])
+        if toolpath is not None:
+          logger.info("%s --> %s (resolved)", key, toolpath)
+          config.set('tools', key, toolpath)
+        else:
+          logger.info("%s --> None (not found)", key)
   return config
 
 logger = logging.getLogger("hydrat")

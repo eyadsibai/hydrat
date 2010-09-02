@@ -20,6 +20,12 @@ import configuration
 logger = logging.getLogger(__name__)
 
 class HydratCmdln(cmdln.Cmdln):
+  @cmdln.option("-d", "--default", action="store_true", default=False,
+                    help="write a default configuration (do not parse existing config file)")
+  @cmdln.option("-r", "--rescan", action="store_true", default=False,
+                    help="rescan paths")
+  @cmdln.option("-i", "--include", action="append", default=[],
+                    help="include additional configuration files")
   def do_configure(self, subcmd, opts, *args):
     """${cmd_name}: write a configuration file
 
@@ -27,6 +33,9 @@ class HydratCmdln(cmdln.Cmdln):
 
     Writes the default configuration file to .hydratrc
     """
+    if opts.default and len(opts.include) > 0:
+      self.optparser.error('-d and -i are mutually exclusive')
+
     if len(args) > 0:
       path = args[0]
     else:
@@ -35,8 +44,14 @@ class HydratCmdln(cmdln.Cmdln):
     if not os.path.isabs(path):
       path = os.path.abspath(path)
 
-    config = configuration.default_configuration()
-    config = configuration.update_configuration(config)
+    if opts.default: 
+      # overwrite with default
+      config = configuration.default_configuration()
+    else:
+      # Read in the existing configuration, so we don't lose
+      # user customizations.
+      config = configuration.read_configuration(opts.include)
+    config = configuration.update_configuration(config, rescan=opts.rescan)
     configuration.write_configuration(config, path)
     logger.info("Wrote configuration file to '%s'", path)
 
