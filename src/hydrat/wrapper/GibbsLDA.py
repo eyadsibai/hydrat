@@ -42,7 +42,7 @@ class GibbsLDA(object):
               , tmp = TMP
               , clear_temp = True
               ):
-    if not (os.path.exists(fpath) and os.access(fpath, os.X_OK)):
+    if not (os.path.exists(exe) and os.access(exe, os.X_OK)):
       raise ValueError, "'%s' is not a valid executable" % exe
     if alpha is None:
       self.alpha = 50 / ntopics
