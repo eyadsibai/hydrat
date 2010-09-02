@@ -90,7 +90,7 @@ class Framework(object):
     #       Fix the later plumbing to ensure that union is called if needed.
 
     self.feature_spaces = as_set(feature_spaces)
-    self.notify("Set feature_spaces to '%s'" % feature_spaces)
+    self.notify("Set feature_spaces to '%s'" % str(feature_spaces))
     self.configure()
 
   def set_class_space(self, class_space):
