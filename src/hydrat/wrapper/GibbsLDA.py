@@ -42,8 +42,6 @@ class GibbsLDA(object):
               , tmp = TMP
               , clear_temp = True
               ):
-    if not (os.path.exists(exe) and os.access(exe, os.X_OK)):
-      raise ValueError, "'%s' is not a valid executable" % exe
     if alpha is None:
       self.alpha = 50 / ntopics
     else:
@@ -59,6 +57,8 @@ class GibbsLDA(object):
     self.tmp = tmp
     self.workdir = os.path.abspath(tempfile.mkdtemp(prefix='GibbsLDA',dir=self.tmp))
     self.trained = False
+    if not (os.path.exists(exe) and os.access(exe, os.X_OK)):
+      raise ValueError, "'%s' is not a valid executable" % exe
  
   def __del__(self):
     if self.clear_temp and os.path.exists(self.workdir):
