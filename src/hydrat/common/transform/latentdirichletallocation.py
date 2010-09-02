@@ -5,6 +5,7 @@ from hydrat import config as config
 class GibbsLDATransformer(Transformer):
   def __init__(self, alpha=None, beta=0.1, niters=2000, infiters=30, ntopics=100):
     #TODO: Configure exe
+    exe = config.getpath('tools','gibbslda') 
     tmp = config.getpath('paths','scratch')
     clear_temp = config.getboolean('debug','clear_temp_files')
     self.lda = GibbsLDA\
@@ -15,6 +16,7 @@ class GibbsLDATransformer(Transformer):
                  , ntopics=ntopics
                  , tmp=tmp
                  , clear_temp = clear_temp
+                 , exe = exe
                  )
     #TODO: Better naming!
     self.__name__ = self.__class__.__name__\

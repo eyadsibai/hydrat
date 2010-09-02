@@ -78,6 +78,7 @@ def default_configuration():
   default_config.set('tools', 'libs', '%(bin)s')
   default_config.set('tools', 'genia', '')
   default_config.set('tools', 'genia_data', '')
+  default_config.set('tools', 'gibbslda', '')
 
   default_config.add_section('corpora')
   default_config.set('corpora', 'corpora', '~/data')
