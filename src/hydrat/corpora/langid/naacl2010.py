@@ -25,8 +25,17 @@ class NAACL2010(ISO639_1, SingleDir):
       reader = csv.reader(meta, delimiter='\t')
       for row in reader:
         docid, encoding, lang, partition = row
-        cm[docid] = lang
+        cm[docid] = [lang]
     return cm
+
+  def sp_crossvalidation(self):
+    sp = defaultdict(list)
+    with open(self.meta_path(), 'r') as meta:
+      reader = csv.reader(meta, delimiter='\t')
+      for row in reader:
+        docid, encoding, lang, partition = row
+        sp['fold'+partition].append(docid)
+    return sp 
   
 class EuroGOV(NAACL2010, UTF8, ByteUBT, CodepointUBT):
   __name__ = 'EuroGOV'
@@ -37,7 +46,7 @@ class TCL(NAACL2010, ByteUBT, CodepointUBT):
   def encodings(self):
     encodings = {}
     with open(self.meta_path(), 'r') as meta:
-      reader = csv.reader(meta)
+      reader = csv.reader(meta, delimiter='\t')
       for row in reader:
         docid, encoding, lang, partition = row
         encodings[docid] = encoding
