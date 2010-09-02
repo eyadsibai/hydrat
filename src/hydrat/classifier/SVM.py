@@ -60,7 +60,7 @@ class SVMLearner(Learner):
   def __init__(self):
     self.range_path = None
     self.model_path = None
-    self.clear_temp = False #TODO 
+    self.clear_temp = config.getboolean('debug', 'clear_temp_files')
     Learner.__init__(self)
 
   def _check_installed(self):
@@ -151,7 +151,7 @@ class SVMClassifier(Classifier):
     self.scaler      = scaler
     self.range_path  = range_path
     self.num_classes = num_classes
-    self.clear_temp  = True # Clear temp files after execution
+    self.clear_temp  = config.getboolean('debug','clear_temp_files')
 
   def __invoke_classifier(self, test_path):
     #Create a temporary file for the results

@@ -27,7 +27,7 @@ class maxentLearner(Learner):
     self.iterations = iterations
     self.method = method
     self.model_path = None
-    self.clear_temp = True 
+    self.clear_temp = config.getboolean('debug','clear_temp_files')
 
   def _check_installed(self):
     if not is_exe(self.toolpath):
