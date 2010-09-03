@@ -69,6 +69,12 @@ class Framework(object):
     self.class_space = None
     self.learner = None
 
+    self.taskset_desc = None
+
+  @property
+  def taskset(self):
+    return self.store.get_TaskSet(self.taskset_desc)
+
   def notify(self, str):
     self.logger.info(str)
 
@@ -120,36 +126,26 @@ class Framework(object):
       self.inducer.add_Featuremap(dsname, space_name, feat_dict)
 
   def transform_taskset(self, transformer):
-    metadata = tx.update_metadata(self.taskset, transformer)
-    if self.store.has_TaskSet(metadata):
-      # Load from store
-      self.taskset = self.store.get_TaskSet(metadata)
-    else:
-      self.taskset = tx.transform_taskset(self.taskset, transformer)
-      # Save to store
-      try:
-        self.store.new_TaskSet(self.taskset)
-      except AlreadyHaveData:
-        import pdb;pdb.set_trace()
+    metadata = tx.update_metadata(self.taskset_desc, transformer)
+    if not self.store.has_TaskSet(metadata):
+      taskset = tx.transform_taskset(self.taskset, transformer)
+      self.store.new_TaskSet(taskset)
+    self.taskset_desc = metadata
 
   def extend_taskset(self, feature_spaces):
     feature_spaces = as_set(feature_spaces)
+    # Catch up any missing feature spaces
+    self.inducer.process_Dataset(self.dataset, fms=feature_spaces)
     ds_name = self.dataset.__name__
     featuremaps = []
     for feature_space in sorted(feature_spaces):
       featuremaps.append(self.store.get_Data(ds_name, {'type':'feature','name':feature_space}))
     fm = union(*featuremaps)
-    if False:
-      # TODO: Check if we have it already via metadata!!
-      pass
-    else:
-      self.taskset = append_features(self.taskset, fm)
-      # Save to store
-      try:
-        self.store.new_TaskSet(self.taskset)
-      except AlreadyHaveData:
-        pass
-        #import pdb;pdb.set_trace()
+    taskset_metadata = append_features_update_metadata(self.taskset_desc, fm)
+    if not self.store.has_TaskSet(taskset_metadata):
+      taskset = append_features(self.taskset, fm)
+      self.store.new_TaskSet(taskset)
+    self.taskset_desc = taskset_metadata
 
   def is_configurable(self):
     return self.feature_spaces is not None and self.class_space is not None
@@ -161,7 +157,7 @@ class Framework(object):
       self.notify('Generating Partitioner')
       self.partitioner = self._generate_partitioner()
       self.notify('Generating Task')
-      self.taskset = self._generate_taskset()
+      self.taskset_desc = self._generate_taskset()
 
   def _generate_partitioner(self):
     raise NotImplementedError, "_generate_partitioner not implemented"
@@ -180,12 +176,10 @@ class Framework(object):
 
     additional_metadata = {}
     taskset_metadata = self.partitioner.generate_metadata(fm, additional_metadata)
-    try:
-      taskset = self.store.get_TaskSet(taskset_metadata)
-    except NoData:
+    if not self.store.has_TaskSet(taskset_metadata):
       taskset = self.partitioner(fm, additional_metadata)
-      self.store.add_TaskSet(taskset)
-    return taskset
+      self.store.new_TaskSet(taskset)
+    return taskset_metadata
 
   def has_run(self):
     if self.feature_spaces is None:
@@ -204,6 +198,7 @@ class Framework(object):
     """
     Generate HTML output
     """
+    self.notify("Generating output")
     #import tempfile
     #temp_output_path = tempfile.mkdtemp(dir=hydrat.config.getpath('paths','scratch'))
     summaries = process_results\
@@ -230,6 +225,7 @@ class Framework(object):
     Copy output to a sepecified destination.
     Useful for transferring results to a webserver
     """
+    self.notify("Uploading output to '%s'"% target)
     import updatedir
     updatedir.logger = logger
     updatedir.updatetree(self.outputP, target, overwrite=True)
@@ -310,6 +306,13 @@ def process_results( data_store
           render_TaskSetResult(result_renderer, result, class_space, interpreter, summary)
   return summaries
       
+
+def append_features_update_metadata(metadata, fm):
+  metadata = dict(metadata)
+  metadata['feature_desc'] += fm.metadata['feature_desc']
+  return metadata
+
+
 def append_features(taskset, fm):
   new_tasks = []
   for task in taskset.tasks:
@@ -325,13 +328,9 @@ def append_features(taskset, fm):
     t.test_vectors = scipy.sparse.hstack((task.test_vectors,fm.raw[task.test_indices.nonzero()[0]])).tocsr()
 
     # Handle metadata
-    metadata = dict(task.metadata)
-    del metadata['uuid'] # This is the old task's uuid
-    metadata['feature_desc'] += fm.metadata['feature_desc']
-    t.metadata = metadata
+    t.metadata = append_features_update_metadata(task.metadata, fm)
     new_tasks.append(t)
 
-  metadata = dict(taskset.metadata)
-  metadata['feature_desc'] += fm.metadata['feature_desc']
+  metadata = append_features_update_metadata(taskset.metadata, fm)
   ts = TaskSet(new_tasks, metadata)
   return ts

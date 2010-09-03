@@ -15,17 +15,15 @@ def transform_task(task, transformer):
   return t
   
 def transform_taskset(taskset, transformer):
-  metadata = update_metadata(taskset, transformer)
+  metadata = update_metadata(taskset.metadata, transformer)
   tasklist = [ transform_task(t, transformer) for t in taskset.tasks ]
   return TaskSet(tasklist, metadata)
 
-def update_metadata(taskset, transformer):
-  metadata = dict(taskset.metadata)
+def update_metadata(metadata, transformer):
+  metadata = dict(metadata)
   # Eliminate feature name
   if 'feature_name' in metadata: 
     raise ValueError, "Should not be encountering feature_name"
-  # Remove the old taskset's uuid.
-  del metadata['uuid']
   metadata['feature_desc']+=(transformer.__name__,)
   return metadata
 
