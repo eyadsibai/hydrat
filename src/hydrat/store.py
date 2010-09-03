@@ -412,6 +412,7 @@ class Store(object):
     cm_node.flush()
                                
   def add_TaskSet(self, taskset, additional_metadata={}):
+    # TODO: Find some way to make this atomic! Otherwise, we can write incomplete tasksets!!
     self._check_writeable()
     taskset_uuid = taskset.metadata['uuid']
 

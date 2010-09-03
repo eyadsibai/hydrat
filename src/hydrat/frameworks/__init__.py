@@ -166,6 +166,7 @@ class Framework(object):
     self.inducer.process_Dataset(self.dataset, fms=self.feature_spaces, cms=self.class_space)
 
   def _generate_taskset(self):
+    # TODO: Compute the union metadata without computing the union
     ds_name = self.dataset.__name__
     featuremaps = []
     for feature_space in sorted(self.feature_spaces):
@@ -177,18 +178,27 @@ class Framework(object):
     additional_metadata = {}
     taskset_metadata = self.partitioner.generate_metadata(fm, additional_metadata)
     if not self.store.has_TaskSet(taskset_metadata):
+      import pdb;pdb.set_trace()
       taskset = self.partitioner(fm, additional_metadata)
       self.store.new_TaskSet(taskset)
     return taskset_metadata
 
   def has_run(self):
-    if self.feature_spaces is None:
-      raise ValueError, "feature_spaces not yet set"
-    if self.class_space is None:
-      raise ValueError, "class_space not yet set"
-    if self.learner is None:
-      raise ValueError, "learner not yet set"
-    return have_experiment(self.taskset, self.learner, self.store)
+    keys = [ 'dataset'
+           , 'feature_desc'
+           , 'task_type'
+           , 'class_space'
+           , 'rng_state'
+           ]
+    m = dict( (k,self.taskset_desc[k]) for k in keys )
+    m['learner'] = self.learner.__name__
+    m['learner_params'] = self.learner.params
+    taglist = self.store._resolve_TaskSetResults(m)
+    if len(taglist) == 0:
+      import pdb;pdb.set_trace()
+    logger.debug(m)
+    logger.debug("%d previous results match this metadata", len(taglist))
+    return len(taglist) > 0
 
   def run(self):
     if not self.has_run():
@@ -243,20 +253,6 @@ def init_workdir(path, newdirs=["models","tasks","results","output"]):
     for dir in newdirs:
       os.mkdir(os.path.join(path,dir))
 
-def have_experiment(taskset, learner, result_store):
-  keys = [ 'dataset'
-         , 'feature_desc'
-         , 'task_type'
-         , 'rng_state'
-         , 'class_space'
-         ]
-  m = dict( (k,taskset.metadata[k]) for k in keys )
-  m['learner'] = learner.__name__
-  m['learner_params'] = learner.params
-  taglist = result_store._resolve_TaskSetResults(m)
-  logger.debug(m)
-  logger.debug("%d previous results match this metadata", len(taglist))
-  return len(taglist) > 0
 
   
 def run_experiment(taskset, learner, result_store):
