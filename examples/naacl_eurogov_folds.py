@@ -10,7 +10,7 @@ if __name__ == "__main__":
     ]
   ps = PresetSplitFramework(naacl.EuroGOV())
   ps.set_class_space('iso639_1')
-  ps.set_feature_space('byte_unigram')
+  ps.set_feature_spaces('byte_unigram')
   ps.set_split('crossvalidation')
   for l in learners:
     ps.set_learner(l)

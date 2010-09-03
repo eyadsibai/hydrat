@@ -134,15 +134,16 @@ class Framework(object):
 
   def extend_taskset(self, feature_spaces):
     feature_spaces = as_set(feature_spaces)
-    # Catch up any missing feature spaces
-    self.inducer.process_Dataset(self.dataset, fms=feature_spaces)
-    ds_name = self.dataset.__name__
-    featuremaps = []
-    for feature_space in sorted(feature_spaces):
-      featuremaps.append(self.store.get_Data(ds_name, {'type':'feature','name':feature_space}))
-    fm = union(*featuremaps)
-    taskset_metadata = append_features_update_metadata(self.taskset_desc, fm)
+    taskset_metadata = dict(self.taskset_desc)
+    taskset_metadata['feature_desc'] += tuple(sorted(feature_spaces))
     if not self.store.has_TaskSet(taskset_metadata):
+      # Catch up any missing feature spaces
+      self.inducer.process_Dataset(self.dataset, fms=feature_spaces)
+      ds_name = self.dataset.__name__
+      featuremaps = []
+      for feature_space in sorted(feature_spaces):
+        featuremaps.append(self.store.get_Data(ds_name, {'type':'feature','name':feature_space}))
+      fm = union(*featuremaps)
       taskset = append_features(self.taskset, fm)
       self.store.new_TaskSet(taskset)
     self.taskset_desc = taskset_metadata
@@ -166,22 +167,24 @@ class Framework(object):
     self.inducer.process_Dataset(self.dataset, fms=self.feature_spaces, cms=self.class_space)
 
   def _generate_taskset(self):
-    # TODO: Compute the union metadata without computing the union
-    ds_name = self.dataset.__name__
-    featuremaps = []
-    for feature_space in sorted(self.feature_spaces):
-      featuremaps.append(self.store.get_Data(ds_name, {'type':'feature','name':feature_space}))
-
-    # Join the featuremaps into a single featuremap
-    fm = union(*featuremaps)
-
     additional_metadata = {}
-    taskset_metadata = self.partitioner.generate_metadata(fm, additional_metadata)
+    # Build the taskset metadata
+    taskset_metadata = dict(self.partitioner.metadata)
+    taskset_metadata['feature_desc'] = tuple(sorted(self.feature_spaces))
+    taskset_metadata.update(additional_metadata)
+
     if not self.store.has_TaskSet(taskset_metadata):
-      import pdb;pdb.set_trace()
+      ds_name = self.dataset.__name__
+      featuremaps = []
+      for feature_space in sorted(self.feature_spaces):
+        featuremaps.append(self.store.get_Data(ds_name, {'type':'feature','name':feature_space}))
+
+      # Join the featuremaps into a single featuremap
+      fm = union(*featuremaps)
+
       taskset = self.partitioner(fm, additional_metadata)
       self.store.new_TaskSet(taskset)
-    return taskset_metadata
+    return taskset_metadata 
 
   def has_run(self):
     keys = [ 'dataset'
@@ -194,8 +197,6 @@ class Framework(object):
     m['learner'] = self.learner.__name__
     m['learner_params'] = self.learner.params
     taglist = self.store._resolve_TaskSetResults(m)
-    if len(taglist) == 0:
-      import pdb;pdb.set_trace()
     logger.debug(m)
     logger.debug("%d previous results match this metadata", len(taglist))
     return len(taglist) > 0
