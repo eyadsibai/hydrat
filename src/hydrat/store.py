@@ -28,6 +28,7 @@ class AlreadyHaveData(StoreError): pass
 class InsufficientMetadata(StoreError): pass
 
 # TODO: Provide a facility for saving splits
+# TODO: Avoid leaking uuids out with tasksets and/or results.
 
 # Features are internally stored as sparse arrays, which are serialized at the
 # pytables level to tables of instance, feature, value triplets. We support
@@ -412,12 +413,7 @@ class Store(object):
                                
   def add_TaskSet(self, taskset, additional_metadata={}):
     self._check_writeable()
-    try:
-      taskset_uuid = taskset.metadata['uuid']
-    except KeyError:
-      #TODO: Should this be an error? Do we expect tasksets to supply their own uuid?
-      taskset_uuid = uuid.uuid4()
-      taskset.metadata['uuid'] = taskset_uuid
+    taskset_uuid = taskset.metadata['uuid']
 
     if 'date' not in taskset.metadata:
       taskset.metadata['date'] = dt.datetime.now().isoformat()
@@ -643,11 +639,12 @@ class Store(object):
     """Convenience method which checks no previous taskset has matching 
     metadata. Useful for situations where we build up the tasksets incrementally
     """
-    try:
-      self.get_TaskSet(taskset.metadata)
+    if self.has_TaskSet(taskset.metadata):
       raise AlreadyHaveData, "Already have taskset %s" % str(taskset.metadata)
-    except NoData:
-      pass
+    if 'uuid' in taskset.metadata:
+      logger.warning('new taskset should not have uuid!')
+    taskset_uuid = uuid.uuid4()
+    taskset.metadata['uuid'] = taskset_uuid
     try:
       self.add_TaskSet(taskset)
     except tables.exceptions.NodeError:
