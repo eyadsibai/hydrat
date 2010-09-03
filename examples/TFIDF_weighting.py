@@ -9,8 +9,6 @@ import hydrat.classifier.nearest_prototype as np
 import hydrat.classifier.weka as weka
 import hydrat.classifier.maxent as maxent
 
-from hydrat.task.transform import transform_taskset
-from hydrat.preprocessor.features.transform import tfidf
 from hydrat.common.transform.weight import TFIDF
 
 if __name__ == "__main__":
@@ -24,7 +22,7 @@ if __name__ == "__main__":
   for l in learners:
     ps.set_learner(l)
     ps.run()
-  ps.taskset = transform_taskset(ps.taskset,TFIDF())
+  ps.transform_taskset(TFIDF())
   for l in learners:
     ps.set_learner(l)
     ps.run()
