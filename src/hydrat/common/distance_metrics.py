@@ -195,7 +195,8 @@ class dm_outofplace(distance_metric):
     rl_v2 = [ dm_outofplace.ranklist(v) for v in v2 ]
 
     results = numpy.empty((v1.shape[0],v2.shape[0]))
-    for i,(q_rl) in enumerate(rl_v1):
+    piter = ProgressIter(rl_v1, label = "Out-of-Place")
+    for i,(q_rl) in enumerate(piter):
       for j,(r_rl) in enumerate(rl_v2):
         results[i,j] = self.fast(q_rl, r_rl)
     return results
