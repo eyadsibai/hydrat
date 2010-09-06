@@ -9,10 +9,14 @@ from collections import defaultdict
 
 from hydrat import config
 from hydrat.dataset.encoded import BagOfWords, ASCII
+from hydrat.configuration import Configurable, DIR
 
 logger = logging.getLogger(__name__)
 
-class ReutersParser(SGMLParser):
+class ReutersParser(Configurable, SGMLParser):
+  requires=\
+    { ('corpora', 'reuters') : DIR('reut21578')
+    }
   def __init__(self, verbose=0):
     SGMLParser.__init__(self,verbose)
     self.reset()
