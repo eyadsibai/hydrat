@@ -55,6 +55,7 @@ src/hydrat/common/tokenizers.py
 src/hydrat/common/transform/__init__.py
 src/hydrat/common/transform/featureselect.py
 src/hydrat/common/transform/infogain.py
+src/hydrat/common/transform/latentdirichletallocation.py
 src/hydrat/common/transform/weight.py
 src/hydrat/common/transform/weighting_function.py
 src/hydrat/corpora/__init__.py
@@ -96,7 +97,6 @@ src/hydrat/preprocessor/model/arff.py
 src/hydrat/preprocessor/model/inducer/__init__.py
 src/hydrat/preprocessor/model/inducer/dataset.py
 src/hydrat/preprocessor/tokenstream/__init__.py
-src/hydrat/preprocessor/tokenstream/genia.py
 src/hydrat/preprocessor/tokenstream/porterstem.py
 src/hydrat/result/__init__.py
 src/hydrat/result/interpreter.py
@@ -115,3 +115,6 @@ src/hydrat/tools/model_info.py
 src/hydrat/tools/pickle2csv.py
 src/hydrat/tools/result_delete_bymetadata.py
 src/hydrat/tools/result_list.py
+src/hydrat/wrapper/GibbsLDA.py
+src/hydrat/wrapper/__init__.py
+src/hydrat/wrapper/genia.py

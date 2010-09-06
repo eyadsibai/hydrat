@@ -15,13 +15,7 @@ class GeniaTagger(object):
   TAGS = ['word', 'base', 'POStag', 'chunktag', 'NEtag']
 
   def __init__(self, tagger_exe=None, genia_path=None):
-    try:
-      import hydrat
-      tagger_exe = tagger_exe if tagger_exe else hydrat.config.getpath('tools','genia')
-      genia_path = genia_path if genia_path else hydrat.config.getpath('tools','genia_data')
-    except ImportError:
-      pass
-    # TODO: Handle paths not specified and not called from hydrat.
+    # TODO: Handle paths not specified
     self.genia_instance = subprocess.Popen([tagger_exe], cwd=genia_path, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     # Close stderr to avoid deadlocks due to a full buffer.
     self.genia_instance.stderr.close()

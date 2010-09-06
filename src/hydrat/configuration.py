@@ -19,6 +19,28 @@ DEFAULT_CONFIG_FILE = '.hydratrc'
 #   1) Outputs key-values in any order in a section
 #   2) Does not allow you to inset comments
 
+class DIR(object):
+  def __init__(self, dirname):
+    self.dirname = dirname
+
+  def value(self):
+    return find_dir(self.dirname)
+
+class EXE(object):
+  def __init__(self, filename):
+    self.filename = filename
+  
+  def value(self):
+    return which(self.filename)
+
+class Configurable(object):
+  """
+  Mixin for classes that are configurable.
+  All subclasses of this class get scanned for key-value pairs
+  that need to be added to the master configuration.
+  """
+  requires = {}
+
 class HydratConfigParser(ConfigParser.SafeConfigParser):
   """ HydratConfigParser adds a getpath method, to postprocess paths in a 
   config file by running expanduser and expandvars on the path.
@@ -54,6 +76,25 @@ def which(program):
 
   return None
 
+def find_dir(dirname):
+  """
+  Locate a directoy given its name.
+  """
+  result = []
+  class Found(Exception): pass
+  def visit(arg, dn, names):
+    if os.path.basename(dn) == dirname:
+      arg.append(dn)
+      raise Found
+  try:
+    os.path.walk(os.path.expanduser('~'), visit, result)
+  except Found:
+    pass
+  if len(result) != 0:
+    return result[0]
+  else:
+    return None
+
 def default_configuration():
   """
   Default configuration options
@@ -73,7 +114,6 @@ def default_configuration():
   default_config.set('tools', 'weka', '/usr/bin/weka.jar')
   default_config.set('tools', 'textcat', '')
   default_config.set('tools', 'libs', '')
-  default_config.set('tools', 'genia', '')
   default_config.set('tools', 'genia_data', '')
   default_config.set('tools', 'gibbslda', '')
 
@@ -134,16 +174,19 @@ def update_configuration(config, rescan=False):
   # TODO: 
   # Check for conflicting keys, and do something about it.
   # Might not actually be an error: More than one package might ask for java.
-  import hydrat.classifier as c
-  for klass in all_subclasses(c.abstract.Learner):
+  import hydrat
+  #import hydrat.classifier
+  #import hydrat.dataset
+  #import hydrat.common.transform.latentdirichletallocation
+  for klass in all_subclasses(Configurable):
     requires = klass.requires
-    for key in requires:
-      if config.has_option('tools', key):
-        existing = config.getpath('tools', key)
+    for section,key in requires:
+      if config.has_option(section, key):
+        existing = config.getpath(section, key)
         # Already have a setting
         if rescan:
-          toolpath = which(requires[key])
-          if toolpath is not None:
+          toolpath = requires[(section,key)].value()
+          if toolpath is not None and toolpath != existing:
             logger.info("%s --> %s (updated)", key, toolpath)
             config.set('tools', key, toolpath)
           else:
@@ -151,7 +194,7 @@ def update_configuration(config, rescan=False):
         else:
           logger.info("%s --> %s (existing configuration)", key, existing)
       else:
-        toolpath = which(requires[key])
+        toolpath = requires[(section,key)].value()
         if toolpath is not None:
           logger.info("%s --> %s (resolved)", key, toolpath)
           config.set('tools', key, toolpath)
