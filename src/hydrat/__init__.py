@@ -17,6 +17,7 @@ def main():
 
 import classifier
 import dataset
+import corpora
 import common.transform
 
 if __name__ == "__main__":
