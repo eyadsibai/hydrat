@@ -39,6 +39,10 @@ class GeniaTagger(object):
       token = dict(zip(self.TAGS, line.split('\t')))
       # Extract the raw word
       word = token['word']
+      # Clean up genia's mangling of some tokens.
+      if word == '``': word = '"'
+      if word == "''": word = '"'
+
       # Compute where this token starts and ends in the stream
       start, end = re.search(re.escape(word), proc_text[range_start:]).span()
       token['start'] = range_start + start
