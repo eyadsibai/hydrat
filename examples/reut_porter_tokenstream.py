@@ -48,7 +48,7 @@ if __name__ == "__main__":
   ps.run()
   
   # Create a new taskset by carrying out infogain-based top500 feature selection
-  # Note that this taskset is not saved back into the store.
+  # Note that this taskset is saved back into the store.
   ps.transform_taskset(ig_bern_top500)
   ps.run()
 
