@@ -5,6 +5,7 @@ TODO: Use pexpect instead of popen, tie in with progressbar output
 """
 from hydrat.classifier.abstract import Learner, Classifier, NotInstalledError
 from hydrat import config
+from hydrat.configuration import Configurable, EXE
 
 from itertools import izip
 
@@ -244,7 +245,7 @@ class SVMClassifier(Classifier):
     classifications = self.__parse_result(result_path, num_test_docs)
     return classifications
 
-class libsvmExtL(SVMLearner):
+class libsvmExtL(Configurable, SVMLearner):
   """
   -s svm_type : set type of SVM (default 0)
           0 -- C-SVC
@@ -274,9 +275,9 @@ class libsvmExtL(SVMLearner):
   """
   __name__ = 'libsvm_ext'
   requires =\
-    { 'libsvmlearner' : 'svm-train' 
-    , 'libsvmclassifier' : 'svm-predict'
-    , 'libsvmscaler' : 'svm-scale'
+    { ('tools', 'libsvmlearner')    : EXE('svm-train')
+    , ('tools','libsvmclassifier')  : EXE('svm-predict')
+    , ('tools','libsvmscaler')      : EXE('svm-scale')
     }
 
   def _check_installed(self):
@@ -312,7 +313,7 @@ class libsvmExtL(SVMLearner):
     return p
 
 # TODO: Deal with mutliclass fed to BSVM. Seems to choke, probably some error output on stderr.
-class bsvmL(SVMLearner):
+class bsvmL(Configurable, SVMLearner):
   """
   -s svm_type : set type of SVM (default 0)
           0 -- multi-class bound-constrained support vector classification (SVC)
@@ -341,8 +342,8 @@ class bsvmL(SVMLearner):
   """
   __name__ = 'bsvm'
   requires =\
-    { 'bsvmlearner' : 'bsvm-train' 
-    , 'bsvmclassifier' : 'bsvm-predict'
+    { ('tools','bsvmlearner')    : EXE('bsvm-train')
+    , ('tools','bsvmclassifier') : EXE('bsvm-predict')
     }
 
 
