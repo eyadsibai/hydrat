@@ -20,6 +20,12 @@ from hydrat.frameworks import Framework
 from hydrat.task.sampler import membership_vector, PresetSplit
 
 class PresetSplitFramework(Framework):
+  RUN_ID_KEYS = [ 'dataset'
+                , 'feature_desc'
+                , 'task_type'
+                , 'split_name'
+                , 'class_space'
+                ]
   def __init__\
     ( self
     , dataset

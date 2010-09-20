@@ -45,6 +45,12 @@ summary_fields=\
   ]
 
 class Framework(object):
+  RUN_ID_KEYS = [ 'dataset'
+                , 'feature_desc'
+                , 'task_type'
+                , 'class_space'
+                , 'rng_state'
+                ]
   def __init__( self
               , dataset
               , work_path = None
@@ -187,12 +193,7 @@ class Framework(object):
     return taskset_metadata 
 
   def has_run(self):
-    keys = [ 'dataset'
-           , 'feature_desc'
-           , 'task_type'
-           , 'class_space'
-           , 'rng_state'
-           ]
+    keys = self.RUN_ID_KEYS
     m = dict( (k,self.taskset_desc[k]) for k in keys )
     m['learner'] = self.learner.__name__
     m['learner_params'] = self.learner.params
