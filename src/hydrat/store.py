@@ -28,6 +28,9 @@ class AlreadyHaveData(StoreError): pass
 class InsufficientMetadata(StoreError): pass
 
 # TODO: Provide a facility for saving splits
+# TODO: Provide a method to merge existing stores
+#       - This is particularly tricky because we may have different orderings of the same feature space
+#         which may require a pretty tricky rearrange to work correctly.
 # TODO: Avoid leaking uuids out with tasksets and/or results.
 
 # Features are internally stored as sparse arrays, which are serialized at the
