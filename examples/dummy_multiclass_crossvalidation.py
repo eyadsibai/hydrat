@@ -25,7 +25,7 @@ if __name__ == "__main__":
     ]
   cv = CrossValidationFramework(dummy.unicode_dummy_multiclass())
   cv.set_class_space('dummy_multiclass')
-  cv.set_feature_space('byte_unigram')
+  cv.set_feature_spaces('byte_unigram')
   for l in learners:
     cv.set_learner(l)
     cv.run()
