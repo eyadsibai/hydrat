@@ -841,7 +841,11 @@ class Store(object):
 
   def add_TokenStreams(self, dsname, stream_name, tokenstreams):
     dsnode = getattr(self.datasets, dsname)
-    stream_array = self.fileh.createVLArray(dsnode.tokenstreams, stream_name, tables.ObjectAtom())
+    stream_array = self.fileh.createVLArray( dsnode.tokenstreams
+                                           , stream_name
+                                           , tables.ObjectAtom()
+                                           , filters = tables.Filters(complevel=5, complib='zlib') 
+                                           )
     for stream in ProgressIter(tokenstreams, label='Adding TokenStreams'):
       stream_array.append(stream)
 
