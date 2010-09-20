@@ -19,6 +19,39 @@ DEFAULT_CONFIG_FILE = '.hydratrc'
 #   1) Outputs key-values in any order in a section
 #   2) Does not allow you to inset comments
 
+class DIR(object):
+  def __init__(self, dirname):
+    self.dirname = dirname
+
+  def value(self):
+    from hydrat import config
+    search_paths = [ config.getpath('paths','corpora') , '~']
+    return find_dir(self.dirname, search_paths)
+
+class EXE(object):
+  def __init__(self, filename):
+    self.filename = filename
+  
+  def value(self):
+    return which(self.filename)
+
+class PACKAGE(object):
+  """
+  Intended for use with corpora.
+  Needs to contain all the relevant information to locate if a package
+  has been installed, or to obtain it if it has not been installed.
+  Could be expanded to dealing with classifier packages as well.
+  """
+  pass
+
+class Configurable(object):
+  """
+  Mixin for classes that are configurable.
+  All subclasses of this class get scanned for key-value pairs
+  that need to be added to the master configuration.
+  """
+  requires = {}
+
 class HydratConfigParser(ConfigParser.SafeConfigParser):
   """ HydratConfigParser adds a getpath method, to postprocess paths in a 
   config file by running expanduser and expandvars on the path.
@@ -31,6 +64,9 @@ class HydratConfigParser(ConfigParser.SafeConfigParser):
     return path
 
 def all_subclasses(klass):
+  """
+  Recursively find all subclasses of a given class
+  """
   subclasses = klass.__subclasses__()
   result = set(subclasses)
   for k in subclasses:
@@ -42,6 +78,7 @@ def is_exe(fpath):
 
 def which(program):
   # from http://stackoverflow.com/questions/377017/test-if-executable-exists-in-python
+  logger.debug("which '%s'", program)
   fpath, fname = os.path.split(program)
   if fpath:
     if is_exe(program):
@@ -53,6 +90,28 @@ def which(program):
         return exe_file
 
   return None
+
+
+def find_dir(dirname, search_paths = ['~']):
+  """
+  Locate a directoy given its name.
+  """
+  logger.debug("find_dir '%s' in '%s'", dirname, str(search_paths))
+  result = []
+  class Found(Exception): pass
+  def visit(arg, dn, names):
+    if os.path.basename(dn) == dirname:
+      arg.append(dn)
+      raise Found
+  try:
+    for path in search_paths:
+      os.path.walk(os.path.expanduser(path), visit, result)
+  except Found:
+    pass
+  if len(result) != 0:
+    return result[0]
+  else:
+    return None
 
 def default_configuration():
   """
@@ -67,24 +126,22 @@ def default_configuration():
   default_config.set('paths', 'tasks', '%(work)s/tasks')
   default_config.set('paths', 'results', '%(work)s/results')
   default_config.set('paths', 'output', '%(work)s/output')
+  default_config.set('paths', 'corpora', '~/data')
 
   default_config.add_section('tools')
   default_config.set('tools', 'rainbow', '/usr/bin/rainbow')
   default_config.set('tools', 'weka', '/usr/bin/weka.jar')
   default_config.set('tools', 'textcat', '')
   default_config.set('tools', 'libs', '')
-  default_config.set('tools', 'genia', '')
   default_config.set('tools', 'genia_data', '')
   default_config.set('tools', 'gibbslda', '')
 
   default_config.add_section('corpora')
-  default_config.set('corpora', 'corpora', '~/data')
-  default_config.set('corpora', 'reuters', '%(corpora)s/reut21578')
-  default_config.set('corpora', 'eurogov', '%(corpora)s/eurogov')
-  default_config.set('corpora', 'tcl', '%(corpora)s/TCL')
-  default_config.set('corpora', 'udhr', '%(corpora)s/udhr/txt')
-  default_config.set('corpora', 'wikipedia', '%(corpora)s/wikipedia')
-  default_config.set('corpora', 'naacl2010-langid', '%(corpora)s/naacl2010-langid')
+  #default_config.set('corpora', 'udhr', '%(corpora)s/udhr/txt')
+  # TODO: This stub is needed because NAACL2010 asks for the path at class instantiation.
+  #       Should work around this via the Configurable API, so the object looks up its 
+  #       local configuration before accessing the global one.
+  default_config.set('corpora', 'naacl2010-langid', '')
 
   default_config.add_section('logging')
   default_config.set('logging', 'console.level', 'info')
@@ -134,27 +191,27 @@ def update_configuration(config, rescan=False):
   # TODO: 
   # Check for conflicting keys, and do something about it.
   # Might not actually be an error: More than one package might ask for java.
-  import hydrat.classifier as c
-  for klass in all_subclasses(c.abstract.Learner):
+  import hydrat
+  for klass in Configurable.__subclasses__():
     requires = klass.requires
-    for key in requires:
-      if config.has_option('tools', key):
-        existing = config.getpath('tools', key)
+    for section,key in requires:
+      if config.has_option(section, key) and config.getpath(section,key) is not '':
         # Already have a setting
+        existing = config.getpath(section, key)
         if rescan:
-          toolpath = which(requires[key])
-          if toolpath is not None:
+          toolpath = requires[(section,key)].value()
+          if toolpath is not None and toolpath != existing:
             logger.info("%s --> %s (updated)", key, toolpath)
-            config.set('tools', key, toolpath)
+            config.set(section, key, toolpath)
           else:
             logger.info("%s --> %s (no update)", key, existing)
         else:
           logger.info("%s --> %s (existing configuration)", key, existing)
       else:
-        toolpath = which(requires[key])
+        toolpath = requires[(section,key)].value()
         if toolpath is not None:
           logger.info("%s --> %s (resolved)", key, toolpath)
-          config.set('tools', key, toolpath)
+          config.set(section, key, toolpath)
         else:
           logger.info("%s --> None (not found)", key)
   return config

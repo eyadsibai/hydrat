@@ -4,16 +4,20 @@ import csv
 from collections import defaultdict
 
 from hydrat import config
+from hydrat.configuration import Configurable, DIR
 from hydrat.dataset import SingleDir
 from hydrat.dataset.iso639 import ISO639_1
 from hydrat.dataset.text import ByteUBT
 from hydrat.dataset.encoded import CodepointUBT, UTF8
 
 
-class NAACL2010(ISO639_1, SingleDir):
+class NAACL2010(Configurable, ISO639_1, SingleDir):
   """ Mixin for NAACL2010 dataset, which has a standardized format
   for the metadata file.
   """
+  requires=\
+    { ('corpora', 'naacl2010-langid') : DIR('naacl2010-langid')
+    }
   rawdata_path = config.getpath('corpora', 'naacl2010-langid')
 
   def data_path(self): return os.path.join(self.rawdata_path, self.__name__)

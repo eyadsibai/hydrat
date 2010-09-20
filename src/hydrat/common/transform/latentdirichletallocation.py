@@ -1,10 +1,13 @@
 from hydrat.wrapper.GibbsLDA import GibbsLDA
 from hydrat.common.transform import Transformer
 from hydrat import config as config
+from hydrat.configuration import Configurable, EXE
 
-class GibbsLDATransformer(Transformer):
+class GibbsLDATransformer(Configurable, Transformer):
+  requires=\
+    { ('tools','gibbslda') : EXE('lda')
+    }
   def __init__(self, alpha=None, beta=0.1, niters=2000, infiters=30, ntopics=100):
-    #TODO: Configure exe
     exe = config.getpath('tools','gibbslda') 
     tmp = config.getpath('paths','scratch')
     clear_temp = config.getboolean('debug','clear_temp_files')

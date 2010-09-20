@@ -11,8 +11,6 @@ class NoFeaturesError(ClassifierError): pass
 class NotInstalledError(ClassifierError): pass
 
 class Learner(object):
-  requires = {}
-
   def __init__(self):
     self.logger = logging.getLogger("hydrat.classifier.learner.%s"%self.__name__)
     self._check_installed()
