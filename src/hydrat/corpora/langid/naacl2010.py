@@ -4,9 +4,8 @@ import csv
 from collections import defaultdict
 
 from hydrat import config
-from hydrat.dataset import SingleDir
 from hydrat.dataset.iso639 import ISO639_1
-from hydrat.dataset.text import ByteUBT
+from hydrat.dataset.text import ByteUBT, SingleDir
 from hydrat.dataset.encoded import CodepointUBT, UTF8
 
 

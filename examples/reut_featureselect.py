@@ -30,8 +30,8 @@ if __name__ == "__main__":
   # Use cosine-mean nearest prototype. Chosen because it is internal and fast
   ps.set_learner(np.cosine_mean_prototypeL())
 
-  # Use featuremaps in the bag_of_words feature space
-  ps.set_feature_spaces('bag_of_words')
+  # Use featuremaps in the word_unigram feature space
+  ps.set_feature_spaces('word_unigram')
   
   # Create a new taskset by carrying out infogain-based top500 feature selection
   ps.transform_taskset(ig_bern_top500)
