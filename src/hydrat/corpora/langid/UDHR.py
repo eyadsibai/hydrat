@@ -42,7 +42,7 @@ class UDHR(ByteUBT, CodepointUBT):
   def encodings(self):
     return defaultdict(lambda:'utf-8')
 
-  def text(self):
+  def ts_byte(self):
     data = {}
     for id in self._docids:
       f = open(os.path.join(self.path, id+'.txt'))

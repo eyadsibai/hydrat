@@ -114,9 +114,10 @@ class Framework(object):
     self.learner = learner
     self.notify("Set learner to '%s'" % learner)
 
-  def process_tokenstream(self, tsname, ts_processor):
+  def process_tokenstream(self, tsname, extractor):
     dsname = self.dataset.__name__
-    space_name = ts_processor.__name__
+    # Definition of space name.
+    space_name = '_'.join((tsname,extractor.__name__))
     if not self.store.has_Data(dsname, space_name):
       self.notify("Inducing TokenStream '%s'" % tsname)
       # We always call this as if the ts has already been processed it is a fairly 
@@ -128,7 +129,7 @@ class Framework(object):
       instance_ids = self.store.get_InstanceIds(dsname)
       feat_dict = dict()
       for i, id in enumerate(ProgressIter(instance_ids, 'Processing TokenStream')):
-        feat_dict[id] = ts_processor(tss[i])
+        feat_dict[id] = extractor(tss[i])
       self.inducer.add_Featuremap(dsname, space_name, feat_dict)
 
   def transform_taskset(self, transformer):

@@ -7,7 +7,8 @@ hydrat's dataset interface.
 """
 
 import logging
-import os
+
+from hydrat.common.pb import ProgressIter
 
 class Dataset(object):
   """ Base class for all datasets. A Dataset is essentially
@@ -99,22 +100,20 @@ class Dataset(object):
         raise NotImplementedError, "No feature maps or class maps defined!"
     return list(sorted(ids))
 
-class SingleDir(Dataset):
-  """ Mixin for a dataset that has all of its source text files
-  in a single directory. Requires that the deriving class
-  implements a data_path method.
-  """
-  def data_path(self):
-    raise NotImplementedError, "Deriving class must implement this"
+  def features(self, tsname, extractor):
+    """
+    Generate feature map by applying an extractor to a
+    named tokenstream.
+    """
+    tokenstream = self.tokenstream(tsname)
+    fm = {}
 
-  def text(self):
-    path = self.data_path()
-    instances = {}
-    for filename in os.listdir(path):
-      filepath = os.path.join(path, filename)
-      if os.path.isfile(filepath):
-        instances[filename] = open(filepath).read()
-    return instances
+    for instance_id in ProgressIter(tokenstream, label="Processing Documents"):
+      fm[instance_id] = extractor(tokenstream[instance_id])
+      if len(fm[instance_id]) == 0:
+        self.logger.warning( "TokenStream '%s' has no tokens for '%s'", tsname, instance_id )
+
+    return fm
 
 def check_dataset(ds):
   """ Perform a check on a dataset object to ensure it has been implemented correctly. 
