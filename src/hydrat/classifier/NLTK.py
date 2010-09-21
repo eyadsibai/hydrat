@@ -6,6 +6,8 @@ from hydrat.classifier.common import sparse2dense_dict
 from hydrat.task.sampler import isOneofM
 from nltk.internals import overridden
 
+# TODO: Issue with classifier probabilistic output producing output of the wrong shape.
+
 class nltkLearner(Learner):
   __name__ = "NLTK"
   def __init__(self, trainer):
