@@ -3,6 +3,7 @@ import sys
 import configuration
 import cli
 
+
 # Global configuration
 config = configuration.read_configuration()
 configuration.load_configuration(config)
@@ -13,6 +14,11 @@ rng = configuration.rng
 def main():
   CLI = cli.HydratCmdln()
   sys.exit( CLI.main() )
+
+import classifier
+import dataset
+import corpora
+import common.transform
 
 if __name__ == "__main__":
   main()

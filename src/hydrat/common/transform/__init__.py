@@ -1,11 +1,7 @@
-class Transformer(object):
-  def learn(feature_map, class_map):
-    raise NotImplemented
+from abstract import Transformer, LearnlessTransformer
 
-  def apply(feature_map):
-    raise NotImplemented
-
-class LearnlessTransformer(Transformer):
-  def learn(self, feature_map, class_map):
-    pass
-
+import featureselect
+import infogain
+import latentdirichletallocation
+import weight
+import weighting_function
