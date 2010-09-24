@@ -90,6 +90,21 @@ class Dataset(object):
         raise NotImplementedError, "No feature maps or class maps defined!"
     return list(sorted(ids))
 
+  def features(self, tsname, extractor):
+    """
+    Generate feature map by applying an extractor to a
+    named tokenstream.
+    """
+    tokenstream = self.tokenstream(tsname)
+    fm = {}
+
+    for instance_id in ProgressIter(tokenstream, label="Processing Documents"):
+      fm[instance_id] = extractor(tokenstream[instance_id])
+      if len(fm[instance_id]) == 0:
+        self.logger.warning( "TokenStream '%s' has no tokens for '%s'", tsname, instance_id )
+
+    return fm
+
 class SingleDir(Dataset):
   """ Mixin for a dataset that has all of its source text files
   in a single directory. Requires that the deriving class
