@@ -10,7 +10,7 @@ from hydrat.configuration import Configurable, EXE, DIR
  
 class PorterStem(EncodedTextDataset):
   def ts_porterstemmer(self):
-    text = self._unicode()
+    text = self.ts_codepoint()
     stemmer = PorterStemTagger()
     streams = dict( (i,stemmer.process(text[i].encode('utf8'))) for i in ProgressIter(text,'Porter Stemmer') )
     return streams
@@ -22,9 +22,9 @@ class Genia(Configurable, EncodedTextDataset):
     }
 
   def ts_genia(self):
-    text = self._unicode()
-    tagger_exe = tagger_exe if tagger_exe else config.getpath('tools','genia')
-    genia_path = genia_path if genia_path else config.getpath('tools','genia_data')
+    text = self.ts_codepoint()
+    tagger_exe = config.getpath('tools','genia')
+    genia_path = config.getpath('tools','genia_data')
     stemmer = GeniaTagger(tagger_exe, genia_path)
     streams = dict( (i,stemmer.process(text[i].encode('utf8'))) for i in ProgressIter(text,'GENIA Tagger') )
     return streams
