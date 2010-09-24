@@ -56,10 +56,6 @@ class Store(object):
     # datasets
     # tasksets
     # results
-
-    The __init__ constructor for Store instances assumes that the store has already
-    been initialized, and that the four major nodes exist.
-
     """
     self.path = os.path.join(config.get('paths','work'), default_path) if path is None else path
     self.fileh = tables.openFile(self.path, mode=mode)
@@ -112,6 +108,13 @@ class Store(object):
         self.fileh.createGroup( dsnode
                               , "tokenstreams"
                               , "Token Streams"
+                              )
+      if not hasattr(dsnode, 'sequence'):
+        logger.warning('Node %s did not have sequence node; adding.', dsnode._v_name)
+        # Create a group for Token Streams
+        self.fileh.createGroup( dsnode
+                              , "sequence"
+                              , "Instance sequencing information"
                               )
         
 
@@ -297,6 +300,12 @@ class Store(object):
     self.fileh.createGroup( ds
                           , "tokenstreams"
                           , "Token Streams"
+                          )
+
+    # Create a group for Token Streams
+    self.fileh.createGroup( ds
+                          , "sequence"
+                          , "Instance sequencing information"
                           )
 
   def add_FeatureDict(self, dsname, space_name, feat_map):
@@ -517,8 +526,7 @@ class Store(object):
 
   def get_Space(self, space_name):
     """
-    @param tag: Identifier of the relevant space
-    @type tag: uuid
+    @param space_name: Name of the space 
     @rtype: pytables array
     """
     try:
@@ -846,7 +854,7 @@ class Store(object):
                                            , tables.ObjectAtom()
                                            , filters = tables.Filters(complevel=5, complib='zlib') 
                                            )
-    for stream in ProgressIter(tokenstreams, label='Adding TokenStreams'):
+    for stream in ProgressIter(tokenstreams, label="Adding TokenStreams '%s'" % stream_name):
       stream_array.append(stream)
 
   def get_TokenStreams(self, dsname, stream_name):
@@ -857,3 +865,33 @@ class Store(object):
   def list_TokenStreams(self, dsname):
     dsnode = getattr(self.datasets, dsname)
     return set(node._v_name for node in dsnode.tokenstreams)
+
+  ###
+  # Sequence
+  ###
+  def add_Sequence(self, dsname, seq_name, sequence):
+    # sequence should arrive as a list of lists, and be converted to a VLarray of ints,
+    # where each row is a "thread", and each int is the index of a "post"
+    dsnode = getattr(self.datasets, dsname)
+    seq_array = self.fileh.createVLArray( dsnode.sequence
+                                        , seq_name  
+                                        , tables.UInt64Atom() #NOTE: This constitues a bound on how big the dataset can be
+                                        , filters = tables.Filters(complevel=5, complib='zlib') 
+                                        )
+    for subseq in ProgressIter(sequence, label="Adding Sequence '%s'" % seq_name):
+      seq_array.append(subseq)
+
+  def get_Sequence(self, dsname, seq_name):
+    dsnode = getattr(self.datasets, dsname)
+    sqnode = getattr(dsnode.sequence, seq_name)
+    # Should be reading each row of the array as a member of a sequence
+    # e.g. a row is a thread, each index is the instance index in dataset representing posts
+    # should return a list of lists
+    return list(s.read() for s in sqnode)
+
+  def list_Sequence(self, dsname):
+    dsnode = getattr(self.datasets, dsname)
+    return set(node._v_name for node in dsnode.sequence)
+
+  #TODO: Load/store of splits
+

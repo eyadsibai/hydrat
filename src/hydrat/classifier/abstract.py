@@ -15,7 +15,11 @@ class Learner(object):
     self.logger = logging.getLogger("hydrat.classifier.learner.%s"%self.__name__)
     self._check_installed()
 
-  def __call__(self, feature_map, class_map):
+  def __call__(self, feature_map, class_map, **kwargs):
+    """
+    We accept additional kwargs as a means to pass-through information.
+    Meta classifiers should pass through kwargs.
+    """
     num_docs, num_classes = class_map.shape
     num_features = feature_map.shape[1]
     self.logger.debug\

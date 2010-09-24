@@ -14,8 +14,10 @@ import numpy
 class Task(object):
   __slots__ = [ 'train_vectors'
               , 'train_classes'
+              , 'train_kwargs'
               , 'test_vectors'
               , 'test_classes'
+              , 'test_kwargs'
               , 'metadata'
               , 'train_indices'
               , 'test_indices'
@@ -24,7 +26,7 @@ class Task(object):
 class InMemoryTask(Task):
   """Task where the feature map and class map are entirely in-memory"""
   __slots__ = Task.__slots__ + [ 'class_map', 'feature_map' ]
-  def __init__(self, feature_map, class_map, train_indices, test_indices, metadata):
+  def __init__(self, feature_map, class_map, train_indices, test_indices, metadata, **kwargs):
     self.class_map = class_map
     self.feature_map = feature_map
     self.train_indices = train_indices
