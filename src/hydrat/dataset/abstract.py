@@ -1,5 +1,6 @@
 import logging
 import os
+from hydrat.common.pb import ProgressIter
 
 class Dataset(object):
   """ Base class for all datasets. A Dataset is essentially
