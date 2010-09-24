@@ -51,6 +51,9 @@ class Dataset(object):
   def tokenstream(self, name):
     return getattr(self, 'ts_'+name)()
 
+  def sequence(self, name):
+    return getattr(self, 'sq_'+name)()
+
   def prefixed_names(self, prefix):
     for key in dir(self):
       if key.startswith(prefix + '_'):
@@ -75,6 +78,10 @@ class Dataset(object):
   @property 
   def tokenstream_names(self): 
     return self.prefixed_names('ts')
+
+  @property 
+  def sequence_names(self): 
+    return self.prefixed_names('sq')
 
   @property
   def instance_ids(self):
