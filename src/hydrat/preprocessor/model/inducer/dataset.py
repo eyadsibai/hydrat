@@ -96,7 +96,7 @@ class DatasetInducer(object):
     # to their implicit ordering values.
     instance_ids = self.store.get_InstanceIds(dsname)
     index = dict((k,i) for i,k in enumerate(instance_ids))
-    sqlist = [ [ index[id] for id in s ] for s in sequence ]
+    sqlist = [ numpy.fromiter((index[id] for id in s), 'uint64') for s in sequence ]
     logger.debug("Adding Sequence'%s' to Dataset '%s'", seq_name, dsname)
     self.store.add_Sequence(dsname, seq_name, sqlist)
     #TODO: Attach metadata to the sequence node

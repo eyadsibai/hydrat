@@ -44,6 +44,9 @@ class RealFeature(tables.IsDescription):
   feature_index  = tables.UInt64Col()
   value          = tables.Float64Col()
 
+# TODO: Declare a configurable compression filter
+#         tables.Filters(complevel=5, complib='zlib') 
+
 class Store(object):
   """
   This is the master store class for hydrat. It manages all of the movement of data
@@ -420,7 +423,7 @@ class Store(object):
     cm_node[:] = class_map
     cm_node.flush()
                                
-  def add_TaskSet(self, taskset, additional_metadata={}):
+  def add_TaskSet(self, taskset):
     # TODO: Find some way to make this atomic! Otherwise, we can write incomplete tasksets!!
     self._check_writeable()
     taskset_uuid = taskset.metadata['uuid']
@@ -434,13 +437,11 @@ class Store(object):
 
     for key in taskset.metadata:
       setattr(taskset_entry_attrs, key, taskset.metadata[key])
-    for key in additional_metadata:
-      setattr(taskset_entry_attrs, key, additional_metadata[key])
 
-    logger.debug('Adding a taskset %s %s', str(taskset.metadata), str(additional_metadata))
+    logger.debug('Adding a taskset %s', str(taskset.metadata))
 
     for i,task in enumerate(ProgressIter(taskset.tasks, label="Adding Tasks")):
-      self._add_Task(task, taskset_entry, dict(index=i))
+      self._add_Task(task, taskset_entry)
     self.fileh.flush()
 
     return taskset_entry_tag
@@ -660,13 +661,10 @@ class Store(object):
       raise AlreadyHaveData, "Node already exists in store!"
       
 
-  def _add_Task(self, task, ts_entry, additional_metadata={}): 
+  def _add_Task(self, task, ts_entry): 
     self._check_writeable()
-    try:
-      task_uuid = task.metadata['uuid']
-    except KeyError:
-      task_uuid = uuid.uuid4()
-      task.metadata['uuid'] = task_uuid
+    task_uuid = uuid.uuid4()
+    task.metadata['uuid'] = task_uuid
     task_tag = str(task_uuid)
 
     # Create a group for the task
@@ -676,8 +674,6 @@ class Store(object):
     # Add the metadata
     for key in task.metadata:
       setattr(task_entry_attrs, key, task.metadata[key])
-    for key in additional_metadata:
-      setattr(task_entry_attrs, key, additional_metadata[key])
 
     # Add the class matrices 
     # TODO: Current implementation has the side effect of expanding all tasks,
@@ -703,6 +699,28 @@ class Store(object):
                          , te 
                          , filters = tables.Filters(complevel=5, complib='zlib') 
                          )
+
+    sqr = task.train_sequence
+    sqe = task.test_sequence
+
+    if sqr is not None:
+      seq_array = self.fileh.createVLArray( task_entry
+                                          , 'train_sequence'  
+                                          , tables.UInt64Atom() 
+                                          , filters = tables.Filters(complevel=5, complib='zlib') 
+                                          )
+      for subseq in sqr: 
+        seq_array.append(subseq)
+
+    if sqe is not None:
+      seq_array = self.fileh.createVLArray( task_entry
+                                          , 'test_sequence'  
+                                          , tables.UInt64Atom() 
+                                          , filters = tables.Filters(complevel=5, complib='zlib') 
+                                          )
+      for subseq in sqe: 
+        seq_array.append(subseq)
+
     self.fileh.flush()
 
   def has_TaskSet(self, desired_metadata):
@@ -737,12 +755,20 @@ class Store(object):
     metadata = get_metadata(task_entry)
     t = Task()
     t.metadata = metadata
-    t.train_classes = task_entry.train_classes.read()
-    t.train_indices = task_entry.train_indices.read()
-    t.test_classes  = task_entry.test_classes.read()
-    t.test_indices  = task_entry.test_indices.read()
-    t.train_vectors = self._read_sparse_node(task_entry.train_vectors)
-    t.test_vectors  = self._read_sparse_node(task_entry.test_vectors)
+    t.train_classes  = task_entry.train_classes.read()
+    t.train_indices  = task_entry.train_indices.read()
+    t.test_classes   = task_entry.test_classes.read()
+    t.test_indices   = task_entry.test_indices.read()
+    t.train_vectors  = self._read_sparse_node(task_entry.train_vectors)
+    t.test_vectors   = self._read_sparse_node(task_entry.test_vectors)
+    if hasattr(task_entry, 'train_sequence'):
+      t.train_sequence = task_entry.train_sequence.read()
+    else:
+      t.train_sequence = None
+    if hasattr(task_entry, 'test_sequence'):
+      t.test_sequence = task_entry.test_sequence.read()
+    else:
+      t.test_sequence  = None
     return t
 
   def _resolve_TaskSet(self, desired_metadata):
@@ -886,8 +912,8 @@ class Store(object):
     sqnode = getattr(dsnode.sequence, seq_name)
     # Should be reading each row of the array as a member of a sequence
     # e.g. a row is a thread, each index is the instance index in dataset representing posts
-    # should return a list of lists
-    return list(s.read() for s in sqnode)
+    # returns a list of arrays.
+    return sqnode.read()
 
   def list_Sequence(self, dsname):
     dsnode = getattr(self.datasets, dsname)
