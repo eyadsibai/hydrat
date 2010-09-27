@@ -1,3 +1,4 @@
+from task import InMemoryTask
 class TaskSet(object):
   """
   Collates task objects and their metadata
@@ -18,29 +19,31 @@ def from_partitions( partitions
                    , sequence = None
                    , metadata = {}
                    ):
-  #TODO: Do something with the sequence!!!
   # partitions is a 3-d array. instances X partitions X train/test(note order!)
   # Check the number of instances match
-  assert feature_map.raw.shape[0] == self.parts.shape[0]
+  assert feature_map.raw.shape[0] == partitions.shape[0]
   # Check the feature map and class map are over the same dataset
-  assert feature_map.metadata['dataset'] == self.class_map.metadata['dataset']
+  assert feature_map.metadata['dataset'] == class_map.metadata['dataset']
 
   md = dict(class_map.metadata)
   md.update(feature_map.metadata)
   md.update(metadata)
 
   tasklist = []
-  for i in range(self.parts.shape[1]):
-    train_ids  = self.parts[:,i,0]
-    test_ids   = self.parts[:,i,1]
+  for i in range(partitions.shape[1]):
+    train_ids  = partitions[:,i,0]
+    test_ids   = partitions[:,i,1]
 
     pmd = dict(metadata)
-    pmd['part_index'] = i
+    # TODO: is this really where we should be labelling the tasks?
+    # NOTE: This index is currently being used by Store._get_Task. Dirty.
+    pmd['index'] = i
     tasklist.append( InMemoryTask   ( feature_map.raw
-                                    , self.class_map.raw
+                                    , class_map.raw
                                     , train_ids
                                     , test_ids 
                                     , pmd 
+                                    , sequence = sequence
                                     )
                     )
   return TaskSet(tasklist, md)

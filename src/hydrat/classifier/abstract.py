@@ -5,6 +5,8 @@ implement, and also provides some convenience methods.
 import numpy as n
 import logging
 import time
+import inspect
+
 class ClassifierError(Exception): pass
 class NoClassLabelsError(ClassifierError): pass
 class NoFeaturesError(ClassifierError): pass
@@ -12,7 +14,7 @@ class NotInstalledError(ClassifierError): pass
 
 class Learner(object):
   def __init__(self):
-    self.logger = logging.getLogger("hydrat.classifier.learner.%s"%self.__name__)
+    self.logger = logging.getLogger(__name__+'.'+self.__name__)
     self._check_installed()
 
   def __call__(self, feature_map, class_map, **kwargs):
@@ -28,8 +30,20 @@ class Learner(object):
       , num_classes
       , num_features
       ) 
+    # We use introspection to determine which kwargs to pass through to the learner.
+    # This is done to simplify the job of the programmer implementing the Learner 
+    # subclass. The learner thus declares what additional information it is interested
+    # in its _learn definition. Note that the value passed for any given keyword
+    # could still be None.
+    argspec = inspect.getargspec(self._learn)
+    self.logger.debug( "argspec: %s", argspec)
+    supported_kwargs = dict()
+    for key in argspec.args[3:]:
+      supported_kwargs[key] = kwargs[key]
+    self.logger.debug( "suported keywords: %s", supported_kwargs.keys() )
+
     start = time.time()
-    classifier = self._learn(feature_map, class_map)
+    classifier = self._learn(feature_map, class_map, **supported_kwargs)
     timetaken = time.time() - start
     classifier.metadata['learner']          = self.__name__
     classifier.metadata['learner_params']   = self.params
@@ -76,7 +90,7 @@ class Classifier(object):
     self.logger   = logging.getLogger("hydrat.classifier.%s"%self.__name__)
     self.metadata = { 'classifier' : self.__name__ }
 
-  def __call__(self, feature_map):
+  def __call__(self, feature_map, **kwargs):
     self.logger.debug("classifying %d documents", feature_map.shape[0])
     cl_num_feats = feature_map.shape[1]
     tr_num_feats = self.metadata['train_feat_count']
@@ -89,8 +103,16 @@ class Classifier(object):
     for i,row in enumerate(feature_map):
       if len(row.nonzero()) == 0:
         self.logger.warning("Empty classification instance at index %d!", i)
+
+    argspec = inspect.getargspec(self._classify)
+    self.logger.debug( "argspec: %s", argspec)
+    supported_kwargs = dict()
+    for key in argspec.args[2:]:
+      supported_kwargs[key] = kwargs[key]
+    self.logger.debug( "suported keywords: %s", supported_kwargs.keys() )
+
     start                           = time.time()
-    classifications                 = self._classify(feature_map)
+    classifications                 = self._classify(feature_map, **supported_kwargs)
     timetaken                       = time.time() - start
     self.metadata['classify_time']  = timetaken
     self.logger.debug("classification took %.1f seconds", timetaken)

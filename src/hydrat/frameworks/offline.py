@@ -67,11 +67,9 @@ class OfflineFramework(object):
 
     self.feature_spaces = None
     self.class_space = None
-    self.sequence = None
     self.learner = None
-    self.split = None
-    # Split name is important because it is the only way to distinguish tasks via metadata
     self.split_name = None
+    self.sequence_name = None
 
     self.taskset_desc = None
 
@@ -109,7 +107,7 @@ class OfflineFramework(object):
     if self.sequence_name is None:
       return None
     else:
-      return self.store.get_Sequence(self.sequence_name)
+      return self.store.get_Sequence(self.dataset.__name__, self.sequence_name)
 
   @property
   def featuremap(self):
@@ -187,7 +185,7 @@ class OfflineFramework(object):
     # Check if we already have this result
     if not self.has_run():
       # Check if we already have this task
-      if not self.store.has_TaskSet(taskset_metadata):
+      if not self.store.has_TaskSet(self.taskset_desc):
         self.notify('Generating TaskSet')
         taskset = from_partitions(self.split, self.featuremap, self.classmap, self.sequence, self.taskset_desc) 
         self.store.new_TaskSet(taskset)
@@ -207,7 +205,7 @@ class OfflineFramework(object):
       tss = self.store.get_TokenStreams(dsname, tsname)
       instance_ids = self.store.get_InstanceIds(dsname)
       feat_dict = dict()
-      for i, id in enumerate(ProgressIter(instance_ids, 'Processing TokenStream')):
+      for i, id in enumerate(ProgressIter(instance_ids, 'Processing %s' % extractor.__name__)):
         feat_dict[id] = extractor(tss[i])
       self.inducer.add_Featuremap(dsname, space_name, feat_dict)
 
