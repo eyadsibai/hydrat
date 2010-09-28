@@ -46,6 +46,7 @@ src/hydrat/common/decorators.py
 src/hydrat/common/distance_metrics.py
 src/hydrat/common/enumerator.py
 src/hydrat/common/extractors.py
+src/hydrat/common/followmatrix.py
 src/hydrat/common/invert_dict.py
 src/hydrat/common/metadata.py
 src/hydrat/common/pb.py
@@ -89,11 +90,8 @@ src/hydrat/external/__init__.py
 src/hydrat/external/libs.py
 src/hydrat/external/textcat.py
 src/hydrat/frameworks/__init__.py
-src/hydrat/frameworks/crossvalidation.py
-src/hydrat/frameworks/feature_interaction.py
+src/hydrat/frameworks/offline.py
 src/hydrat/frameworks/online.py
-src/hydrat/frameworks/preset_split.py
-src/hydrat/frameworks/traintest.py
 src/hydrat/preprocessor/__init__.py
 src/hydrat/preprocessor/features/__init__.py
 src/hydrat/preprocessor/features/transform.py
