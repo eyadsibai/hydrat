@@ -20,6 +20,7 @@ from hydrat.preprocessor.features.transform import union
 from hydrat.task.task import Task
 from hydrat.task.taskset import TaskSet, from_partitions
 from hydrat.task.sampler import membership_vector
+from hydrat.frameworks.common import init_workdir
 import scipy.sparse
 
 logger = logging.getLogger(__name__)
@@ -271,20 +272,6 @@ class OfflineFramework(object):
     updatedir.updatetree(self.outputP, target, overwrite=True)
     
 
-def init_workdir(path, newdirs=["models","tasks","results","output"]):
-  """ Initialize the working directory, where various intermediate files will be stored.
-  This is not to be considered a scratch folder, since the files stored here can be re-used.
-  @param path The path to initialize
-  """
-  if os.path.exists(path):
-    logger.warning('%s already exists', path)
-  else:
-    os.makedirs(path)
-    for dir in newdirs:
-      os.mkdir(os.path.join(path,dir))
-
-
-  
 def run_experiment(taskset, learner, result_store):
   exp = Experiment(taskset, learner)
   try:
