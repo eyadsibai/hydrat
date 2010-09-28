@@ -11,7 +11,7 @@ import hydrat
 import hydrat.common.extractors as ext
 from hydrat.store import Store, StoreError, NoData, AlreadyHaveData
 from hydrat.preprocessor.model.inducer.dataset import DatasetInducer
-from hydrat.frameworks import init_workdir
+from hydrat.frameworks.common import init_workdir
 from hydrat.common import as_set
 from hydrat.preprocessor.features.transform import union
 from hydrat.preprocessor.model.inducer import invert_text

@@ -121,7 +121,7 @@ class SingleDir(Dataset):
   def data_path(self):
     raise NotImplementedError, "Deriving class must implement this"
 
-  def text(self):
+  def ts_byte(self):
     path = self.data_path()
     instances = {}
     for filename in os.listdir(path):
