@@ -6,7 +6,7 @@ Convert sequencing information from a compact list-of-lists-of-indices represent
 to a sparse matrix representation suitable for computation (and back).
 Single-item sequences should not be present
 """
-def sequence2follow(sequence, size=None):
+def sequence2matrix(sequence, size=None):
   if size is None:
     # Try to infer size of collection from the largest identifier in sequence
     size = max( max(s) for s in sequence) + 1
@@ -19,7 +19,7 @@ def sequence2follow(sequence, size=None):
     
   return scipy.sparse.csr_matrix(matrix, dtype=matrix.dtype)
   
-def follow2sequence(matrix):
+def matrix2sequence(matrix):
   matrix = scipy.sparse.dok_matrix(matrix, dtype=matrix.dtype)
   pairs = sorted((p,c) for (c,p),b in matrix.items())
   seq = []
