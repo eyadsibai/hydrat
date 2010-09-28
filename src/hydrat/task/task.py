@@ -10,7 +10,6 @@ The most sophisiticated tasks will involve multiple data stores, as
 well as a method for reconciling the data.
 """
 import numpy
-import hydrat.common.followmatrix as followm
 
 class Task(object):
   # TODO: Why is task carrying around train_indices and test_indices? 
@@ -94,9 +93,8 @@ class InMemoryTask(Task):
       return None
     else:
       indices = self.train_indices.nonzero()[0]
-      overall = followm.sequence2follow(self.sequence)
-      matrix = overall[indices].transpose()[indices].transpose()
-      return followm.follow2sequence(matrix)
+      matrix = self.sequence[indices].transpose()[indices].transpose()
+      return matrix
 
   @property
   def test_sequence(self):
@@ -104,7 +102,6 @@ class InMemoryTask(Task):
       return None
     else:
       indices = self.test_indices.nonzero()[0]
-      overall = followm.sequence2follow(self.sequence)
-      matrix = overall[indices].transpose()[indices].transpose()
-      return followm.follow2sequence(matrix)
+      matrix = self.sequence[indices].transpose()[indices].transpose()
+      return matrix
 

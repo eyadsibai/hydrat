@@ -35,15 +35,19 @@ class InsufficientMetadata(StoreError): pass
 # both Integer and Real features.
 
 class IntFeature(tables.IsDescription):
-  instance_index = tables.UInt64Col()
-  feature_index  = tables.UInt64Col()
-  value          = tables.UInt64Col()
+  ax0    = tables.UInt64Col()
+  ax1    = tables.UInt64Col()
+  value  = tables.UInt64Col()
 
 class RealFeature(tables.IsDescription):
-  instance_index = tables.UInt64Col()
-  feature_index  = tables.UInt64Col()
-  value          = tables.Float64Col()
+  ax0    = tables.UInt64Col()
+  ax1    = tables.UInt64Col()
+  value  = tables.Float64Col()
 
+class BoolFeature(tables.IsDescription):
+  ax0    = tables.UInt64Col()
+  ax1    = tables.UInt64Col()
+  value  = tables.BoolCol()
 # TODO: Declare a configurable compression filter
 #         tables.Filters(complevel=5, complib='zlib') 
 
@@ -140,14 +144,11 @@ class Store(object):
     """
     dtype = node._v_attrs.dtype
     if shape is None: shape = node._v_attrs.shape
-    #logger.debug("Reading sparse node")
+    ax0 = node.read(field='ax0')
+    ax1 = node.read(field='ax1')
     values = node.read(field='value')
-    feature = node.read(field='feature_index')
-    instance = node.read(field='instance_index')
-    m = coo_matrix((values,numpy.vstack((instance,feature))), shape=shape)
-    #logger.debug('Converting format')
+    m = coo_matrix((values,numpy.vstack((ax0,ax1))), shape=shape)
     m = m.tocsr()
-    #logger.debug("SPARSE matrix ready")
     return m
 
   def _add_sparse_node( self
@@ -172,8 +173,8 @@ class Store(object):
     feature = node.row
     for i,row in enumerate(data):
       for j,v in numpy.vstack((row.indices, row.data)).transpose():
-        feature['instance_index'] = i
-        feature['feature_index'] = j
+        feature['ax0'] = i
+        feature['ax1'] = j
         feature['value'] = v
         feature.append()
     self.fileh.flush()
@@ -343,8 +344,8 @@ class Store(object):
     # Add the features to the table
     feature = fm_node.row
     for i, j, v in feat_map:
-      feature['instance_index'] = i
-      feature['feature_index'] = j
+      feature['ax0'] = i
+      feature['ax1'] = j
       feature['value'] = v
       feature.append()
       instance_sizes[i] += v # Keep tally of instance size
@@ -704,22 +705,20 @@ class Store(object):
     sqe = task.test_sequence
 
     if sqr is not None:
-      seq_array = self.fileh.createVLArray( task_entry
-                                          , 'train_sequence'  
-                                          , tables.UInt64Atom() 
-                                          , filters = tables.Filters(complevel=5, complib='zlib') 
-                                          )
-      for subseq in sqr: 
-        seq_array.append(subseq)
+      self._add_sparse_node( task_entry
+                           , 'train_sequence'
+                           , BoolFeature
+                           , sqr
+                           , filters = tables.Filters(complevel=5, complib='zlib') 
+                           )
 
     if sqe is not None:
-      seq_array = self.fileh.createVLArray( task_entry
-                                          , 'test_sequence'  
-                                          , tables.UInt64Atom() 
-                                          , filters = tables.Filters(complevel=5, complib='zlib') 
-                                          )
-      for subseq in sqe: 
-        seq_array.append(subseq)
+      self._add_sparse_node( task_entry
+                           , 'test_sequence'
+                           , BoolFeature
+                           , sqe
+                           , filters = tables.Filters(complevel=5, complib='zlib') 
+                           )
 
     self.fileh.flush()
 
@@ -762,11 +761,11 @@ class Store(object):
     t.train_vectors  = self._read_sparse_node(task_entry.train_vectors)
     t.test_vectors   = self._read_sparse_node(task_entry.test_vectors)
     if hasattr(task_entry, 'train_sequence'):
-      t.train_sequence = task_entry.train_sequence.read()
+      t.train_sequence = self._read_sparse_node(task_entry.train_sequence)
     else:
       t.train_sequence = None
     if hasattr(task_entry, 'test_sequence'):
-      t.test_sequence = task_entry.test_sequence.read()
+      t.test_sequence = self._read_sparse_node(task_entry.test_sequence)
     else:
       t.test_sequence  = None
     return t
@@ -896,16 +895,19 @@ class Store(object):
   # Sequence
   ###
   def add_Sequence(self, dsname, seq_name, sequence):
-    # sequence should arrive as a list of lists, and be converted to a VLarray of ints,
-    # where each row is a "thread", and each int is the index of a "post"
+    # sequence should arrive as a boolean matrix. axis 0 is parent, axis 1 is child.
+    if not issubclass(sequence.dtype.type, numpy.bool_):
+      raise ValueError, "sequence must be a boolean matrix"
+    if not sequence.shape[0] == sequence.shape[1]:
+      raise ValueError, "sequence must be square"
+
     dsnode = getattr(self.datasets, dsname)
-    seq_array = self.fileh.createVLArray( dsnode.sequence
-                                        , seq_name  
-                                        , tables.UInt64Atom() #NOTE: This constitues a bound on how big the dataset can be
-                                        , filters = tables.Filters(complevel=5, complib='zlib') 
-                                        )
-    for subseq in ProgressIter(sequence, label="Adding Sequence '%s'" % seq_name):
-      seq_array.append(subseq)
+    self._add_sparse_node( dsnode.sequence
+                         , seq_name
+                         , BoolFeature 
+                         , sequence
+                         , filters = tables.Filters(complevel=5, complib='zlib') 
+                         )
 
   def get_Sequence(self, dsname, seq_name):
     dsnode = getattr(self.datasets, dsname)
@@ -913,7 +915,7 @@ class Store(object):
     # Should be reading each row of the array as a member of a sequence
     # e.g. a row is a thread, each index is the instance index in dataset representing posts
     # returns a list of arrays.
-    return sqnode.read()
+    return self._read_sparse_node(sqnode)
 
   def list_Sequence(self, dsname):
     dsnode = getattr(self.datasets, dsname)
