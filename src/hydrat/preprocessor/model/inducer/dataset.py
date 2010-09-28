@@ -4,6 +4,7 @@ from hydrat.store import NoData, AlreadyHaveData
 from hydrat.preprocessor.model.inducer import class_matrix 
 from hydrat.common.pb import ProgressIter
 from hydrat.common import as_set
+from hydrat.common.sequence import sequence2matrix
 
 logger = logging.getLogger(__name__)
 
@@ -92,14 +93,18 @@ class DatasetInducer(object):
 
 
   def add_Sequence(self, dsname, seq_name, sequence):
-    # This involves converting the sequence identifers from their explicit in-dataset names
-    # to their implicit ordering values.
+    # This involves converting the sequence representation from lists of identifers 
+    # in-dataset identifiers to a matrix. We use a follow-matrix representation, where
+    # the matrix is a square boolean matrix, axis 0 represents the child and axis 
+    # 1 represents the parent. A True value indicates a directed edge from parent to
+    # child.
     instance_ids = self.store.get_InstanceIds(dsname)
     index = dict((k,i) for i,k in enumerate(instance_ids))
-    sqlist = [ numpy.fromiter((index[id] for id in s), 'uint64') for s in sequence ]
+    sqlist = [ [index[id] for id in s] for s in sequence ]
+    sqmatrix = sequence2matrix(sqlist) 
     logger.debug("Adding Sequence'%s' to Dataset '%s'", seq_name, dsname)
-    self.store.add_Sequence(dsname, seq_name, sqlist)
-    #TODO: Attach metadata to the sequence node
+    self.store.add_Sequence(dsname, seq_name, sqmatrix)
+    #TODO: Attach metadata to the sequence node - is there any we actually want?
 
   def add_TokenStreams(self, dsname, stream_name, tokenstreams):
     metadata = dict()

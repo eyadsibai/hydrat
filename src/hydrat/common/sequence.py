@@ -15,13 +15,13 @@ def sequence2matrix(sequence, size=None):
     if len(subseq) == 1: raise ValueError, "Do not support single-item sequences"
     for i in xrange(len(subseq)-1):
       parent, child = subseq[i:i+2]
-      matrix[child, parent] = True
+      matrix[parent, child] = True
     
   return scipy.sparse.csr_matrix(matrix, dtype=matrix.dtype)
   
 def matrix2sequence(matrix):
   matrix = scipy.sparse.dok_matrix(matrix, dtype=matrix.dtype)
-  pairs = sorted((p,c) for (c,p),b in matrix.items())
+  pairs = sorted(link for link,b in matrix.items())
   seq = []
   i = iter(pairs)
   subseq = list(i.next())
@@ -35,8 +35,7 @@ def matrix2sequence(matrix):
   return seq
 
 if __name__ == "__main__":
-  import cPickle
-  seq = cPickle.load(open('sequence'))
+  seq = [[1,2,3],[4,5],[6,7,8,9,10,11,12]]
   mat = sequence2follow(seq)
   seq2 = follow2sequence(mat)
   mat2 = sequence2follow(seq2)
