@@ -113,20 +113,3 @@ class Dataset(object):
 
     return fm
 
-class SingleDir(Dataset):
-  """ Mixin for a dataset that has all of its source text files
-  in a single directory. Requires that the deriving class
-  implements a data_path method.
-  """
-  def data_path(self):
-    raise NotImplementedError, "Deriving class must implement this"
-
-  def ts_byte(self):
-    path = self.data_path()
-    instances = {}
-    for filename in os.listdir(path):
-      filepath = os.path.join(path, filename)
-      if os.path.isfile(filepath):
-        instances[filename] = open(filepath).read()
-    return instances
-
