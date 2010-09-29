@@ -24,20 +24,26 @@ def init_workdir(path, newdirs=["models","tasks","results","output"]):
 class Framework(object):
   def __init__( self
               , dataset
-              , work_path = None
+              , store = None
               ):
     self.logger = logging.getLogger(__name__+'.'+self.__class__.__name__)
     self.notify('Initializing')
     self.dataset = dataset
-    self.work_path = work_path
 
-    if work_path is None:
+    if isinstance(store, Store):
+      self.store = store
+      work_path = os.path.dirname(store.path)
+    elif store is None:
       generic_work_path = hydrat.config.get('paths','work')
-      self.work_path = os.path.join(generic_work_path, self.__class__.__name__, dataset.__name__)
-    
-    init_workdir(self.work_path, ["output"])
-    self.outputP  = os.path.join(self.work_path, 'output')
-    self.store = Store(os.path.join(self.work_path,'store.h5'), 'a')
+      work_path = os.path.join(generic_work_path, self.__class__.__name__, dataset.__name__)
+      init_workdir(work_path, ["output"])
+      self.store = Store(os.path.join(work_path,'store.h5'), 'a')
+    else:
+      work_path = store
+      init_workdir(work_path, ["output"])
+      self.store = Store(work_path, 'a')
+
+    self.outputP  = os.path.join(work_path, 'output')
     self.inducer = DatasetInducer(self.store)
 
     self.feature_spaces = None
