@@ -29,7 +29,6 @@ class Learner(object):
     We accept additional kwargs as a means to pass-through information.
     Meta classifiers should pass through kwargs.
     """
-    # TODO: Implement the transmission of kwargs. need to check if kwargs is bound.
     num_docs, num_classes = class_map.shape
     num_features = feature_map.shape[1]
     self.logger.debug\
@@ -45,10 +44,17 @@ class Learner(object):
     # could still be None.
     argspec = inspect.getargspec(self._learn)
     self.logger.debug( "argspec: %s", argspec)
-    supported_kwargs = dict()
-    for key in argspec.args[3:]:
-      supported_kwargs[key] = kwargs[key]
-    self.logger.debug( "suported keywords: %s", supported_kwargs.keys() )
+
+    if argspec.keywords is not None:
+      # if kwargs is bound in the learner, this means that the learner needs to be able
+      # to pass through kwargs, so we must supply it with all the kwargs we have.
+      supported_kwargs = dict(kwargs)
+      self.logger.debug( "learner binds kwargs, all args passed" )
+    else:
+      supported_kwargs = dict()
+      for key in argspec.args[3:]:
+        supported_kwargs[key] = kwargs[key]
+      self.logger.debug( "suported keywords: %s", supported_kwargs.keys() )
 
     start = time.time()
     classifier = self._learn(feature_map, class_map, **supported_kwargs)
@@ -76,6 +82,7 @@ class Learner(object):
 
   @property
   def desc(self):
+    raise DeprecationWarning
     return self.__name__, self._params()
 
   def _learn(self, feature_map, class_map):
@@ -113,10 +120,17 @@ class Classifier(object):
 
     argspec = inspect.getargspec(self._classify)
     self.logger.debug( "argspec: %s", argspec)
-    supported_kwargs = dict()
-    for key in argspec.args[2:]:
-      supported_kwargs[key] = kwargs[key]
-    self.logger.debug( "suported keywords: %s", supported_kwargs.keys() )
+
+    if argspec.keywords is not None:
+      # if kwargs is bound in the learner, this means that the learner needs to be able
+      # to pass through kwargs, so we must supply it with all the kwargs we have.
+      supported_kwargs = dict(kwargs)
+      self.logger.debug( "classifier binds kwargs, all args passed" )
+    else:
+      supported_kwargs = dict()
+      for key in argspec.args[2:]:
+        supported_kwargs[key] = kwargs[key]
+      self.logger.debug( "suported keywords: %s", supported_kwargs.keys() )
 
     start                           = time.time()
     classifications                 = self._classify(feature_map, **supported_kwargs)

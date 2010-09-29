@@ -20,10 +20,10 @@ class StratifiedLearner(Learner):
     params['multiclass'] = 'stratified'
     return params
 
-  def _learn(self, feature_map, class_map):
+  def _learn(self, feature_map, class_map, **kwargs):
     stratified_class_map, reversed_strata_index = stratify_with_index(class_map)
     strata_index = dict( (v,k) for k,v in reversed_strata_index.items())
-    classifier = self.learner(feature_map, stratified_class_map)
+    classifier = self.learner(feature_map, stratified_class_map, **kwargs)
     num_classes = class_map.shape[1]
     return StratifiedClassifier(classifier, num_classes, strata_index, self.interpreter, self.__name__)
       
@@ -46,8 +46,8 @@ class StratifiedClassifier(Classifier):
     self.num_class = num_class
     self.strata_index = strata_index
 
-  def _classify(self, feature_map):
-    outcome = self.interpreter(self.classifier(feature_map))
+  def _classify(self, feature_map, **kwargs):
+    outcome = self.interpreter(self.classifier(feature_map, **kwargs))
     num_instance = feature_map.shape[0]
     num_class = self.num_class
     
