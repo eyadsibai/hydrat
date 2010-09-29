@@ -56,7 +56,7 @@ class Store(object):
   This is the master store class for hydrat. It manages all of the movement of data
   to and from disk.
   """
-  def __init__(self, path=None, mode='r', default_path = 'store'):
+  def __init__(self, path, mode='r', default_path = 'store'):
     """
     The store object has four major nodes:
     # spaces
@@ -64,7 +64,7 @@ class Store(object):
     # tasksets
     # results
     """
-    self.path = os.path.join(config.get('paths','work'), default_path) if path is None else path
+    self.path = path
     self.fileh = tables.openFile(self.path, mode=mode)
     self.mode = mode
     logger.debug("Opening Store at '%s', mode '%s'", self.path, mode)
