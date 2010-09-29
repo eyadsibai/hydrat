@@ -17,11 +17,19 @@ class Learner(object):
     self.logger = logging.getLogger(__name__+'.'+self.__name__)
     self._check_installed()
 
+  @property
+  def metadata(self):
+    md = {}
+    md['learner']          = self.__name__
+    md['learner_params']   = self.params
+    return md
+
   def __call__(self, feature_map, class_map, **kwargs):
     """
     We accept additional kwargs as a means to pass-through information.
     Meta classifiers should pass through kwargs.
     """
+    # TODO: Implement the transmission of kwargs. need to check if kwargs is bound.
     num_docs, num_classes = class_map.shape
     num_features = feature_map.shape[1]
     self.logger.debug\
@@ -45,8 +53,7 @@ class Learner(object):
     start = time.time()
     classifier = self._learn(feature_map, class_map, **supported_kwargs)
     timetaken = time.time() - start
-    classifier.metadata['learner']          = self.__name__
-    classifier.metadata['learner_params']   = self.params
+    classifier.metadata.update(self.metadata)
     classifier.metadata['learn_time']       = timetaken
     classifier.metadata['train_feat_count'] = num_features
       
