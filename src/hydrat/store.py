@@ -779,6 +779,19 @@ class Store(object):
         desired_keys.append(node)
     return desired_keys
 
+  def new_TaskSetResult(self, tsr):
+    """Convenience method which checks no previous TaskSetResult has matching metadata"""
+    if self.has_TaskSetResult(tsr.metadata):
+      raise AlreadyHaveData, "Already have tsr %s" % str(tsr.metadata)
+    if 'uuid' in tsr.metadata:
+      logger.warning('new tsr should not have uuid!')
+    tsr.metadata['uuid'] = uuid.uuid4()
+    self.add_TaskSetResult(tsr)
+
+  def has_TaskSetResult(self, desired_metadata):
+    """ Check if the TaskSetResult already exists """
+    return bool(self._resolve_TaskSetResults(desired_metadata))
+
   def get_TaskSetResult(self, desired_metadata):
     """ Convenience function to bypass tag resolution """
     tags = self._resolve_TaskSetResults(desired_metadata)
