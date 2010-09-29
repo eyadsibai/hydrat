@@ -119,14 +119,10 @@ class OfflineFramework(Framework):
       self.taskset_desc = taskset_metadata
 
   def has_run(self):
-    #TODO: Fold part of this back into Store, in a has_TaskSetResult method
     m = dict( self.taskset_desc )
     m['learner'] = self.learner.__name__
     m['learner_params'] = self.learner.params
-    taglist = self.store._resolve_TaskSetResults(m)
-    logger.debug(m)
-    logger.debug("%d previous results match this metadata", len(taglist))
-    return len(taglist) > 0
+    return self.store.has_TaskSetResult(m)
 
   def run(self):
     # Check if we already have this result
@@ -168,8 +164,6 @@ class OfflineFramework(Framework):
     Generate HTML output
     """
     self.notify("Generating output")
-    #import tempfile
-    #temp_output_path = tempfile.mkdtemp(dir=hydrat.config.getpath('paths','scratch'))
     summaries = process_results\
       ( self.store 
       , self.store
@@ -186,8 +180,6 @@ class OfflineFramework(Framework):
     indexpath = os.path.join(self.outputP, 'index.html')
     with TableSort(open(indexpath, "w")) as renderer:
       result_summary_table(summaries, renderer, relevant = relevant)
-
-    #return temp_output_path
 
   def upload_output(self, target):
     """
