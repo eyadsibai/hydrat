@@ -10,7 +10,8 @@ from hydrat.display.html import TableSort
 from hydrat.display.summary_fns import sf_featuresets
 from hydrat.frameworks.offline import process_results, result_summary_table
 # TODO: Allow for feature weighting and selection
-# TODO: Metadata, results saving, checking for existing result.
+# TODO: Produce tasksets, and bring this more in line with the offline framework.
+#       This would reduce the burden in implementing weighting and selection.
 
 import logging
 logger = logging.getLogger(__name__)
@@ -39,16 +40,18 @@ summary_fields=\
 class CrossDomainFramework(Framework):
 
   def evaluate(self, dataset):
-    # TODO: The time taken to read featuremap and classmap metadata by reading in the entire FM and CM 
-    #       is nontrivial. This could be refactored to improve performance.
+    # NOTE: This approach to constructing metadata is brittle, in that it will not
+    #       reflect changes made to metadata elsewhere.
     md = {}
-    md.update(self.featuremap.metadata)
-    md.update(self.classmap.metadata)
-    md.update(self.learner.metadata)
+    md['dataset'] = self.dataset.__name__
+    md['class_space'] = self.class_space
+    md['feature_desc'] = tuple(sorted(self.feature_spaces))
     md['task_type'] = self.__class__.__name__
     md['eval_dataset'] = dataset.__name__
+    md.update(self.learner.metadata)
     if self.store.has_TaskSetResult(md):
       self.notify("Previously evaluated over '%s'" % dataset.__name__)
+      return False 
     else:
       self.notify("Evaluating over '%s'" % dataset.__name__)
       other = Framework(dataset, store = self.store) 
@@ -63,6 +66,7 @@ class CrossDomainFramework(Framework):
       result = Result(gs, cl, numpy.arange(gs.shape[0]), md)
       tsr = TaskSetResult([result], md)
       self.store.new_TaskSetResult(tsr)
+      return True
 
   # TODO: Clean up and refactor this cut&paste from offline.
   def generate_output(self, summary_fn=sf_featuresets, fields = summary_fields, interpreter = None):

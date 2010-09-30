@@ -20,6 +20,8 @@ from hydrat.task.task import Task
 from hydrat.task.taskset import TaskSet
 from hydrat.common.pb import ProgressIter
 
+from hydrat.common.decorators import deprecated
+
 logger = logging.getLogger(__name__)
 
 class StoreError(Exception): pass
@@ -601,7 +603,7 @@ class Store(object):
     n_inst = len(ds.instance_id) 
     n_feat = len(space)
     m = self._read_sparse_node(fm,shape=(n_inst, n_feat))
-    metadata = dict(dataset=dsname, feature_space=space_name)
+    metadata = dict(dataset=dsname, feature_desc=(space_name,))
     return FeatureMap(m, metadata) 
 
   def get_SizeData(self, dsname, space_name):
@@ -623,6 +625,9 @@ class Store(object):
       raise NoData
     return data.read()
 
+  # Deprecate get_data, since it doesn't make as much sense now that we have 
+  # removed a level of indirection by eliminating uuids for spaces
+  @deprecated
   def get_Data(self, dsname, space_metadata):
     """
     Convenience method for data access which compiles relevant metadata
@@ -633,12 +638,8 @@ class Store(object):
 
     if s_type == 'class':
       data = self.get_ClassMap(dsname, s_name)
-      data.metadata['dataset']      = dsname
-      data.metadata['class_name']   = s_name 
     elif s_type == 'feature':
       data = self.get_FeatureMap(dsname, s_name)
-      #TODO : Why is this happening here?
-      data.metadata['feature_desc']+= (s_name,)
     else:
       raise StoreError, "Unknown data type: %s" % s_type
 
