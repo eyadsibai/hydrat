@@ -1,6 +1,10 @@
 import os
 import logging
+import warnings
+import functools
+import inspect
 from hydrat import config
+
 
 #from http://wiki.python.org/moin/PythonDecoratorLibrary
 class memoized(object):
@@ -105,3 +109,27 @@ class replace_with_result(object):
     def __repr__(self):
         """Return the function's docstring."""
         return self.fn.__doc__ + " (cached)"
+
+
+# from http://wiki.python.org/moin/PythonDecoratorLibrary#GeneratingDeprecationWarnings
+def deprecated(func):
+    """This is a decorator which can be used to mark functions
+    as deprecated. It will result in a warning being emitted
+    when the function is used."""
+
+    @functools.wraps(func)
+    def new_func(*args, **kwargs):
+        frame = inspect.currentframe()
+        warnings.warn_explicit(
+            "Call to deprecated function %(funcname)s." % {
+                'funcname': func.__name__,
+            },
+            category=DeprecationWarning,
+            #filename=func.func_code.co_filename,
+            #lineno=func.func_code.co_firstlineno + 1
+            filename = frame.f_back.f_code.co_filename,
+            lineno = frame.f_back.f_lineno
+        )
+
+        return func(*args, **kwargs)
+    return new_func
