@@ -30,6 +30,8 @@ class Framework(object):
     self.notify('Initializing')
     self.dataset = dataset
 
+    # TODO: sort out the notion of path passed for store. Do we want to know where the
+    #       store itself is? or the basedir? Do we need this hardcoded notion of outputP?
     if isinstance(store, Store):
       self.store = store
       work_path = os.path.dirname(store.path)
@@ -41,7 +43,7 @@ class Framework(object):
     else:
       work_path = store
       init_workdir(work_path, ["output"])
-      self.store = Store(work_path, 'a')
+      self.store = Store(os.path.join(work_path,'store.h5'), 'a')
 
     self.outputP  = os.path.join(work_path, 'output')
     self.inducer = DatasetInducer(self.store)
@@ -55,7 +57,7 @@ class Framework(object):
     ds_name = self.dataset.__name__
     featuremaps = []
     for feature_space in sorted(self.feature_spaces):
-      featuremaps.append(self.store.get_Data(ds_name, {'type':'feature','name':feature_space}))
+      featuremaps.append(self.store.get_FeatureMap(ds_name, feature_space))
 
     # Join the featuremaps into a single featuremap
     fm = union(*featuremaps)
@@ -64,7 +66,7 @@ class Framework(object):
   @property
   def classmap(self):
     ds_name = self.dataset.__name__
-    return self.store.get_Data(ds_name, {'type':'class', 'name':self.class_space})
+    return self.store.get_ClassMap(ds_name, self.class_space)
 
   @property
   def classlabels(self):
@@ -74,7 +76,7 @@ class Framework(object):
   def classifier(self):
     cm = self.classmap
     fm = self.featuremap
-    self.notify("Training Classifier")
+    self.notify("Training '%s'" % self.learner)
     classifier = self.learner(fm.raw, cm.raw)
     return classifier
 
