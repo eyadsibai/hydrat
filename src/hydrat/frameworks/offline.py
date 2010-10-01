@@ -124,9 +124,9 @@ class OfflineFramework(Framework):
     m['learner_params'] = self.learner.params
     return self.store.has_TaskSetResult(m)
 
-  def run(self):
+  def run(self, force=False):
     # Check if we already have this result
-    if not self.has_run():
+    if force or not self.has_run():
       # Check if we already have this task
       if not self.store.has_TaskSet(self.taskset_desc):
         self.notify('Generating TaskSet')
