@@ -2,8 +2,8 @@
 Hydrat interactive store browser based on CherryPy
 """
 import cherrypy
-import markup
-from hydrat.store import UniversalStore
+import hydrat.common.markup
+from hydrat.store import Store
 
 
 def dict_as_html(d):
