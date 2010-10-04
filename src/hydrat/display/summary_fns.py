@@ -67,12 +67,17 @@ def featureset_count(result, interpreter):
   """
   Counts the number of featuresets used in the result.
   """
-  return dict(num_featuresets = len(result.metadata['feature_desc']))
+  if 'feature_desc' in result.metadata:
+    nf = len(result.metadata['feature_desc'])
+  else:
+    nf = 0
+  return dict(num_featuresets = nf)
 
 def expand_features(result, interpreter):
   """
   Creates one boolean entry for each feature present
   """
+  if 'feature_desc' not in result.metadata: return {}
   e = result.metadata['feature_desc'] 
   if type(e[0]) == str:
     fs = set([ e[0] ])
