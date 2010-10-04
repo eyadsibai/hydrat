@@ -86,6 +86,8 @@ class OnlineFramework(Framework):
       self.__classifier = self.classifier
 
       
+  # TODO: split off a separate batch_classify method, so we can feed this into the same
+  #       framework that is used to support external langid tasks.
   def classify(self, text):
     # classify a text instance
     # need to generate the corresponding features first
