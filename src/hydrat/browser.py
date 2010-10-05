@@ -9,6 +9,21 @@ from hydrat.store import Store
 
 #TODO: Ship this in the browser module!
 CSS_URL = "http://hum.cs.mu.oz.au/~mlui/lib/blue_style/style.css"
+def navbar():
+  page = markup.page()
+  with page.table:
+    with page.tr:
+      with page.td: page.a('spaces',    href='/spaces')
+      with page.td: page.a('datasets',  href='/datasets')
+      with page.td: page.a('tasks',     href='/tasks')
+      with page.td: page.a('results',   href='/results')
+  return str(page)
+
+page_config=\
+  { 'css'      : CSS_URL
+  , 'charset'  : 'utf8'
+  , 'header'   : navbar()
+  }
 
 def list_of_links(assoc_list):
   page = markup.page()
@@ -59,7 +74,7 @@ class Results(object):
   def list(self):
     from hydrat.display.tsr import result_summary_table, default_relevant
     page = markup.page()
-    page.init(css=CSS_URL)
+    page.init(**page_config)
 
     summaries = []
     for uuid in self.store._resolve_TaskSetResults({}):
@@ -84,7 +99,7 @@ class Results(object):
   def view(self, uuid):
     from hydrat.display.tsr import render_TaskSetResult
     page = markup.page()
-    page.init(css=CSS_URL)
+    page.init(**page_config)
     
     result = self.store._get_TaskSetResult(uuid)
     class_space = self.store.get_Space(result.metadata['class_space'])
@@ -104,7 +119,7 @@ class Results(object):
     matrix = result.overall_classification_matrix(self.interpreter)
 
     page = markup.page()
-    page.init(css=CSS_URL)
+    page.init(**page_config)
     with page.table:
       with page.tr:
         page.th()
@@ -138,7 +153,7 @@ class Results(object):
     cl_i = class_space.index(cl)
 
     page = markup.page()
-    page.init(css=CSS_URL)
+    page.init(**page_config)
     page.h1("Classified from '%s' to '%s'" % (gs,cl))
     key = (gs_i, cl_i)
     with page.ul:
@@ -158,7 +173,7 @@ class Datasets(object):
   @cherrypy.expose
   def index(self):
     page = markup.page()
-    page.init(css=CSS_URL)
+    page.init(**page_config)
     page.ul()
     for dsname in self.store.list_Datasets():
       page.li()
@@ -192,7 +207,7 @@ class Dataset(object):
   @cherrypy.expose
   def index(self):
     page = markup.page()
-    page.init(css=CSS_URL)
+    page.init(**page_config)
     page.h1("Dataset %s" % self.name)
     page.a("Instances", href='instances')
     page.h2("TODO:Summary")
@@ -220,7 +235,7 @@ class Dataset(object):
   @cherrypy.expose
   def instances(self, id=None):
     page = markup.page()
-    page.init(css=CSS_URL)
+    page.init(**page_config)
     if id is None:
       page.ul()
       for i in self.instanceids: 
@@ -248,7 +263,7 @@ class Dataset(object):
   def tokenstream(self, name, instance):
     page = markup.page()
     #TODO: should we really be specifying this here?
-    page.init(css=CSS_URL, charset='utf8')
+    page.init(**page_config)
     ts = self.store.get_TokenStreams(self.name, name)
     index = self.instanceids.index(instance)
     page.add(ts[index])
@@ -263,7 +278,7 @@ class Dataset(object):
     feature_space = self.store.get_Space(feature_space)
 
     page = markup.page()
-    page.init(css=CSS_URL, charset='utf8')
+    page.init(**page_config)
     page.table()
     for i in present_features:
       page.tr()
@@ -280,7 +295,7 @@ class Dataset(object):
 
     md = dict_as_html(featuremap.metadata)
     page = markup.page()
-    page.init(css=CSS_URL)
+    page.init(**page_config)
     page.p(md)
     page.ul()
     for i in self.store.get_InstanceIds(self.name):
@@ -308,6 +323,6 @@ class StoreBrowser(object):
       , ( 'Results', 'results')
       ]
     page = markup.page()
-    page.init(css=CSS_URL)
+    page.init(**page_config)
     page.add(list_of_links(links))
     return str(page)
