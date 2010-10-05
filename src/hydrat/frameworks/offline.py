@@ -8,7 +8,6 @@ import hydrat.display.summary_fns as sf
 import hydrat.task.transform as tx
 from hydrat.display.tsr import render_TaskSetResult
 from hydrat.result.interpreter import SingleHighestValue, NonZero, SingleLowestValue
-from hydrat.display.html import TableSort 
 from hydrat.display.summary_fns import sf_featuresets
 from hydrat.display.html import TableSort 
 from hydrat.display.tsr import result_summary_table
