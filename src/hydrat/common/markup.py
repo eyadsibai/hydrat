@@ -90,6 +90,12 @@ class element:
         else:
             return out
     
+    def __enter__(self, **kwargs):
+      self.open(**kwargs)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+      self.close()
+
     def close( self ):
         """Append a closing tag unless element has only opening tag."""
 
