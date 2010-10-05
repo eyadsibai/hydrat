@@ -81,3 +81,18 @@ class HydratCmdln(cmdln.Cmdln):
         logger.debug(e)
         print("%s is not a dataset" % dsname)
 
+  def do_browse(self, subcmd, opts, store_path):
+    """${cmd_name}: browse an existing hdf5 store
+
+    ${cmd_usage} 
+
+    For example, given a store called 'store.h5',
+    we call ${cmd_name} as follows:
+
+      ${name} ${cmd_name} store.h5
+    """
+    import cherrypy
+    from hydrat.store import Store
+    from hydrat.browser import StoreBrowser
+    store = Store(store_path, 'r')
+    cherrypy.quickstart(StoreBrowser(store))
