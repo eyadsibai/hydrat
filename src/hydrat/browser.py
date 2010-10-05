@@ -8,6 +8,7 @@ import hydrat.common.markup as markup
 from hydrat.store import Store
 
 #TODO: Serve jquery & css from a location packaged with the module.
+#TODO: Allow for customization of the summary function and/or display headers
 CSS_URL = "http://hum.cs.mu.oz.au/~mlui/lib/blue_style/style.css"
 def navbar():
   page = markup.page()
