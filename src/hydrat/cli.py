@@ -106,4 +106,14 @@ class HydratCmdln(cmdln.Cmdln):
       import browser_config
     except ImportError:
       import hydrat.browser.browser_config as browser_config
+
+    # Try to determine local IP address
+    # from http://stackoverflow.com/questions/166506/finding-local-ip-addresses-in-python
+    # TODO: Deal with possible failure, and/or make this configurable.
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.connect(("gmail.com",80))
+    hostname = s.getsockname()[0]
+
+    cherrypy.config.update({'server.socket_host': hostname})
     cherrypy.quickstart(StoreBrowser(store, browser_config))
