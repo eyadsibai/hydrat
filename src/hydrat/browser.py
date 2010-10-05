@@ -7,7 +7,7 @@ import StringIO
 import hydrat.common.markup as markup
 from hydrat.store import Store
 
-#TODO: Ship this in the browser module!
+#TODO: Serve jquery & css from a location packaged with the module.
 CSS_URL = "http://hum.cs.mu.oz.au/~mlui/lib/blue_style/style.css"
 def navbar():
   page = markup.page()
