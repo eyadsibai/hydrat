@@ -57,7 +57,7 @@ def dict_as_html(d):
   page.table.close()
   return str(page)
 
-from hydrat.display.html import TableSort 
+from hydrat.display.html import TableSort, HTMLWriter
 class Results(object):
   def __init__(self, store, bconfig):
     self.store = store
@@ -113,7 +113,6 @@ class Results(object):
 
   @cherrypy.expose
   def matrix(self, uuid):
-    from display.html import HTMLWriter
     result = self.store._get_TaskSetResult(uuid)
     class_space = self.store.get_Space(result.metadata['class_space'])
     matrix = result.overall_classification_matrix(self.interpreter)
@@ -138,7 +137,6 @@ class Results(object):
 
   @cherrypy.expose
   def classpair(self, uuid, gs, cl):
-    from display.html import HTMLWriter
     result = self.store._get_TaskSetResult(uuid)
     class_space = list(self.store.get_Space(result.metadata['class_space']))
     # TODO: handle dataset vs eval_dataset. Should everything have an eval_dataset?
