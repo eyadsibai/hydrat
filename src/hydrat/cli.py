@@ -86,13 +86,24 @@ class HydratCmdln(cmdln.Cmdln):
 
     ${cmd_usage} 
 
-    For example, given a store called 'store.h5',
-    we call ${cmd_name} as follows:
+    For example, given a store called 'store.h5', we call ${cmd_name} as follows:
 
       ${name} ${cmd_name} store.h5
+
+    The browser is configured via a python module called 'browser_config.py'. 
+    If present in the working directory, this module will supersede the default
+    one supplied with hydrat, and allows the user to specify certain parameters
+    of the browser's behaviour. See the default at hydrat.browser.browser_config
+    for more details of what is configurable.
     """
     import cherrypy
     from hydrat.store import Store
     from hydrat.browser import StoreBrowser
     store = Store(store_path, 'r')
-    cherrypy.quickstart(StoreBrowser(store))
+    import sys
+    sys.path.append('.')
+    try:
+      import browser_config
+    except ImportError:
+      import hydrat.browser.browser_config as browser_config
+    cherrypy.quickstart(StoreBrowser(store, browser_config))

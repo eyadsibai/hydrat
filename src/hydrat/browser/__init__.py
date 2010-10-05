@@ -57,15 +57,14 @@ def dict_as_html(d):
   page.table.close()
   return str(page)
 
-from hydrat.result.interpreter import SingleHighestValue
-from hydrat.display.summary_fns import sf_basic
 from hydrat.display.html import TableSort 
 class Results(object):
-  def __init__(self, store):
+  def __init__(self, store, bconfig):
     self.store = store
     # TODO: Parametrize these somehow!!
-    self.summary_fn = sf_basic
-    self.interpreter = SingleHighestValue()
+    self.summary_fn = bconfig.summary_fn
+    self.interpreter = bconfig.interpreter
+    self.relevant = bconfig.relevant
 
   @cherrypy.expose
   def index(self):
@@ -73,7 +72,7 @@ class Results(object):
 
   @cherrypy.expose
   def list(self):
-    from hydrat.display.tsr import result_summary_table, default_relevant
+    from hydrat.display.tsr import result_summary_table
     page = markup.page()
     page.init(**page_config)
 
@@ -88,7 +87,7 @@ class Results(object):
       summaries.append(summary)
 
     text = StringIO.StringIO()
-    relevant = default_relevant[:]
+    relevant = self.relevant[:]
     relevant.append(("Pairs", 'pairs'))
     with TableSort(text) as renderer:
       result_summary_table(summaries, renderer, relevant)
@@ -301,7 +300,7 @@ class Dataset(object):
     page.ul()
     for i in self.store.get_InstanceIds(self.name):
       page.li()
-      page.a(i,href='../instance_features/%s/%s' % (i, name))
+      page.a(i,href='../features/%s/%s' % (name, i))
       page.li.close()
     page.ul.close()
     return str(page)
@@ -310,9 +309,9 @@ class Dataset(object):
 
 
 class StoreBrowser(object):
-  def __init__(self, store):
+  def __init__(self, store, bconfig):
     self.store = store
-    self.results = Results(store)
+    self.results = Results(store, bconfig)
     self.datasets = Datasets(store)
 
   @cherrypy.expose
