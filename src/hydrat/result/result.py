@@ -140,6 +140,20 @@ class Result(RichComparisonMixin):
         matrix[gs_i,cl_i] = numpy.logical_and(gs,cl).sum()
     return matrix
 
+  def classpairs(self, interpreter):
+    """
+    Return a mapping (from, to) -> [indices]
+    """
+    classifications = interpreter(self.classifications)
+    doc_count, class_count = classifications.shape
+    mapping = dict()
+    for gs_i in xrange(class_count):
+      for cl_i in xrange(class_count):
+        gs = self.goldstandard[:,gs_i]
+        cl = classifications[:,cl_i]
+        mapping[(gs_i, cl_i)] = numpy.logical_and(gs, cl).nonzero()[0]
+    return mapping
+
   def confusion_matrix(self, interpreter):
     """
     @param interpreter: How to interpret the classifier output
