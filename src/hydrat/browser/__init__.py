@@ -157,9 +157,10 @@ class Results(object):
     with page.ul:
       for i in pairs[key]:
         with page.li:
-          # TODO: Link to the instance details
           id = docids[i]
+          # TODO: Build a table of what is available instead, for easy acces. Add mouseover ajax maybe.
           page.a(id, href='../datasets/%s/instances/%s' % (dataset, id))
+          page.a('byte',href='../datasets/%s/tokenstream/byte/%s' % (dataset, id))
     return str(page)
 
 class Datasets(object):
