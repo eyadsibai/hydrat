@@ -27,8 +27,10 @@ def metadata_matches(attrs, desired_metadata):
     try:
       value = getattr(attrs, key)
     except AttributeError:
-      # No match if node does not have this attribute
-      return False
+      # We consider node not having attribute to match if the desired value is None
+      if desired_metadata[key] is not None:
+        # No match if node does not have this attribute
+        return False
     if not value_matches(value,desired_metadata[key]):
       # No match if node's value does not match the desired value
       return False

@@ -17,7 +17,7 @@ class BinaryLearner(Learner):
     params['multiclass'] = 'binarized'
     return params
 
-  def _learn(self, feature_map, class_map):
+  def _learn(self, feature_map, class_map, **kwargs):
     num_classes = class_map.shape[1]
     classifiers = []
     for cl in ProgressIter(range(num_classes),label='Binary Learn'):
@@ -25,7 +25,7 @@ class BinaryLearner(Learner):
       # Build a two-class task
       # The second class is the "True" class
       submap = numpy.vstack((numpy.invert(mask),mask)).transpose()
-      classifiers.append(self.learner(feature_map, submap))
+      classifiers.append(self.learner(feature_map, submap, **kwargs))
     return BinaryClassifier(classifiers, self.learner.__name__)
 
 class BinaryClassifier(Classifier):
@@ -34,11 +34,11 @@ class BinaryClassifier(Classifier):
     Classifier.__init__(self)
     self.classifiers = classifiers
 
-  def _classify(self, feature_map):
+  def _classify(self, feature_map, **kwargs):
     outcomes = []
     for c in ProgressIter(self.classifiers, label="Binary Classify"):
       # We only want the members of the second class
-      r = c(feature_map)
+      r = c(feature_map, **kwargs)
       outcomes.append(r[:,1])
 
     result = numpy.vstack(outcomes).transpose()

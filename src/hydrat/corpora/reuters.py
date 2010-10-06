@@ -10,10 +10,14 @@ from collections import defaultdict
 from hydrat import config
 from hydrat.dataset.encoded import ASCII
 from hydrat.dataset.words import BagOfWords
+from hydrat.configuration import Configurable, DIR
 
 logger = logging.getLogger(__name__)
 
-class ReutersParser(SGMLParser):
+class ReutersParser(Configurable, SGMLParser):
+  requires=\
+    { ('corpora', 'reuters') : DIR('reut21578')
+    }
   def __init__(self, verbose=0):
     SGMLParser.__init__(self,verbose)
     self.reset()
@@ -103,7 +107,7 @@ class Reuters21578(BagOfWords, ASCII):
       assert set(self.classmap(self.classmap_names.next()).keys()) == set(ids)
     return list(sorted(ids)) 
 
-  def ts_byte(self):
+  def text(self):
     p = self._parser()
     return p.docmap
     

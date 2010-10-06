@@ -45,6 +45,8 @@ src/hydrat/common/counter.py
 src/hydrat/common/decorators.py
 src/hydrat/common/distance_metrics.py
 src/hydrat/common/enumerator.py
+src/hydrat/common/extractors.py
+src/hydrat/common/followmatrix.py
 src/hydrat/common/invert_dict.py
 src/hydrat/common/metadata.py
 src/hydrat/common/pb.py
@@ -53,6 +55,7 @@ src/hydrat/common/sampling.py
 src/hydrat/common/stringtools.py
 src/hydrat/common/tokenizers.py
 src/hydrat/common/transform/__init__.py
+src/hydrat/common/transform/abstract.py
 src/hydrat/common/transform/featureselect.py
 src/hydrat/common/transform/infogain.py
 src/hydrat/common/transform/latentdirichletallocation.py
@@ -66,10 +69,12 @@ src/hydrat/corpora/langid/UDHR.py
 src/hydrat/corpora/langid/__init__.py
 src/hydrat/corpora/langid/naacl2010.py
 src/hydrat/dataset/__init__.py
+src/hydrat/dataset/abstract.py
 src/hydrat/dataset/encoded.py
 src/hydrat/dataset/iso639.py
 src/hydrat/dataset/text.py
 src/hydrat/dataset/tokenstream.py
+src/hydrat/dataset/words.py
 src/hydrat/display/__init__.py
 src/hydrat/display/graphs.py
 src/hydrat/display/html.py
@@ -85,10 +90,8 @@ src/hydrat/external/__init__.py
 src/hydrat/external/libs.py
 src/hydrat/external/textcat.py
 src/hydrat/frameworks/__init__.py
-src/hydrat/frameworks/crossvalidation.py
-src/hydrat/frameworks/feature_interaction.py
-src/hydrat/frameworks/preset_split.py
-src/hydrat/frameworks/traintest.py
+src/hydrat/frameworks/offline.py
+src/hydrat/frameworks/online.py
 src/hydrat/preprocessor/__init__.py
 src/hydrat/preprocessor/features/__init__.py
 src/hydrat/preprocessor/features/transform.py

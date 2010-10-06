@@ -17,7 +17,7 @@ def summarize_TaskSetResult(result, interpreter):
 
 default_relevant = \
             [ ( {'label':"Dataset", 'searchable':True}       , "dataset"       )
-            , ( {'label':"Class Space",'searchable':True}     , "class_name"     )
+            , ( {'label':"Class Space",'searchable':True}     , "class_space"     )
             , ( {'label':"Feature Desc",'searchable':True}   , "feature_desc"     )
             , ( {'label':"Learner",'searchable':True}    , "learner"    )
             , ( {'label':"Params",'searchable':True}    , "learner_params"    )
