@@ -6,17 +6,17 @@ import os
 import numpy
 
 from hydrat.classifier.SVM import SVMFileWriter
-from hydrat.configuration import is_exe
+from hydrat.configuration import is_exe, Configurable, EXE
 
 """
 Wrapper for Le Zhang's maxent toolkit
 http://homepages.inf.ed.ac.uk/lzhang10/maxent_toolkit.html
 """
 
-class maxentLearner(Learner):
+class maxentLearner(Configurable, Learner):
   __name__ = "maxent"
   requires =\
-    { 'maxent' : 'maxent' 
+    { ('tools','maxent') : EXE('maxent')
     }
 
   def __init__(self, iterations=3, method='lbfgs' ):
