@@ -15,6 +15,8 @@ from hydrat.frameworks import init_workdir
 from hydrat.common import as_set
 from hydrat.preprocessor.features.transform import union
 from hydrat.preprocessor.model.inducer import invert_text
+from hydrat.task.sampler import membership_vector
+from hydrat.common.pb import ProgressIter
 
 class OnlineFramework(object):
   def __init__( self
@@ -38,6 +40,7 @@ class OnlineFramework(object):
     self.feature_spaces = None
     self.class_space = None
     self.learner = None
+    self.split = None
     self.classifier = None
     self.vectorize = None
     self.classlabels = None
@@ -51,8 +54,6 @@ class OnlineFramework(object):
     self.feature_spaces = as_set(feature_spaces)
     # TODO: Make this work with other tokenstreams. Need to check if we know how to transform
     #       text into the expected tokenstream.
-    if not all(f.startswith('byte') for f in self.feature_spaces):
-      raise ValueError, "can only handle byte-derived feature spaces"
     self.notify("Set feature_spaces to '%s'" % str(feature_spaces))
     self.configure()
 
@@ -66,32 +67,60 @@ class OnlineFramework(object):
     self.notify("Set learner to '%s'" % learner)
     self.configure()
 
+  def set_split(self, split):
+    """
+    Setting a split causes the framework to only use the 'train' portion of the split
+    for training. Setting a split that does not contain a 'train' partition will cause
+    an error.
+    """
+    self.split = self.dataset.split(split)
+    mv = membership_vector(self.dataset.instance_ids, self.split['train'])
+    self.train_indices = mv.nonzero()[0]
+    self.notify("Set split to '%s'" % split)
+    self.configure()
+
   def is_configurable(self):
     # Modified from Framework
     return self.feature_spaces is not None\
        and self.class_space is not None\
        and self.learner is not None
 
+  @property
+  def classmap(self):
+    # Ensure that the relevant feature/class spaces have been modelled.
+    self.inducer.process_Dataset(self.dataset, cms=self.class_space)
+    ds_name = self.dataset.__name__
+    cm = self.store.get_Data(ds_name, dict(type='class', name=self.class_space)).raw
+    if self.split is not None:
+      cm = cm[self.train_indices]
+    return cm
+   
+  @property
+  def featuremap(self):
+    # Ensure that the relevant feature/class spaces have been modelled.
+    self.inducer.process_Dataset(self.dataset, fms=self.feature_spaces)
+    ds_name = self.dataset.__name__
+    featuremaps = []
+    for feature_space in sorted(self.feature_spaces):
+      featuremaps.append(self.store.get_Data(ds_name, {'type':'feature','name':feature_space}))
+
+    # Join the featuremaps into a single featuremap
+    fm = union(*featuremaps).raw
+    if self.split is not None:
+      fm = fm[self.train_indices]
+    return fm
+    
   def configure(self):
     if self.is_configurable():
-      # Ensure that the relevant feature/class spaces have been modelled.
-      self.inducer.process_Dataset(self.dataset, fms=self.feature_spaces, cms=self.class_space)
+      if not all(f.startswith('byte') for f in self.feature_spaces):
+        raise ValueError, "can only handle byte-derived feature spaces"
       s = self.store
-      ds_name = self.dataset.__name__
-      cm = s.get_Data(ds_name, dict(type='class', name=self.class_space)) 
 
-      featuremaps = []
-      for feature_space in sorted(self.feature_spaces):
-        featuremaps.append(self.store.get_Data(ds_name, {'type':'feature','name':feature_space}))
-
-      # Join the featuremaps into a single featuremap
-      fm = union(*featuremaps)
+      cm = self.classmap 
+      fm = self.featuremap
 
       # Instantiate classifier
-      self.classifier = self.learner(fm.raw, cm.raw)
-
-      # Set our classlabels for later decoding classifier output
-      self.classlabels = numpy.array(s.get_Space(self.class_space))
+      self.classifier = self.learner(fm, cm)
 
       # Set up feature extraction machinery for incoming text.
       fns = {}
@@ -126,6 +155,7 @@ class OnlineFramework(object):
         return scipy.sparse.hstack(fms).tocsr()
       
       self.vectorize = vectorize
+      self.classlabels = numpy.array(self.store.get_Space(self.class_space))
 
       
   def classify(self, text):
