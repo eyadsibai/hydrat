@@ -14,8 +14,8 @@ from hydrat.preprocessor.model.inducer.dataset import DatasetInducer
 from hydrat.common import as_set
 from hydrat.preprocessor.features.transform import union
 from hydrat.preprocessor.model.inducer import invert_text
-from hydrat.task.sampler import membership_vector
 from hydrat.common.pb import ProgressIter
+from hydrat.frameworks.common import Framework
 
 class OnlineFramework(Framework):
   def __init__( self
@@ -29,29 +29,6 @@ class OnlineFramework(Framework):
 
   def notify(self, str):
     self.logger.info(str)
-
-  def set_feature_spaces(self, feature_spaces):
-    # Sanity check - we must know how to derive the tokenstream required.
-    # For now, we only handle byte tokenstream.
-    self.feature_spaces = as_set(feature_spaces)
-    # TODO: Make this work with other tokenstreams. Need to check if we know how to transform
-    #       text into the expected tokenstream.
-    if not all(f.startswith('byte') for f in self.feature_spaces):
-      raise ValueError, "can only handle byte-derived feature spaces"
-    self.notify("Set feature_spaces to '%s'" % str(feature_spaces))
-    self.configure()
-
-def set_split(self, split):
-    """
-    Setting a split causes the framework to only use the 'train' portion of the split
-    for training. Setting a split that does not contain a 'train' partition will cause
-    an error.
-    """
-    self.split = self.dataset.split(split)
-    mv = membership_vector(self.dataset.instance_ids, self.split['train'])
-    self.train_indices = mv.nonzero()[0]
-    self.notify("Set split to '%s'" % split)
-    self.configure()
 
   def is_configurable(self):
     return self.feature_spaces is not None\
