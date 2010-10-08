@@ -6,6 +6,7 @@ from hydrat.common.pb import ProgressIter
 from hydrat.store import Store, StoreError, NoData, AlreadyHaveData
 from hydrat.preprocessor.model.inducer.dataset import DatasetInducer
 from hydrat.preprocessor.features.transform import union
+from hydrat.task.sampler import membership_vector
 from hydrat.common import as_set
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,7 @@ class Framework(object):
   
   @property
   def featuremap(self):
+    self.inducer.process_Dataset(self.dataset, fms=self.feature_spaces)
     ds_name = self.dataset.__name__
     featuremaps = []
     for feature_space in sorted(self.feature_spaces):
@@ -64,7 +66,16 @@ class Framework(object):
     return fm
 
   @property
+  def featurelabels(self):
+    labels = []
+    # TODO: Handle unlabelled (EG transformed) feature spaces
+    for feature_space in sorted(self.feature_spaces):
+      labels.extend(self.store.get_Space(feature_space))
+    return labels
+
+  @property
   def classmap(self):
+    self.inducer.process_Dataset(self.dataset, cms=self.class_space)
     ds_name = self.dataset.__name__
     return self.store.get_ClassMap(ds_name, self.class_space)
 
@@ -74,10 +85,13 @@ class Framework(object):
 
   @property
   def classifier(self):
+    learner = self.learner
+    if self.learner is None:
+      raise ValueError, "Learner has not been set"
     cm = self.classmap
     fm = self.featuremap
     self.notify("Training '%s'" % self.learner)
-    classifier = self.learner(fm.raw, cm.raw)
+    classifier = learner(fm.raw, cm.raw)
     return classifier
 
   def notify(self, str):
@@ -98,6 +112,18 @@ class Framework(object):
   def set_learner(self, learner):
     self.learner = learner
     self.notify("Set learner to '%s'" % learner)
+    self.configure()
+
+  def set_split(self, split):
+    """
+    Setting a split causes the framework to only use the 'train' portion of the split
+    for training. Setting a split that does not contain a 'train' partition will cause
+    an error.
+    """
+    self.split = self.dataset.split(split)
+    mv = membership_vector(self.dataset.instance_ids, self.split['train'])
+    self.train_indices = mv.nonzero()[0]
+    self.notify("Set split to '%s'" % split)
     self.configure()
 
   def configure(self): 

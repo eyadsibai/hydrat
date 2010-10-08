@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 summary_fields=\
   [ ( {'label':"Dataset", 'searchable':True}       , "dataset"       )
   , ( {'label':"Eval", 'searchable':True}       , "eval_dataset"       )
-  , ( {'label':"Class Space",'searchable':True}     , "class_name"     )
+  , ( {'label':"Class Space",'searchable':True}     , "class_space"     )
   , ( {'label':"# Feats",'searchable':True}    , "num_featuresets"    )
   , ( {'label':"Feature Desc",'searchable':True}   , "feature_desc"     )
   , ( {'label':"Learner",'searchable':True}    , "learner"    )

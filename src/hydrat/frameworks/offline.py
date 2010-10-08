@@ -8,7 +8,6 @@ import hydrat.display.summary_fns as sf
 import hydrat.task.transform as tx
 from hydrat.display.tsr import render_TaskSetResult
 from hydrat.result.interpreter import SingleHighestValue, NonZero, SingleLowestValue
-from hydrat.display.html import TableSort 
 from hydrat.display.summary_fns import sf_featuresets
 from hydrat.display.html import TableSort 
 from hydrat.display.tsr import result_summary_table
@@ -124,9 +123,9 @@ class OfflineFramework(Framework):
     m['learner_params'] = self.learner.params
     return self.store.has_TaskSetResult(m)
 
-  def run(self):
+  def run(self, force=False):
     # Check if we already have this result
-    if not self.has_run():
+    if force or not self.has_run():
       # Check if we already have this task
       if not self.store.has_TaskSet(self.taskset_desc):
         self.notify('Generating TaskSet')

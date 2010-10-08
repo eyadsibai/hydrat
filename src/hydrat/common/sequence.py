@@ -1,4 +1,5 @@
 import hydrat
+import numpy
 import scipy.sparse
 
 """
@@ -33,6 +34,20 @@ def matrix2sequence(matrix):
       subseq = [parent, child]
   seq.append(scipy.array(subseq, dtype='uint64'))
   return seq
+
+def topological_sort(sequence):
+  sq = sequence.tolil()
+  ordering = []
+  new_nonzeros = [-1]
+  while len(new_nonzeros) > 0:
+    parent_count = sq.sum(axis=0)
+    nonzero_indices = numpy.array(parent_count == 0).nonzero()[1]
+    new_nonzeros = sorted(set(nonzero_indices) - set(ordering))
+    ordering.extend(new_nonzeros)
+    sq[new_nonzeros,:] = 0
+  if sq.sum() > 0:
+    raise ValueError, "Contains Cycles"
+  return ordering
 
 if __name__ == "__main__":
   seq = [[1,2,3],[4,5],[6,7,8,9,10,11,12]]
