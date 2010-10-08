@@ -12,7 +12,7 @@ def ngram_dist(n, ts):
     return Counter(NGram(n)(ts))
 
 def unordered_ngram_dist(n, ts):
-  return Counter(NGram(n)(tuple(sorted(ts))))
+  return Counter(tuple(sorted(t)) for t in NGram(n)(ts))
 
 def unigram(ts):   return ngram_dist(1, ts) 
 def bigram(ts):    return ngram_dist(2, ts) 

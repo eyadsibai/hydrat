@@ -108,6 +108,9 @@ class Store(object):
                             , 'TaskSetResult Data'
                             )
     self.__update_format()
+  
+  def __str__(self):
+    return "<Store mode '%s' @ '%s'>" % (self.mode, self.path)
 
   def __update_format(self):
     for dsnode in self.datasets:

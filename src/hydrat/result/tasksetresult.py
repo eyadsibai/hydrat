@@ -1,6 +1,7 @@
 import numpy
 from hydrat.result import fscore
 from hydrat.common.richcomp import RichComparisonMixin
+from collections import defaultdict
 
 class TaskSetResult(RichComparisonMixin):
   #Contains a raw result and descriptive frills
@@ -37,6 +38,17 @@ class TaskSetResult(RichComparisonMixin):
   # Should work on providing access to taskset-level
   # confusion and classification matrices.
   ###
+
+  def overall_classpairs(self, interpreter):
+    """
+    Return a mapping (from, to) -> [indices] extended over all folds
+    """
+    mapping = defaultdict(list)
+    for r in self.raw_results:
+      cl = r.classpairs(interpreter)
+      for key in cl:
+        mapping[key].extend(cl[key])
+    return mapping
 
   def overall_classification_matrix(self, interpreter):
     """

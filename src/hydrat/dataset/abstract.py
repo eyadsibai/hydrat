@@ -2,6 +2,8 @@ import logging
 import os
 from hydrat.common.pb import ProgressIter
 
+# TODO: Automatically monkeypatch an instance when a particular ts/fm/cm is loaded, 
+#       so we don't try to load it from disk again.
 class Dataset(object):
   """ Base class for all datasets. A Dataset is essentially
       a binder for sets of features and classes. The features and classes
@@ -86,7 +88,8 @@ class Dataset(object):
   @property
   def instance_ids(self):
     # Check with the class maps first as they are usually 
-    # smaller and thus quicker to load
+    # smaller and thus quicker to load. 
+    # Then try fm and ts in that order.
     try: 
       names = self.classmap_names
       ids = set(self.classmap(names.next()).keys())
@@ -95,7 +98,11 @@ class Dataset(object):
         names = self.featuremap_names
         ids = set(self.featuremap(names.next()).keys())
       except StopIteration:
-        raise NotImplementedError, "No feature maps or class maps defined!"
+        try:
+          names = self.tokenstream_names
+          ids = set(self.tokenstream(names.next()).keys())
+        except StopIteration:
+          raise NotImplementedError, "No tokenstreams, feature maps or class maps defined!"
     return list(sorted(ids))
 
   def features(self, tsname, extractor):

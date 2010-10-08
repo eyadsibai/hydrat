@@ -1,4 +1,5 @@
 import progressbar as pb
+ENABLED = True
 
 def get_widget(label):
   return [ label, ' ', Proportion(), ' ', pb.Bar(marker='>',left='[',right=']'), ' ', pb.ETA() ]
@@ -19,6 +20,10 @@ class ProgressBar(pb.ProgressBar):
   def _need_update(self):
     # Always update, since we mostly use this on slow-running tasks
     return True
+
+  def update(self, value):
+    if ENABLED:
+      pb.ProgressBar.update(self, value)
 
 class ProgressIter(object):
   def __init__(self, sequence, label='Progress'):

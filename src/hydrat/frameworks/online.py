@@ -14,6 +14,7 @@ from hydrat.preprocessor.model.inducer.dataset import DatasetInducer
 from hydrat.common import as_set
 from hydrat.preprocessor.features.transform import union
 from hydrat.preprocessor.model.inducer import invert_text
+from hydrat.common.pb import ProgressIter
 from hydrat.frameworks.common import Framework
 
 class OnlineFramework(Framework):
@@ -29,17 +30,6 @@ class OnlineFramework(Framework):
   def notify(self, str):
     self.logger.info(str)
 
-  def set_feature_spaces(self, feature_spaces):
-    # Sanity check - we must know how to derive the tokenstream required.
-    # For now, we only handle byte tokenstream.
-    self.feature_spaces = as_set(feature_spaces)
-    # TODO: Make this work with other tokenstreams. Need to check if we know how to transform
-    #       text into the expected tokenstream.
-    if not all(f.startswith('byte') for f in self.feature_spaces):
-      raise ValueError, "can only handle byte-derived feature spaces"
-    self.notify("Set feature_spaces to '%s'" % str(feature_spaces))
-    self.configure()
-
   def is_configurable(self):
     return self.feature_spaces is not None\
        and self.class_space is not None\
@@ -47,8 +37,15 @@ class OnlineFramework(Framework):
 
   def configure(self):
     if self.is_configurable():
-      # Ensure that the relevant feature/class spaces have been modelled.
-      self.inducer.process_Dataset(self.dataset, fms=self.feature_spaces, cms=self.class_space)
+      if not all(f.startswith('byte') for f in self.feature_spaces):
+        raise ValueError, "can only handle byte-derived feature spaces"
+      s = self.store
+
+      cm = self.classmap 
+      fm = self.featuremap
+
+      # Instantiate classifier
+      self.classifier = self.learner(fm, cm)
 
       # Set up feature extraction machinery for incoming text.
       fns = {}
@@ -83,9 +80,12 @@ class OnlineFramework(Framework):
         return scipy.sparse.hstack(fms).tocsr()
       
       self.vectorize = vectorize
+      self.classlabels = numpy.array(self.store.get_Space(self.class_space))
       self.__classifier = self.classifier
 
       
+  # TODO: split off a separate batch_classify method, so we can feed this into the same
+  #       framework that is used to support external langid tasks.
   def classify(self, text):
     # classify a text instance
     # need to generate the corresponding features first
