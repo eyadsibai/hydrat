@@ -1,0 +1,3 @@
+[console_scripts]
+hydrat = hydrat:main
+
