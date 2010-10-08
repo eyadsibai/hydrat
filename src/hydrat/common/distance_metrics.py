@@ -107,6 +107,10 @@ class dm_skew(distance_metric):
     f1 = numpy.asarray( v1.sum(0) ) [0] > 0
     f2 = numpy.asarray( v2.sum(0) ) [0] > 0
     i  = numpy.flatnonzero(numpy.logical_and(f1, f2))
+    
+    if len(i) == 0:
+      # No overlapping features.
+      return numpy.empty((v2.shape[0],v2.shape[0]), dtype='float')
 
     # Select only shared features from both matrices
     v1 = v1.transpose()[i].transpose().toarray()
