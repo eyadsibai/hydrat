@@ -1,6 +1,9 @@
 import logging
 import os
+from hydrat.common.pb import ProgressIter
 
+# TODO: Automatically monkeypatch an instance when a particular ts/fm/cm is loaded, 
+#       so we don't try to load it from disk again.
 class Dataset(object):
   """ Base class for all datasets. A Dataset is essentially
       a binder for sets of features and classes. The features and classes
@@ -50,6 +53,9 @@ class Dataset(object):
   def tokenstream(self, name):
     return getattr(self, 'ts_'+name)()
 
+  def sequence(self, name):
+    return getattr(self, 'sq_'+name)()
+
   def prefixed_names(self, prefix):
     for key in dir(self):
       if key.startswith(prefix + '_'):
@@ -75,10 +81,15 @@ class Dataset(object):
   def tokenstream_names(self): 
     return self.prefixed_names('ts')
 
+  @property 
+  def sequence_names(self): 
+    return self.prefixed_names('sq')
+
   @property
   def instance_ids(self):
     # Check with the class maps first as they are usually 
-    # smaller and thus quicker to load
+    # smaller and thus quicker to load. 
+    # Then try fm and ts in that order.
     try: 
       names = self.classmap_names
       ids = set(self.classmap(names.next()).keys())
@@ -87,23 +98,25 @@ class Dataset(object):
         names = self.featuremap_names
         ids = set(self.featuremap(names.next()).keys())
       except StopIteration:
-        raise NotImplementedError, "No feature maps or class maps defined!"
+        try:
+          names = self.tokenstream_names
+          ids = set(self.tokenstream(names.next()).keys())
+        except StopIteration:
+          raise NotImplementedError, "No tokenstreams, feature maps or class maps defined!"
     return list(sorted(ids))
 
-class SingleDir(Dataset):
-  """ Mixin for a dataset that has all of its source text files
-  in a single directory. Requires that the deriving class
-  implements a data_path method.
-  """
-  def data_path(self):
-    raise NotImplementedError, "Deriving class must implement this"
+  def features(self, tsname, extractor):
+    """
+    Generate feature map by applying an extractor to a
+    named tokenstream.
+    """
+    tokenstream = self.tokenstream(tsname)
+    fm = {}
 
-  def text(self):
-    path = self.data_path()
-    instances = {}
-    for filename in os.listdir(path):
-      filepath = os.path.join(path, filename)
-      if os.path.isfile(filepath):
-        instances[filename] = open(filepath).read()
-    return instances
+    for instance_id in ProgressIter(tokenstream, label="Processing Documents"):
+      fm[instance_id] = extractor(tokenstream[instance_id])
+      if len(fm[instance_id]) == 0:
+        self.logger.warning( "TokenStream '%s' has no tokens for '%s'", tsname, instance_id )
+
+    return fm
 

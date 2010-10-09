@@ -1,13 +1,11 @@
 from collections import defaultdict
 from hydrat.dataset.text import TextDataset
-from hydrat.preprocessor.model.inducer import invert_text
-from hydrat.common.tokenizers import NGram, bag_of_words
 from hydrat.common.pb import ProgressIter
+import hydrat.common.extractors as ext
 
 class EncodedTextDataset(TextDataset):
   def __init__(self):
     TextDataset.__init__(self)
-    self.__unicode = None
     self.__encodings = None
 
   def encodings(self):
@@ -22,33 +20,19 @@ class EncodedTextDataset(TextDataset):
       self.__encodings = self.encodings()
     return self.__encodings
 
-  def _unicode(self):
-    if self.__unicode is None:
-      text = self._text()
-      encodings = self._encodings()
-      u = {}
-      for instance_id in text:
-        e = encodings[instance_id]
-        try:
-          u[instance_id] = text[instance_id].decode(e)
-        except UnicodeDecodeError:
-          self.logger.warning("Error decoding '%s' with codec '%s'", instance_id, e)
-          self.logger.warning("Replacing undecodable characters")
-          u[instance_id] = unicode(text[instance_id], encoding=e, errors='replace')
-      self.__unicode = u
-    return self.__unicode
-
-  def unicode_token(self, tokenizer, text=None, encodings=None):
-    if encodings is None: encodings = self._encodings()
-    if text is None: text = self._unicode()
-    fm = {}
-
-    for instance_id in ProgressIter(text, label='Processing documents'):
-      fm[instance_id] = invert_text(text[instance_id], tokenizer)
-      if len(fm[instance_id]) == 0:
-        self.logger.warning( "Tokenizer did not return any tokens for %s", instance_id )
-
-    return fm
+  def ts_codepoint(self):
+    text = self.tokenstream('byte')
+    encodings = self._encodings()
+    u = {}
+    for instance_id in text:
+      e = encodings[instance_id]
+      try:
+        u[instance_id] = text[instance_id].decode(e)
+      except UnicodeDecodeError:
+        self.logger.warning("Error decoding '%s' with codec '%s'", instance_id, e)
+        self.logger.warning("Replacing undecodable characters")
+        u[instance_id] = unicode(text[instance_id], encoding=e, errors='replace')
+    return u
 
 class UTF8(EncodedTextDataset):
   """mixin for a dataset that is entirely UTF8-encoded"""
@@ -79,16 +63,14 @@ try:
 except ImportError:
   pass
 
-class BagOfWords(EncodedTextDataset):
-  def fm_bag_of_words(self): return self.unicode_token(bag_of_words)
 
 class CodepointUnigram(EncodedTextDataset):
-  def fm_codepoint_unigram(self): return self.unicode_token(NGram(1))
+  def fm_codepoint_unigram(self): return self.features('codepoint', ext.unigram)
 
 class CodepointBigram(EncodedTextDataset):
-  def fm_codepoint_bigram(self): return self.unicode_token(NGram(2))
+  def fm_codepoint_bigram(self): return self.features('codepoint', ext.bigram)
 
 class CodepointTrigram(EncodedTextDataset):
-  def fm_codepoint_trigram(self): return self.unicode_token(NGram(3))
+  def fm_codepoint_trigram(self): return self.features('codepoint', ext.trigram)
 
 class CodepointUBT(CodepointUnigram, CodepointBigram, CodepointTrigram): pass

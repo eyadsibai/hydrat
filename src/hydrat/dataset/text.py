@@ -1,7 +1,6 @@
+import os
 from hydrat.dataset import Dataset
-from hydrat.preprocessor.model.inducer import invert_text
-from hydrat.common.tokenizers import NGram
-from hydrat.common.pb import ProgressIter
+import hydrat.common.extractors as ext
 
 class TextDataset(Dataset):
   """ Base class for datasets where instances can be represented
@@ -9,20 +8,11 @@ class TextDataset(Dataset):
       tasks.
 
       The only requirement for subclassing TextDataset is that the 
-      subclass must implement the text method, which returns a 
+      subclass must implement the ts_byte method, which returns a 
       dictionary mapping from the instance identifier to the
       text of the instance.
   """
-  def __init__(self):
-    Dataset.__init__(self)
-    self.__text = None
-
-  def _text(self):
-    if self.__text is None:
-      self.__text = self.text()
-    return self.__text
-
-  def text(self):
+  def ts_byte(self):
     """
     Return a dictionary from instance identifiers
     to the content of the instance in a string 
@@ -30,36 +20,36 @@ class TextDataset(Dataset):
     """
     raise NotImplementedError
 
-  def text_token(self, tokenizer, text=None):
-    """
-    Generate feature map by applying a tokenizer to the raw
-    text and then producing token counts
-    """
-    if text is None: text = self._text()
-    fm = {}
+class SingleDir(TextDataset):
+  """ Mixin for a dataset that has all of its source text files
+  in a single directory. Requires that the deriving class
+  implements a data_path method.
+  """
+  def data_path(self):
+    raise NotImplementedError, "Deriving class must implement this"
 
-    for instance_id in ProgressIter(text, label="Processing Documents"):
-      fm[instance_id] = invert_text(text[instance_id], tokenizer)
-      if len(fm[instance_id]) == 0:
-        self.logger.warning( "Tokenizer did not return any tokens for %s", instance_id )
-
-
-    return fm
+  def ts_byte(self):
+    path = self.data_path()
+    instances = {}
+    for filename in os.listdir(path):
+      filepath = os.path.join(path, filename)
+      if os.path.isfile(filepath):
+        instances[filename] = open(filepath).read()
+    return instances
 
 class ByteUnigram(TextDataset):
-  def fm_byte_unigram(self): return self.text_token(NGram(1))
+  def fm_byte_unigram(self):   return self.features('byte', ext.unigram)
 
 class ByteBigram(TextDataset):
-  def fm_byte_bigram(self): return self.text_token(NGram(2))
+  def fm_byte_bigram(self):    return self.features('byte', ext.bigram)
 
 class ByteTrigram(TextDataset):
-  def fm_byte_trigram(self): return self.text_token(NGram(3))
-
-class ByteUBT(ByteUnigram, ByteBigram, ByteTrigram): pass
+  def fm_byte_trigram(self):   return self.features('byte', ext.trigram)
 
 class ByteQuadgram(TextDataset):
-  def fm_byte_quadgram(self): return self.text_token(NGram(4))
+  def fm_byte_quadgram(self):  return self.features('byte', ext.quadgram)
 
 class BytePentagram(TextDataset):
-  def fm_byte_pentagram(self): return self.text_token(NGram(5))
+  def fm_byte_pentagram(self): return self.features('byte', ext.pentagram)
 
+class ByteUBT(ByteUnigram, ByteBigram, ByteTrigram): pass
