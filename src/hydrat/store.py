@@ -20,6 +20,8 @@ from hydrat.task.task import Task
 from hydrat.task.taskset import TaskSet
 from hydrat.common.pb import ProgressIter
 
+from hydrat.common.decorators import deprecated
+
 logger = logging.getLogger(__name__)
 
 class StoreError(Exception): pass
@@ -38,33 +40,36 @@ class InsufficientMetadata(StoreError): pass
 # both Integer and Real features.
 
 class IntFeature(tables.IsDescription):
-  instance_index = tables.UInt64Col()
-  feature_index  = tables.UInt64Col()
-  value          = tables.UInt64Col()
+  ax0    = tables.UInt64Col()
+  ax1    = tables.UInt64Col()
+  value  = tables.UInt64Col()
 
 class RealFeature(tables.IsDescription):
-  instance_index = tables.UInt64Col()
-  feature_index  = tables.UInt64Col()
-  value          = tables.Float64Col()
+  ax0    = tables.UInt64Col()
+  ax1    = tables.UInt64Col()
+  value  = tables.Float64Col()
+
+class BoolFeature(tables.IsDescription):
+  ax0    = tables.UInt64Col()
+  ax1    = tables.UInt64Col()
+  value  = tables.BoolCol()
+# TODO: Declare a configurable compression filter
+#         tables.Filters(complevel=5, complib='zlib') 
 
 class Store(object):
   """
   This is the master store class for hydrat. It manages all of the movement of data
   to and from disk.
   """
-  def __init__(self, path=None, mode='r', default_path = 'store'):
+  def __init__(self, path, mode='r', default_path = 'store'):
     """
     The store object has four major nodes:
     # spaces
     # datasets
     # tasksets
     # results
-
-    The __init__ constructor for Store instances assumes that the store has already
-    been initialized, and that the four major nodes exist.
-
     """
-    self.path = os.path.join(config.get('paths','work'), default_path) if path is None else path
+    self.path = path
     self.fileh = tables.openFile(self.path, mode=mode)
     self.mode = mode
     logger.debug("Opening Store at '%s', mode '%s'", self.path, mode)
@@ -106,6 +111,9 @@ class Store(object):
                             , 'TaskSetResult Data'
                             )
     self.__update_format()
+  
+  def __str__(self):
+    return "<Store mode '%s' @ '%s'>" % (self.mode, self.path)
 
   def __update_format(self):
     for dsnode in self.datasets:
@@ -115,6 +123,13 @@ class Store(object):
         self.fileh.createGroup( dsnode
                               , "tokenstreams"
                               , "Token Streams"
+                              )
+      if not hasattr(dsnode, 'sequence'):
+        logger.warning('Node %s did not have sequence node; adding.', dsnode._v_name)
+        # Create a group for Token Streams
+        self.fileh.createGroup( dsnode
+                              , "sequence"
+                              , "Instance sequencing information"
                               )
         
 
@@ -137,14 +152,11 @@ class Store(object):
     """
     dtype = node._v_attrs.dtype
     if shape is None: shape = node._v_attrs.shape
-    #logger.debug("Reading sparse node")
+    ax0 = node.read(field='ax0')
+    ax1 = node.read(field='ax1')
     values = node.read(field='value')
-    feature = node.read(field='feature_index')
-    instance = node.read(field='instance_index')
-    m = coo_matrix((values,numpy.vstack((instance,feature))), shape=shape)
-    #logger.debug('Converting format')
+    m = coo_matrix((values,numpy.vstack((ax0,ax1))), shape=shape)
     m = m.tocsr()
-    #logger.debug("SPARSE matrix ready")
     return m
 
   def _add_sparse_node( self
@@ -169,8 +181,8 @@ class Store(object):
     feature = node.row
     for i,row in enumerate(data):
       for j,v in numpy.vstack((row.indices, row.data)).transpose():
-        feature['instance_index'] = i
-        feature['feature_index'] = j
+        feature['ax0'] = i
+        feature['ax1'] = j
         feature['value'] = v
         feature.append()
     self.fileh.flush()
@@ -302,6 +314,12 @@ class Store(object):
                           , "Token Streams"
                           )
 
+    # Create a group for Token Streams
+    self.fileh.createGroup( ds
+                          , "sequence"
+                          , "Instance sequencing information"
+                          )
+
   def add_FeatureDict(self, dsname, space_name, feat_map):
     self._check_writeable()
     logger.debug("Adding feature map to dataset '%s' in space '%s'", dsname, space_name)
@@ -334,8 +352,8 @@ class Store(object):
     # Add the features to the table
     feature = fm_node.row
     for i, j, v in feat_map:
-      feature['instance_index'] = i
-      feature['feature_index'] = j
+      feature['ax0'] = i
+      feature['ax1'] = j
       feature['value'] = v
       feature.append()
       instance_sizes[i] += v # Keep tally of instance size
@@ -414,7 +432,7 @@ class Store(object):
     cm_node[:] = class_map
     cm_node.flush()
                                
-  def add_TaskSet(self, taskset, additional_metadata={}):
+  def add_TaskSet(self, taskset):
     # TODO: Find some way to make this atomic! Otherwise, we can write incomplete tasksets!!
     self._check_writeable()
     taskset_uuid = taskset.metadata['uuid']
@@ -428,13 +446,11 @@ class Store(object):
 
     for key in taskset.metadata:
       setattr(taskset_entry_attrs, key, taskset.metadata[key])
-    for key in additional_metadata:
-      setattr(taskset_entry_attrs, key, additional_metadata[key])
 
-    logger.debug('Adding a taskset %s %s', str(taskset.metadata), str(additional_metadata))
+    logger.debug('Adding a taskset %s', str(taskset.metadata))
 
     for i,task in enumerate(ProgressIter(taskset.tasks, label="Adding Tasks")):
-      self._add_Task(task, taskset_entry, dict(index=i))
+      self._add_Task(task, taskset_entry)
     self.fileh.flush()
 
     return taskset_entry_tag
@@ -520,8 +536,7 @@ class Store(object):
 
   def get_Space(self, space_name):
     """
-    @param tag: Identifier of the relevant space
-    @type tag: uuid
+    @param space_name: Name of the space 
     @rtype: pytables array
     """
     try:
@@ -594,7 +609,7 @@ class Store(object):
     n_inst = len(ds.instance_id) 
     n_feat = len(space)
     m = self._read_sparse_node(fm,shape=(n_inst, n_feat))
-    metadata = dict(dataset=dsname, feature_space=space_name)
+    metadata = dict(dataset=dsname, feature_desc=(space_name,))
     return FeatureMap(m, metadata) 
 
   def get_SizeData(self, dsname, space_name):
@@ -616,6 +631,9 @@ class Store(object):
       raise NoData
     return data.read()
 
+  # Deprecate get_data, since it doesn't make as much sense now that we have 
+  # removed a level of indirection by eliminating uuids for spaces
+  @deprecated
   def get_Data(self, dsname, space_metadata):
     """
     Convenience method for data access which compiles relevant metadata
@@ -626,12 +644,8 @@ class Store(object):
 
     if s_type == 'class':
       data = self.get_ClassMap(dsname, s_name)
-      data.metadata['dataset']      = dsname
-      data.metadata['class_name']   = s_name 
     elif s_type == 'feature':
       data = self.get_FeatureMap(dsname, s_name)
-      #TODO : Why is this happening here?
-      data.metadata['feature_desc']+= (s_name,)
     else:
       raise StoreError, "Unknown data type: %s" % s_type
 
@@ -655,13 +669,10 @@ class Store(object):
       raise AlreadyHaveData, "Node already exists in store!"
       
 
-  def _add_Task(self, task, ts_entry, additional_metadata={}): 
+  def _add_Task(self, task, ts_entry): 
     self._check_writeable()
-    try:
-      task_uuid = task.metadata['uuid']
-    except KeyError:
-      task_uuid = uuid.uuid4()
-      task.metadata['uuid'] = task_uuid
+    task_uuid = uuid.uuid4()
+    task.metadata['uuid'] = task_uuid
     task_tag = str(task_uuid)
 
     # Create a group for the task
@@ -671,8 +682,6 @@ class Store(object):
     # Add the metadata
     for key in task.metadata:
       setattr(task_entry_attrs, key, task.metadata[key])
-    for key in additional_metadata:
-      setattr(task_entry_attrs, key, additional_metadata[key])
 
     # Add the class matrices 
     # TODO: Current implementation has the side effect of expanding all tasks,
@@ -698,6 +707,26 @@ class Store(object):
                          , te 
                          , filters = tables.Filters(complevel=5, complib='zlib') 
                          )
+
+    sqr = task.train_sequence
+    sqe = task.test_sequence
+
+    if sqr is not None:
+      self._add_sparse_node( task_entry
+                           , 'train_sequence'
+                           , BoolFeature
+                           , sqr
+                           , filters = tables.Filters(complevel=5, complib='zlib') 
+                           )
+
+    if sqe is not None:
+      self._add_sparse_node( task_entry
+                           , 'test_sequence'
+                           , BoolFeature
+                           , sqe
+                           , filters = tables.Filters(complevel=5, complib='zlib') 
+                           )
+
     self.fileh.flush()
 
   def has_TaskSet(self, desired_metadata):
@@ -732,12 +761,20 @@ class Store(object):
     metadata = get_metadata(task_entry)
     t = Task()
     t.metadata = metadata
-    t.train_classes = task_entry.train_classes.read()
-    t.train_indices = task_entry.train_indices.read()
-    t.test_classes  = task_entry.test_classes.read()
-    t.test_indices  = task_entry.test_indices.read()
-    t.train_vectors = self._read_sparse_node(task_entry.train_vectors)
-    t.test_vectors  = self._read_sparse_node(task_entry.test_vectors)
+    t.train_classes  = task_entry.train_classes.read()
+    t.train_indices  = task_entry.train_indices.read()
+    t.test_classes   = task_entry.test_classes.read()
+    t.test_indices   = task_entry.test_indices.read()
+    t.train_vectors  = self._read_sparse_node(task_entry.train_vectors)
+    t.test_vectors   = self._read_sparse_node(task_entry.test_vectors)
+    if hasattr(task_entry, 'train_sequence'):
+      t.train_sequence = self._read_sparse_node(task_entry.train_sequence)
+    else:
+      t.train_sequence = None
+    if hasattr(task_entry, 'test_sequence'):
+      t.test_sequence = self._read_sparse_node(task_entry.test_sequence)
+    else:
+      t.test_sequence  = None
     return t
 
   def _resolve_TaskSet(self, desired_metadata):
@@ -748,6 +785,19 @@ class Store(object):
       if metadata_matches(attrs, desired_metadata):
         desired_keys.append(node)
     return desired_keys
+
+  def new_TaskSetResult(self, tsr):
+    """Convenience method which checks no previous TaskSetResult has matching metadata"""
+    if self.has_TaskSetResult(tsr.metadata):
+      raise AlreadyHaveData, "Already have tsr %s" % str(tsr.metadata)
+    if 'uuid' in tsr.metadata:
+      logger.warning('new tsr should not have uuid!')
+    tsr.metadata['uuid'] = uuid.uuid4()
+    self.add_TaskSetResult(tsr)
+
+  def has_TaskSetResult(self, desired_metadata):
+    """ Check if the TaskSetResult already exists """
+    return bool(self._resolve_TaskSetResults(desired_metadata))
 
   def get_TaskSetResult(self, desired_metadata):
     """ Convenience function to bypass tag resolution """
@@ -844,8 +894,12 @@ class Store(object):
 
   def add_TokenStreams(self, dsname, stream_name, tokenstreams):
     dsnode = getattr(self.datasets, dsname)
-    stream_array = self.fileh.createVLArray(dsnode.tokenstreams, stream_name, tables.ObjectAtom())
-    for stream in ProgressIter(tokenstreams, label='Adding TokenStreams'):
+    stream_array = self.fileh.createVLArray( dsnode.tokenstreams
+                                           , stream_name
+                                           , tables.ObjectAtom()
+                                           , filters = tables.Filters(complevel=5, complib='zlib') 
+                                           )
+    for stream in ProgressIter(tokenstreams, label="Adding TokenStreams '%s'" % stream_name):
       stream_array.append(stream)
 
   def get_TokenStreams(self, dsname, stream_name):
@@ -856,3 +910,36 @@ class Store(object):
   def list_TokenStreams(self, dsname):
     dsnode = getattr(self.datasets, dsname)
     return set(node._v_name for node in dsnode.tokenstreams)
+
+  ###
+  # Sequence
+  ###
+  def add_Sequence(self, dsname, seq_name, sequence):
+    # sequence should arrive as a boolean matrix. axis 0 is parent, axis 1 is child.
+    if not issubclass(sequence.dtype.type, numpy.bool_):
+      raise ValueError, "sequence must be a boolean matrix"
+    if not sequence.shape[0] == sequence.shape[1]:
+      raise ValueError, "sequence must be square"
+
+    dsnode = getattr(self.datasets, dsname)
+    self._add_sparse_node( dsnode.sequence
+                         , seq_name
+                         , BoolFeature 
+                         , sequence
+                         , filters = tables.Filters(complevel=5, complib='zlib') 
+                         )
+
+  def get_Sequence(self, dsname, seq_name):
+    dsnode = getattr(self.datasets, dsname)
+    sqnode = getattr(dsnode.sequence, seq_name)
+    # Should be reading each row of the array as a member of a sequence
+    # e.g. a row is a thread, each index is the instance index in dataset representing posts
+    # returns a list of arrays.
+    return self._read_sparse_node(sqnode)
+
+  def list_Sequence(self, dsname):
+    dsnode = getattr(self.datasets, dsname)
+    return set(node._v_name for node in dsnode.sequence)
+
+  #TODO: Load/store of splits
+

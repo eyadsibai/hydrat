@@ -5,11 +5,11 @@ import numpy
 from hydrat.result.result import result_from_task 
 from hydrat.result.tasksetresult import TaskSetResult
 from hydrat.common.pb import ProgressIter
+logger = logging.getLogger(__name__)
 
 def run_task( learner, task ):
-  logger = logging.getLogger('hydrat.experiment.run_task')
-  classifier       = learner(task.train_vectors, task.train_classes)
-  classifications  = classifier(task.test_vectors)
+  classifier       = learner(task.train_vectors, task.train_classes, sequence=task.train_sequence)
+  classifications  = classifier(task.test_vectors, sequence=task.test_sequence)
 
   # Copy the metadata. Must ensure we do not pass a reference.
   metadata = {}
@@ -34,6 +34,7 @@ class Experiment(object):
     metadata = dict(self.taskset.metadata)
     metadata['learner'] = self.learner.__name__
     metadata['learner_params'] = self.learner.params
+    # TODO: is this the right place to generate uuid?
     metadata['uuid'] = uuid.uuid4()
     t = TaskSetResult(raw_results, metadata)
     t.metadata['avg_learn'] = numpy.mean(t.individual_metadata('learn_time'))

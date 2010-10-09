@@ -8,7 +8,8 @@ from sgmllib import SGMLParser
 from collections import defaultdict
 
 from hydrat import config
-from hydrat.dataset.encoded import BagOfWords, ASCII
+from hydrat.dataset.encoded import ASCII
+from hydrat.dataset.words import BagOfWords
 from hydrat.configuration import Configurable, DIR
 
 logger = logging.getLogger(__name__)

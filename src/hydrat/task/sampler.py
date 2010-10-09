@@ -75,9 +75,10 @@ def allocate(strata_map, weights, probabilistic = False, rng = None):
 from hydrat.task.taskset import TaskSet
 from hydrat.task.task import InMemoryTask
 
-class Partitioning(object):
+class Partitioner(object):
   """ Represents a partitioning on a set of data """
-  def __init__(self, class_map, partitions, metadata):
+  def __init__(self, class_map, partitions, metadata, sequence=None):
+    # TODO: Do something with the sequence data
     # partitions is a 3-d array. instances X partitions X train/test(note order!)
     self.class_map = class_map
     self.parts = partitions
@@ -148,7 +149,7 @@ class PresetSplit(Sampler):
   def sample(self, class_map):
     metadata = self.metadata
     metadata.update(self.additional_metadata)
-    return Partitioning(class_map, self.split, metadata) 
+    return Partitioner(class_map, self.split, metadata) 
 
 class TrainTest(Sampler):
   def __init__(self, ratio=4, rng=None):
@@ -169,7 +170,7 @@ class TrainTest(Sampler):
                      ) 
     # Build train/test by stacking to the correct shape
     parts = numpy.dstack((parts[:,0], parts[:,1])).swapaxes(0,1)
-    return Partitioning(class_map, parts, metadata) 
+    return Partitioner(class_map, parts, metadata) 
 
 class CrossValidate(Sampler):
   def __init__(self, folds=10, rng=None):
@@ -191,4 +192,4 @@ class CrossValidate(Sampler):
     # We build train/test. Axis 0 is train, so it is the logical not of each fold, which represents
     # the test instances.
     folds = numpy.dstack((numpy.logical_not(folds), folds))
-    return Partitioning(class_map, folds, metadata) 
+    return Partitioner(class_map, folds, metadata) 

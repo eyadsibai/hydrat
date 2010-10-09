@@ -4,3 +4,5 @@ import SVM
 import knn
 import maxent
 import weka
+
+import sequence

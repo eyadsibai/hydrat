@@ -13,7 +13,7 @@ class dummy(ByteUBT, CodepointUBT, UTF8):
     self.max_times = max_times
     self.__name__ += str(max_times)
 
-  def text(self):
+  def ts_byte(self):
     docmap = {}
     for i in xrange(len(self.words)):
       for j in xrange(self.max_times):
@@ -54,7 +54,7 @@ class unicode_dummy_multiclass(ByteUBT, CodepointUBT, UTF8):
     self.max_times = max_times
     self.__name__ += str(max_times)
 
-  def text(self):
+  def ts_byte(self):
     docmap = {}
     for i in xrange(len(self.words)):
       for j in xrange(self.max_times):
