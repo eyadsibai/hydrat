@@ -118,6 +118,8 @@ class OfflineFramework(Framework):
       self.taskset_desc = taskset_metadata
 
   def has_run(self):
+    if self.taskset_desc is None:
+      raise ValueError, "Framework has not been configured."
     m = dict( self.taskset_desc )
     m['learner'] = self.learner.__name__
     m['learner_params'] = self.learner.params
