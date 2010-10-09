@@ -49,7 +49,7 @@ def list_as_html(l):
 def dict_as_html(d):
   page = markup.page()
   page.table()
-  for key in d:
+  for key in sorted(d):
     page.tr()
     page.td(key)
     page.td(str(d[key]))
@@ -289,21 +289,91 @@ class Dataset(object):
 
   @cherrypy.expose
   def featurespace(self, name):
+    page = markup.page()
+    page.init(**page_config)
+
     tag = self.store.resolve_Space({'name':name})
     featuremap = self.store.get_FeatureMap(self.name, name)
 
-    md = dict_as_html(featuremap.metadata)
-    page = markup.page()
-    page.init(**page_config)
-    page.p(md)
-    page.ul()
-    for i in self.store.get_InstanceIds(self.name):
-      page.li()
-      page.a(i,href='../features/%s/%s' % (name, i))
-      page.li.close()
-    page.ul.close()
+    from hydrat.display.sparklines import histogram
+    md = featuremap.metadata
+    md['num_docs'] = featuremap.raw.shape[0]
+    md['num_features'] = featuremap.raw.shape[1]
+    feat_dist = featuremap.raw.sum(axis=0)
+    md['Feature Occurrance distribution'] = markup.oneliner.img(src=histogram(feat_dist))
+    md['Feature Occurrance mean'] = feat_dist.mean()
+    md['Feature Occurrance std']  = feat_dist.std()
+    doc_sizes = featuremap.raw.sum(axis=1)
+    md['Document Size distribution'] = markup.oneliner.img(src=histogram(doc_sizes))
+    md['Document Size mean'] = doc_sizes.mean()
+    md['Document Size std']  = doc_sizes.std()
+    page.add(dict_as_html(md))
+
+    text = StringIO.StringIO()
+    rows = []
+    for i, id in enumerate(self.store.get_InstanceIds(self.name)):
+      row = {}
+      row['index'] = i
+      row['id'] = markup.oneliner.a(id,href='../features/%s/%s' % (name, id))
+      row['size'] = doc_sizes[i,0]
+      row['bytes'] = markup.oneliner.a('link',href='../tokenstream/byte/%s' % id)
+      rows.append(row)
+
+    with TableSort(text) as renderer:
+      renderer.dict_table( rows
+                         , ['index', 'id', 'size', 'bytes'] 
+                         , col_headings = ['Index', 'Identifier', 'Size', 'bytes']
+                         )
+    page.add(text.getvalue())
     return str(page)
 
+class Spaces(object):
+  def __init__(self, store, bconfig):
+    self.store = store
+    self.bconfig = bconfig
+
+  @cherrypy.expose
+  def index(self):
+    page = markup.page()
+    page.init(**page_config)
+
+    cols = ['name', 'size', 'encoding']
+    headings = ['Name', {'label':'Size', 'sorter':'digit'}, 'Encoding']
+
+    page.h1('Feature Spaces')
+    rows = [self.store.get_SpaceMetadata(s) for s in self.store.list_FeatureSpaces()]
+    for r in rows:
+      r['name'] = markup.oneliner.a(r['name'], href='view?' +urllib.urlencode({'name':r['name']}))
+    text = StringIO.StringIO()
+    with TableSort(text) as renderer:
+      renderer.dict_table( rows
+                         , cols
+                         , col_headings = headings
+                         #, title = 'Feature Spaces'
+                         )
+    page.add(text.getvalue())
+
+    page.h1('Class Spaces')
+    rows = [self.store.get_SpaceMetadata(s) for s in self.store.list_ClassSpaces()]
+    text = StringIO.StringIO()
+    with TableSort(text) as renderer:
+      renderer.dict_table( rows
+                         , cols
+                         , col_headings = headings
+                         #, title = 'Feature Spaces'
+                         )
+    page.add(text.getvalue())
+    return str(page)
+
+  @cherrypy.expose
+  def view(self, name):
+    page = markup.page()
+    page.init(**page_config)
+    with page.ul:
+      for item in self.store.get_Space(name):
+        with page.li:
+          page.add(str(item))
+    return str(page)
 
 
 
@@ -312,6 +382,7 @@ class StoreBrowser(object):
     self.store = store
     self.results = Results(store, bconfig)
     self.datasets = Datasets(store)
+    self.spaces = Spaces(store, bconfig)
 
   @cherrypy.expose
   def index(self):
