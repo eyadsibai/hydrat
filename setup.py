@@ -8,16 +8,14 @@ NEWS = open(os.path.join(here, 'NEWS.txt')).read()
 
 version = '0.9.1.1'
 
-# List your project dependencies here.
-# For more details, see:
-# http://packages.python.org/distribute/setuptools.html#declaring-dependencies
 install_requires =\
   [ 'progressbar==2.2'
   , 'cmdln==1.1.2'
   , 'updatedir>=0.1'
+  , 'cherrypy==3.1.2'
   , 'numpy'
   , 'scipy'
-  , 'tables'
+  , 'tables' # setuptools doesn't seem to realize this is installed?
   ]
 
 
@@ -25,7 +23,6 @@ setup(name='hydrat',
     version=version,
     description="Classifier comparison framework",
     long_description=README + '\n\n' + NEWS,
-    # Get strings from http://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=\
     [ "Development Status :: 3 - Alpha"
     , "Environment :: Console"
