@@ -142,6 +142,7 @@ def default_configuration():
   #       Should work around this via the Configurable API, so the object looks up its 
   #       local configuration before accessing the global one.
   default_config.set('corpora', 'naacl2010-langid', '')
+  default_config.set('corpora', 'altw2010-langid', '')
 
   default_config.add_section('logging')
   default_config.set('logging', 'console.level', 'info')
