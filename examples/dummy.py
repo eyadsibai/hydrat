@@ -15,15 +15,15 @@ import hydrat.classifier.weka as weka
 import hydrat.classifier.maxent as maxent
 
 learners=\
-  [ knn.cosine_1nnL()
-  , nltk.naivebayesL()
-  , nltk.decisiontreeL()
-  , svm.libsvmExtL(kernel_type='linear')
-  , svm.bsvmL(kernel_type='linear')
+  [ np.cosine_mean_prototypeL()
+  , knn.cosine_1nnL()
   , knn.skew_1nnL()
   , knn.oop_1nnL()
-  , np.cosine_mean_prototypeL()
   , maxent.maxentLearner()
+  , svm.libsvmExtL(kernel_type='linear')
+  , svm.bsvmL(kernel_type='linear')
+  , nltk.naivebayesL()
+  , nltk.decisiontreeL()
   , weka.majorityclassL()
   , weka.nbL()
   , weka.j48L()
@@ -33,15 +33,25 @@ if __name__ == "__main__":
   fw.set_class_space('dummy_default')
   fw.set_feature_spaces('byte_unigram')
 
-  # Run over train/test split
-  fw.set_split('traintest')
-  for l in learners:
-    fw.set_learner(l)
-    fw.run()
+  def do():
+    for l in learners:
+      fw.set_learner(l)
+      fw.run()
 
   # Run over crossvalidation split
   fw.set_split('crossvalidation')
-  split = fw.split
-  for l in learners:
-    fw.set_learner(l)
-    fw.run()
+  do()
+
+  # Run over train/test split
+  fw.set_split('traintest')
+  do()
+
+  # Perform tfidf weighting
+  from hydrat.common.transform.weight import TFIDF
+  fw.transform_taskset(TFIDF())
+  do()
+
+  # Extend the task with an additional feature space
+  fw.extend_taskset('codepoint_unigram')
+  do()
+

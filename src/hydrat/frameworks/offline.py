@@ -52,7 +52,16 @@ class OfflineFramework(Framework):
 
     self.split_name = None
     self.sequence_name = None
-    self.taskset_desc = None
+
+  @property
+  def taskset_desc(self):
+    taskset_metadata = dict()
+    taskset_metadata['dataset']       = self.dataset.__name__
+    taskset_metadata['split']         = self.split_name
+    taskset_metadata['sequence']      = self.sequence_name
+    taskset_metadata['feature_desc']  = self.feature_desc
+    taskset_metadata['class_space']   = self.class_space
+    return taskset_metadata
 
   @property
   def taskset(self):
@@ -102,24 +111,7 @@ class OfflineFramework(Framework):
     self.split_name = split
     self.configure()
 
-  def is_configurable(self):
-    return self.feature_spaces is not None\
-      and self.class_space is not None\
-      and self.split_name is not None
-
-  def configure(self):
-    if self.is_configurable():
-      taskset_metadata = dict()
-      taskset_metadata['dataset']       = self.dataset.__name__
-      taskset_metadata['split']         = self.split_name
-      taskset_metadata['sequence']      = self.sequence_name
-      taskset_metadata['feature_desc']  = tuple(sorted(self.feature_spaces))
-      taskset_metadata['class_space']   = self.class_space
-      self.taskset_desc = taskset_metadata
-
   def has_run(self):
-    if self.taskset_desc is None:
-      raise ValueError, "Framework has not been configured."
     m = dict( self.taskset_desc )
     m['learner'] = self.learner.__name__
     m['learner_params'] = self.learner.params
@@ -131,24 +123,27 @@ class OfflineFramework(Framework):
       # Check if we already have this task
       if not self.store.has_TaskSet(self.taskset_desc):
         self.notify('Generating TaskSet')
+        # TODO: This is likely to break if not fully configured, so do something here.
         taskset = from_partitions(self.split, self.featuremap, self.classmap, self.sequence, self.taskset_desc) 
         self.store.new_TaskSet(taskset)
       run_experiment(self.taskset, self.learner, self.store)
 
   def transform_taskset(self, transformer):
-    #TODO
-    raise NotImplementedError, "Need to check if transformer needs update for sequence"
     metadata = tx.update_metadata(self.taskset_desc, transformer)
     if not self.store.has_TaskSet(metadata):
+      #TODO: this step can be unified with run if we can reliably map from taskset_desc to the transformers involved.
       taskset = tx.transform_taskset(self.taskset, transformer)
       self.store.new_TaskSet(taskset)
-    self.taskset_desc = metadata
+    # Only copy over the new feature_desc
+    # TODO: Why bother with configure generating taskset_desc at all? we can't manipulate taskset_desc
+    #       directly because configure will mercilessly overwrite it from the base parameters.
+    self.feature_desc = metadata['feature_desc']
 
   def extend_taskset(self, feature_spaces):
     feature_spaces = as_set(feature_spaces)
-    taskset_metadata = dict(self.taskset_desc)
-    taskset_metadata['feature_desc'] += tuple(sorted(feature_spaces))
-    if not self.store.has_TaskSet(taskset_metadata):
+    metadata = self.taskset_desc
+    metadata['feature_desc'] += tuple(sorted(feature_spaces))
+    if not self.store.has_TaskSet(self.taskset_desc):
       # Catch up any missing feature spaces
       self.inducer.process_Dataset(self.dataset, fms=feature_spaces)
       ds_name = self.dataset.__name__
@@ -158,7 +153,7 @@ class OfflineFramework(Framework):
       fm = union(*featuremaps)
       taskset = append_features(self.taskset, fm)
       self.store.new_TaskSet(taskset)
-    self.taskset_desc = taskset_metadata
+    self.feature_desc += tuple(sorted(feature_spaces))
 
   def generate_output(self, summary_fn=sf_featuresets, fields = summary_fields, interpreter = None):
     """
