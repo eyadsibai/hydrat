@@ -4,12 +4,13 @@ from hydrat.task.task import Task
 def transform_task(task, transformer):
   transformer.learn(task.train_vectors, task.train_classes)
   t = Task()
-  t.train_vectors = transformer.apply(task.train_vectors)
-  t.test_vectors  = transformer.apply(task.test_vectors)
-  t.train_classes = task.train_classes
-  t.test_classes  = task.test_classes
-  t.train_indices = task.train_indices
-  t.test_indices  = task.test_indices
+  affected = ['train_vectors', 'test_vectors']
+  for slot in Task.__slots__:
+    if slot in affected:
+      setattr(t, slot, transformer.apply(getattr(task, slot)))
+    else:
+      setattr(t, slot, getattr(task, slot))
+  # Separately update metadata
   t.metadata      = dict(task.metadata)
   t.metadata['feature_desc']+=(transformer.__name__,)
   return t
