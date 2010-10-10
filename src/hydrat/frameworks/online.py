@@ -38,14 +38,7 @@ class OnlineFramework(Framework):
   def configure(self):
     if self.is_configurable():
       if not all(f.startswith('byte') for f in self.feature_spaces):
-        raise ValueError, "can only handle byte-derived feature spaces"
-      s = self.store
-
-      cm = self.classmap 
-      fm = self.featuremap
-
-      # Instantiate classifier
-      self.classifier = self.learner(fm, cm)
+        raise ValueError, "can only handle byte-derived feature spaces (for now!)"
 
       # Set up feature extraction machinery for incoming text.
       fns = {}
@@ -80,7 +73,6 @@ class OnlineFramework(Framework):
         return scipy.sparse.hstack(fms).tocsr()
       
       self.vectorize = vectorize
-      self.classlabels = numpy.array(self.store.get_Space(self.class_space))
       self.__classifier = self.classifier
 
       
