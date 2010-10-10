@@ -46,6 +46,7 @@ class ALTW2010(Configurable, ISO639_1, UTF8, ByteUBT, CodepointUBT):
         docs[docid] = open(os.path.join(self.rawdata_path,seg_name,docid)).read()
     return docs
 
+  # TODO: Abstract this into dataset.split
   def sp_traindev(self):
     partitions = self.partitions
     return dict( train   = partitions['train']
