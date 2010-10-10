@@ -28,6 +28,7 @@ learners=\
   , weka.nbL()
   , weka.j48L()
   ]
+
 if __name__ == "__main__":
   fw = OfflineFramework(unicode_dummy())
   fw.set_class_space('dummy_default')
@@ -54,4 +55,3 @@ if __name__ == "__main__":
   # Extend the task with an additional feature space
   fw.extend_taskset('codepoint_unigram')
   do()
-
