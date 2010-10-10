@@ -107,7 +107,7 @@ class Reuters21578(BagOfWords, ASCII):
       assert set(self.classmap(self.classmap_names.next()).keys()) == set(ids)
     return list(sorted(ids)) 
 
-  def text(self):
+  def ts_byte(self):
     p = self._parser()
     return p.docmap
     

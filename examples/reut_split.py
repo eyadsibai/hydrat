@@ -1,4 +1,4 @@
-from hydrat.frameworks.preset_split import PresetSplitFramework
+from hydrat.frameworks.offline import OfflineFramework
 
 import hydrat.corpora.reuters as reuters
 
@@ -24,11 +24,10 @@ if __name__ == "__main__":
     , weka.nbL()
     , weka.j48L()
     ]
-  ps = PresetSplitFramework(reuters.Reuters21578())
-  ps.set_class_space('reuters21578_topics')
-  ps.set_feature_spaces('word_unigram')
-  ps.set_split('lewis')
+  fw = OfflineFramework(reuters.Reuters21578())
+  fw.set_class_space('reuters21578_topics')
+  fw.set_feature_spaces('word_unigram')
+  fw.set_split('lewis')
   for l in learners:
-    ps.set_learner(l)
-    ps.run()
-    ps.generate_output()
+    fw.set_learner(l)
+    fw.run()

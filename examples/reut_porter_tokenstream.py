@@ -1,4 +1,4 @@
-from hydrat.frameworks.preset_split import PresetSplitFramework
+from hydrat.frameworks.offline import OfflineFramework
 from hydrat.common.transform.featureselect import ig_bern_top500
 from hydrat.task.transform import transform_taskset
 
@@ -8,7 +8,7 @@ import hydrat.classifier.nearest_prototype as np
 
 from hydrat.corpora.reuters import Reuters21578
 from hydrat.dataset.tokenstream import PorterStem
-class ReutersSubset(Reuters21578, PorterStem): 
+class ReutersSubset(PorterStem, Reuters21578): 
   """
   Subclass of Retuers21578. Implements a reduced split, where only 2000 of the 21578 documents
   are used. This is useful for development work, where we want to quickly test that code is
@@ -25,31 +25,26 @@ def stem_unigram(tokenstream):
   return Counter( token['stem'] for token in tokenstream )
 
 if __name__ == "__main__":
-  ps = PresetSplitFramework(ReutersSubset())
+  fw = OfflineFramework(ReutersSubset())
 
   # Do classifications in the topics class space
-  ps.set_class_space('reuters21578_topics')
+  fw.set_class_space('reuters21578_topics')
 
   # Use the reduced split defined above
-  ps.set_split('hydrat_test_subset')
+  fw.set_split('hydrat_test_subset')
 
   # Use cosine-mean nearest prototype. Chosen because it is internal and fast
-  ps.set_learner(np.cosine_mean_prototypeL())
+  fw.set_learner(np.cosine_mean_prototypeL())
 
   # Generate a stem_unigram featureset off the porterstemmer token stream.
-  ps.process_tokenstream('porterstemmer', stem_unigram)
+  fw.process_tokenstream('porterstemmer', stem_unigram)
 
   # Use featuremaps in the stem_unigram feature space
-  ps.set_feature_spaces('stem_unigram')
-  ps.run()
+  fw.set_feature_spaces('porterstemmer_stem_unigram')
+  fw.run()
 
-  # Use featuremaps in the word_unigram feature space
-  ps.set_feature_spaces('word_unigram')
-  ps.run()
-  
   # Create a new taskset by carrying out infogain-based top500 feature selection
   # Note that this taskset is saved back into the store.
-  ps.transform_taskset(ig_bern_top500)
-  ps.run()
+  fw.transform_taskset(ig_bern_top500)
+  fw.run()
 
-  ps.generate_output()
