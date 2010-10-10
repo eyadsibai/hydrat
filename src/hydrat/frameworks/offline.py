@@ -128,11 +128,20 @@ class OfflineFramework(Framework):
         self.store.new_TaskSet(taskset)
       run_experiment(self.taskset, self.learner, self.store)
 
-  def transform_taskset(self, transformer):
+  def transform_taskset(self, transformer, save_intermediate=False):
     metadata = tx.update_metadata(self.taskset_desc, transformer)
     if not self.store.has_TaskSet(metadata):
       #TODO: this step can be unified with run if we can reliably map from taskset_desc to the transformers involved.
-      taskset = tx.transform_taskset(self.taskset, transformer)
+      if self.store.has_TaskSet(self.taskset_desc):
+        taskset = self.taskset
+      else:
+        # TODO: This can go away once we unify, but for now we need to make sure that the taskset to modify
+        # exists before we modify it.
+        taskset = from_partitions(self.split, self.featuremap, self.classmap, self.sequence, self.taskset_desc) 
+        if save_intermediate:
+          self.store.new_TaskSet(taskset)
+      # Now do the actual transform
+      taskset = tx.transform_taskset(taskset, transformer)
       self.store.new_TaskSet(taskset)
     # Only copy over the new feature_desc
     # TODO: Why bother with configure generating taskset_desc at all? we can't manipulate taskset_desc
