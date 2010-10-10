@@ -50,6 +50,7 @@ class Framework(object):
     self.inducer = DatasetInducer(self.store)
 
     self.feature_spaces = None
+    self.feature_desc = None
     self.class_space = None
     self.learner = None
   
@@ -100,6 +101,7 @@ class Framework(object):
   def set_feature_spaces(self, feature_spaces):
     self.inducer.process_Dataset( self.dataset, fms = feature_spaces)
     self.feature_spaces = as_set(feature_spaces)
+    self.feature_desc = tuple(sorted(self.feature_spaces))
     self.notify("Set feature_spaces to '%s'" % str(feature_spaces))
     self.configure()
 
