@@ -151,7 +151,9 @@ class PresetSplit(Sampler):
     metadata.update(self.additional_metadata)
     return Partitioner(class_map, self.split, metadata) 
 
+from hydrat.common.decorators import deprecated
 class TrainTest(Sampler):
+  @deprecated
   def __init__(self, ratio=4, rng=None):
     Sampler.__init__(self, rng)
     self.ratio = ratio
@@ -173,6 +175,7 @@ class TrainTest(Sampler):
     return Partitioner(class_map, parts, metadata) 
 
 class CrossValidate(Sampler):
+  @deprecated
   def __init__(self, folds=10, rng=None):
     Sampler.__init__(self, rng)
     self.folds = folds
