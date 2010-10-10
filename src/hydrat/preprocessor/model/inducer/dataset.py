@@ -1,7 +1,7 @@
 import logging
 import numpy
 from hydrat.store import NoData, AlreadyHaveData
-from hydrat.preprocessor.model.inducer import class_matrix 
+from hydrat.preprocessor.model.inducer import map2matrix
 from hydrat.common.pb import ProgressIter
 from hydrat.common import as_set
 from hydrat.common.sequence import sequence2matrix
@@ -184,6 +184,6 @@ class DatasetInducer(object):
       raise ValueError, "Already have data for dataset '%s' in space '%s'"% (dsname, space_name)
 
     instance_ids = self.store.get_InstanceIds(dsname)
-    class_map = class_matrix(docclassmap, instance_ids, classlabels)
+    class_map = map2matrix(docclassmap, instance_ids, classlabels)
     self.store.add_ClassMap(dsname, space_name, class_map)
 
