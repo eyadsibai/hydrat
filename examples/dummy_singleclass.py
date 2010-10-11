@@ -11,7 +11,6 @@ import hydrat.classifier.NLTK as nltk
 import hydrat.classifier.SVM as svm
 import hydrat.classifier.knn as knn
 import hydrat.classifier.nearest_prototype as np
-import hydrat.classifier.weka as weka
 import hydrat.classifier.maxent as maxent
 
 learners=\
@@ -24,9 +23,6 @@ learners=\
   , svm.bsvmL(kernel_type='linear')
   , nltk.naivebayesL()
   , nltk.decisiontreeL()
-  , weka.majorityclassL()
-  , weka.nbL()
-  , weka.j48L()
   ]
 
 if __name__ == "__main__":
