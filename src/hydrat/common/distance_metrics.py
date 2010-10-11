@@ -64,8 +64,8 @@ class dm_cosine(distance_metric):
     if i.sum() == 0: return numpy.zeros((v1.shape[0],v2.shape[0]), dtype='float')
 
     self.logger.debug('Calculating normals')
-    n_v1 = [ norm(v) for v in v1 ]
-    n_v2 = [ norm(v) for v in v2 ]
+    n_v1 = [ norm(v.nonzero()[1]) for v in v1 ]
+    n_v2 = [ norm(v.nonzero()[1]) for v in v2 ]
 
     # Select only shared features from both matrices
     v1 = v1.transpose()[i].transpose().toarray()
