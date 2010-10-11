@@ -33,9 +33,9 @@ class TFIDF(LearnlessTransformer):
     total_terms = tf.sum()
     
     #IDF for each term
-    idf = numpy.zeros(feature_map.shape[1])
+    df = numpy.zeros(feature_map.shape[1])
     for f in feature_map.nonzero()[1]:
-      idf[f] += 1
+      df[f] += 1
               
     for i,instance in enumerate(feature_map):
       size = instance_sizes[i]
@@ -43,7 +43,7 @@ class TFIDF(LearnlessTransformer):
       for j in instance.nonzero()[1]: 
         v = feature_map[i, j] 
         term_freq =  float(v) / float(size) #TF        
-        weighted_fm[i, j] = term_freq * idf[j] #W_{d,t}
+        weighted_fm[i, j] = term_freq / df[j] #W_{d,t}
     
     return weighted_fm.tocsr()
 
