@@ -8,16 +8,18 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_CONFIG_FILE = '.hydratrc'
 #TODO:
-# Build the default configuration by scanning all the tools and corpora
-#   for their individual configuration requirements by some means of introspection
 # Check each tool for possible installed locations automagically
 #   - Implemented, set up for svms. Still needs work.
-#   - Will not work for the 'external' package, for libs and svm, since they don't inherit
-#     learner. Might want to have a 'configurable' mixin
 # Configure java-based packages better. Can base on java-wrappers from debian
 # Move back to configObj maybe. Problems with ConfigParser:
 #   1) Outputs key-values in any order in a section
 #   2) Does not allow you to inset comments
+# Simplify and unify the file-finding mechanism. which, find_file and find_dir
+# are very similar, and are just a search over a different set of paths with a 
+# different set of constraints. Could look into a 3rd-party library for the job
+# (http://www.richardmurri.com/projects/find/), or maybe DIY. Would be nice
+# to specify things like 'md5sum' in addition to the filename. Could also
+# look into gentoo portage for inspiration.
 
 class DIR(object):
   def __init__(self, dirname):
@@ -25,9 +27,23 @@ class DIR(object):
 
   def value(self, paths):
     from hydrat import config
-    search_paths = [ config.getpath('paths','corpora') , '.' ]
-    search_paths.extend(paths)
+    search_paths = paths[:]
+    search_paths.append(config.getpath('paths', 'corpora'))
+    search_paths.append('.')
     return find_dir(self.dirname, search_paths)
+
+class FILE(object):
+  def __init__(self, filename, paths = None):
+    self.filename = filename 
+    self.paths = paths if paths is not None else []
+
+  def value(self, paths):
+    from hydrat import config
+    search_paths = paths[:]
+    search_paths.extend(self.paths)
+    search_paths.append(config.getpath('paths', 'corpora'))
+    search_paths.append('.')
+    return find_file(self.filename, search_paths)
 
 class EXE(object):
   def __init__(self, filename):
@@ -94,10 +110,9 @@ def which(program, paths):
 
   return None
 
-
 def find_dir(dirname, search_paths = ['~']):
   """
-  Locate a directoy given its name.
+  Locate a directory given its name.
   """
   logger.debug("find_dir '%s' in '%s'", dirname, str(search_paths))
   result = []
@@ -105,6 +120,27 @@ def find_dir(dirname, search_paths = ['~']):
   def visit(arg, dn, names):
     if os.path.basename(dn) == dirname:
       arg.append(dn)
+      raise Found
+  try:
+    for path in search_paths:
+      os.path.walk(os.path.expanduser(path), visit, result)
+  except Found:
+    pass
+  if len(result) != 0:
+    return result[0]
+  else:
+    return None
+
+def find_file(filename, search_paths = ['~']):
+  """
+  Locate a file given its name.
+  """
+  logger.debug("find_file '%s' in '%s'", filename, str(search_paths))
+  result = []
+  class Found(Exception): pass
+  def visit(arg, dn, names):
+    if filename in names:
+      arg.append(os.path.join(dn, filename))
       raise Found
   try:
     for path in search_paths:
@@ -129,7 +165,6 @@ def default_configuration():
 
   default_config.add_section('tools')
   default_config.set('tools', 'rainbow', '/usr/bin/rainbow')
-  default_config.set('tools', 'weka', '/usr/bin/weka.jar')
   default_config.set('tools', 'textcat', '')
   default_config.set('tools', 'libs', '')
   default_config.set('tools', 'genia_data', '')
