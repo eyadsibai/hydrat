@@ -23,17 +23,18 @@ class DIR(object):
   def __init__(self, dirname):
     self.dirname = dirname
 
-  def value(self):
+  def value(self, paths):
     from hydrat import config
-    search_paths = [ config.getpath('paths','corpora') , '.', '~']
+    search_paths = [ config.getpath('paths','corpora') , '.' ]
+    search_paths.extend(paths)
     return find_dir(self.dirname, search_paths)
 
 class EXE(object):
   def __init__(self, filename):
     self.filename = filename
   
-  def value(self):
-    return which(self.filename)
+  def value(self, paths):
+    return which(self.filename, paths)
 
 class PACKAGE(object):
   """
@@ -76,7 +77,7 @@ def all_subclasses(klass):
 def is_exe(fpath):
   return os.path.exists(fpath) and os.access(fpath, os.X_OK)
 
-def which(program):
+def which(program, paths):
   # from http://stackoverflow.com/questions/377017/test-if-executable-exists-in-python
   logger.debug("which '%s'", program)
   fpath, fname = os.path.split(program)
@@ -84,7 +85,9 @@ def which(program):
     if is_exe(program):
       return program
   else:
-    for path in os.environ["PATH"].split(os.pathsep):
+    all_paths = os.environ["PATH"].split(os.pathsep)
+    all_paths.extend(paths)
+    for path in all_paths:
       exe_file = os.path.join(path, program)
       if is_exe(exe_file):
         return exe_file
@@ -180,7 +183,7 @@ def read_configuration(additional_path=[]):
   logger.debug("Read configuration from %s", str(paths))
   return config
 
-def update_configuration(config, rescan=False):
+def update_configuration(config, rescan=False, scan = []):
   """ Receives a config object, then scans hydrat for requirements,
   e.g. installed packages, tries to satisfy the requirements and 
   returns an updated configuration.
@@ -196,7 +199,7 @@ def update_configuration(config, rescan=False):
         # Already have a setting
         existing = config.getpath(section, key)
         if rescan:
-          toolpath = requires[(section,key)].value()
+          toolpath = requires[(section,key)].value(scan)
           if toolpath is not None and toolpath != existing:
             logger.info("%s --> %s (updated)", key, toolpath)
             config.set(section, key, toolpath)
@@ -205,7 +208,7 @@ def update_configuration(config, rescan=False):
         else:
           logger.info("%s --> %s (existing configuration)", key, existing)
       else:
-        toolpath = requires[(section,key)].value()
+        toolpath = requires[(section,key)].value(scan)
         if toolpath is not None:
           logger.info("%s --> %s (resolved)", key, toolpath)
           config.set(section, key, toolpath)
