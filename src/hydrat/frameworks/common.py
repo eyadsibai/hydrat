@@ -9,7 +9,9 @@ from hydrat.preprocessor.features.transform import union
 from hydrat.task.sampler import membership_vector
 from hydrat.common import as_set
 logger = logging.getLogger(__name__)
+from hydrat.common.decorators import deprecated
 
+@deprecated
 def init_workdir(path, newdirs=["models","tasks","results","output"]):
   """ Initialize the working directory, where various intermediate files will be stored.
   This is not to be considered a scratch folder, since the files stored here can be re-used.
@@ -31,22 +33,19 @@ class Framework(object):
     self.notify('Initializing')
     self.dataset = dataset
 
-    # TODO: sort out the notion of path passed for store. Do we want to know where the
-    #       store itself is? or the basedir? Do we need this hardcoded notion of outputP?
     if isinstance(store, Store):
       self.store = store
       work_path = os.path.dirname(store.path)
     elif store is None:
-      generic_work_path = hydrat.config.get('paths','work')
-      work_path = os.path.join(generic_work_path, self.__class__.__name__, dataset.__name__)
-      init_workdir(work_path, ["output"])
-      self.store = Store(os.path.join(work_path,'store.h5'), 'a')
+      # Open a store named after the top-level calling file
+      import inspect
+      stack = inspect.stack()
+      filename = os.path.basename(stack[-1][1])
+      store_path = os.path.splitext(filename)[0]+'.h5'
+      self.store = Store(store_path, 'a')
     else:
-      work_path = store
-      init_workdir(work_path, ["output"])
-      self.store = Store(os.path.join(work_path,'store.h5'), 'a')
+      self.store = Store(store, 'a')
 
-    self.outputP  = os.path.join(work_path, 'output')
     self.inducer = DatasetInducer(self.store)
 
     self.feature_spaces = None
