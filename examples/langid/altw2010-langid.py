@@ -25,6 +25,12 @@ if __name__ == "__main__":
     , 'codepoint_trigram'
     ]
   fw = OfflineFramework(ALTW2010())
+
+  # This causes the byte tokenstream to be copied into the Store. It is not strictly
+  # necessary, but it is useful for if we want to view the original documents via the
+  # hydrat browser.
+  fw.inducer.process_Dataset(fw.dataset, tss='byte')
+
   fw.set_class_space('langid')
   fw.set_split('traindev')
   for fs in features:
