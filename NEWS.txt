@@ -6,6 +6,15 @@
 News
 ====
 
+0.9.2.2
+-------
+
+*Release date: 12-10-2010*
+
+* Improved the CLI options for 'hydrat browse'
+* Simplified the Store management in Framework
+* Added example code for the ALTW2010 Programming Competition
+
 0.9.2.1
 -------
 
