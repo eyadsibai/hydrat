@@ -61,7 +61,7 @@ class Store(object):
   This is the master store class for hydrat. It manages all of the movement of data
   to and from disk.
   """
-  def __init__(self, path, mode='r', default_path = 'store'):
+  def __init__(self, path, mode='r'):
     """
     The store object has four major nodes:
     # spaces
