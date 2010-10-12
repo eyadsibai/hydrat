@@ -81,6 +81,12 @@ class HydratCmdln(cmdln.Cmdln):
         logger.debug(e)
         print("%s is not a dataset" % dsname)
 
+  @cmdln.option("-r", "--remote", action="store_true", default=False,
+                    help="set up remote access to browser webapp")
+  @cmdln.option("-b", "--nobrowse", action="store_true", default=False,
+                    help="do not attempt to launch a webbrowser")
+  @cmdln.option("-p", "--port", type='int', default=8080,
+                    help="listen on port number")
   def do_browse(self, subcmd, opts, store_path):
     """${cmd_name}: browse an existing hdf5 store
 
@@ -109,11 +115,18 @@ class HydratCmdln(cmdln.Cmdln):
 
     # Try to determine local IP address
     # from http://stackoverflow.com/questions/166506/finding-local-ip-addresses-in-python
-    # TODO: Deal with possible failure, and/or make this configurable.
     import socket
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.connect(("gmail.com",80))
-    hostname = s.getsockname()[0]
+    if opts.remote:
+      s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+      s.connect(("gmail.com",80))
+      hostname = s.getsockname()[0]
+    else:
+      hostname = socket.gethostbyname(socket.gethostname())
 
-    cherrypy.config.update({'server.socket_host': hostname})
-    cherrypy.quickstart(StoreBrowser(store, browser_config))
+    cherrypy.config.update({'server.socket_host': hostname, 'server.socket_port':opts.port})
+    cherrypy.tree.mount(StoreBrowser(store, browser_config))
+    cherrypy.engine.start()
+    if not opts.nobrowse:
+      import webbrowser
+      webbrowser.open('http://%s:%d'%(hostname, opts.port))
+    cherrypy.engine.block()
