@@ -26,6 +26,8 @@ class HydratCmdln(cmdln.Cmdln):
                     help="rescan paths")
   @cmdln.option("-i", "--include", action="append", default=[],
                     help="include additional configuration files")
+  @cmdln.option("-s", "--scan", action="append", default=[],
+                    help="specify additional paths to scan")
   def do_configure(self, subcmd, opts, *args):
     """${cmd_name}: write a configuration file
 
@@ -51,7 +53,7 @@ class HydratCmdln(cmdln.Cmdln):
       # Read in the existing configuration, so we don't lose
       # user customizations.
       config = configuration.read_configuration(opts.include)
-    config = configuration.update_configuration(config, rescan=opts.rescan)
+    config = configuration.update_configuration(config, rescan=opts.rescan, scan=opts.scan)
     configuration.write_configuration(config, path)
     logger.info("Wrote configuration file to '%s'", path)
 
