@@ -169,7 +169,10 @@ class OfflineFramework(Framework):
     """
     Generate HTML output
     """
-    if path is None: path = hydrat.config.getpath('paths', 'output')
+    if path is None: 
+      path = hydrat.config.getpath('paths', 'output')
+    if not os.path.exists(path): 
+      os.mkdir(path)
     self.notify("Generating output")
     summaries = process_results\
       ( self.store 
