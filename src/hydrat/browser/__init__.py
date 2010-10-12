@@ -6,6 +6,7 @@ import urllib
 import StringIO
 import hydrat.common.markup as markup
 from hydrat.store import Store
+from hydrat.display.html import TableSort, HTMLWriter
 
 #TODO: Serve jquery & css from a location packaged with the module.
 #TODO: Allow for customization of the summary function and/or display headers
@@ -57,11 +58,26 @@ def dict_as_html(d):
   page.table.close()
   return str(page)
 
-from hydrat.display.html import TableSort, HTMLWriter
+class Tasks(object):
+  def __init__(self, store, bconfig):
+    self.store = store
+    self.summary_fn = bconfig.summary_fn
+    self.interpreter = bconfig.interpreter
+    self.relevant = bconfig.relevant
+
+  @cherrypy.expose
+  def index(self):
+    page = markup.page()
+    page.init(**page_config)
+    with page.ul:
+      for uuid in self.store._resolve_TaskSet({}):
+        page.li(uuid)
+      
+    return str(page)
+
 class Results(object):
   def __init__(self, store, bconfig):
     self.store = store
-    # TODO: Parametrize these somehow!!
     self.summary_fn = bconfig.summary_fn
     self.interpreter = bconfig.interpreter
     self.relevant = bconfig.relevant
@@ -355,6 +371,8 @@ class Spaces(object):
 
     page.h1('Class Spaces')
     rows = [self.store.get_SpaceMetadata(s) for s in self.store.list_ClassSpaces()]
+    for r in rows:
+      r['name'] = markup.oneliner.a(r['name'], href='view?' +urllib.urlencode({'name':r['name']}))
     text = StringIO.StringIO()
     with TableSort(text) as renderer:
       renderer.dict_table( rows
@@ -383,6 +401,7 @@ class StoreBrowser(object):
     self.results = Results(store, bconfig)
     self.datasets = Datasets(store)
     self.spaces = Spaces(store, bconfig)
+    self.tasks = Tasks(store, bconfig)
 
   @cherrypy.expose
   def index(self):
