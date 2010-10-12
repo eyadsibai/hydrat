@@ -124,7 +124,7 @@ def default_configuration():
   default_config.set('paths', 'scratch', '/tmp')
   default_config.set('paths', 'models', '%(work)s/models')
   default_config.set('paths', 'tasks', '%(work)s/tasks')
-  default_config.set('paths', 'results', '%(work)s/results')
+  default_config.set('paths', 'results', './results')
   default_config.set('paths', 'output', '%(work)s/output')
   default_config.set('paths', 'corpora', '~/data')
 
