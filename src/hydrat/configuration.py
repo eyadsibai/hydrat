@@ -25,7 +25,7 @@ class DIR(object):
 
   def value(self):
     from hydrat import config
-    search_paths = [ config.getpath('paths','corpora') , '~']
+    search_paths = [ config.getpath('paths','corpora') , '.', '~']
     return find_dir(self.dirname, search_paths)
 
 class EXE(object):
