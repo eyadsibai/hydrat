@@ -7,6 +7,7 @@ import StringIO
 import hydrat.common.markup as markup
 from hydrat.store import Store
 
+from common import page_config
 from spaces import Spaces
 from dataset import Datasets
 from task import Tasks
