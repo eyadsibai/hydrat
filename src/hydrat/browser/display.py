@@ -36,6 +36,7 @@ def dict_table( rows
               , col_headings  = None
               , row_headings  = None
               , title         = None
+              , default       = None
               ):
   if col_headings and len(col_headings) != len(col_keys):
     raise ValueError, "Column headings do not match column keys"
@@ -53,6 +54,8 @@ def dict_table( rows
     for i, row in enumerate(rows):
       with page.tr:
         if row_headings: page.th(row_headings[i])
-        for key in col_keys: page.td(row[key])
+        for key in col_keys: 
+          datum = row[key] if key in row else default
+          page.td(datum)
 
   return str(page)
