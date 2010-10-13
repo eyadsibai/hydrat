@@ -806,6 +806,12 @@ class Store(object):
     elif len(tags) > 1: raise InsufficientMetadata
     return self._get_TaskSetResult(tags[0])
 
+  def _del_TaskSetResult(self, tsr_tag):
+    if not hasattr(self.results, tsr_tag):
+      raise KeyError, str(tsr_tag)
+    self.fileh.removeNode(self.results, tsr_tag, True)
+
+
   def _get_TaskSetResult(self, tsr_tag):
     try:
       tsr_entry  = getattr(self.results, tsr_tag)
