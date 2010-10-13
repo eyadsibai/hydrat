@@ -5,6 +5,7 @@ import hydrat.common.markup as markup
 from hydrat.display.html import TableSort
 from common import page_config
 from display import list_as_html, dict_as_html, list_of_links
+from hydrat.common import as_set
 
 class Results(object):
   def __init__(self, store, bconfig):
@@ -31,17 +32,49 @@ class Results(object):
       summary['link'] = str(link)
       link = markup.oneliner.a('link', href='matrix?'+urllib.urlencode({'uuid':uuid}))
       summary['pairs'] = str(link)
+      if self.store.mode == 'a':
+        link = markup.oneliner.a('delete', href='delete?'+urllib.urlencode({'uuid':uuid}))
+        summary['delete'] = str(link)
       summaries.append(summary)
 
     text = StringIO.StringIO()
     relevant = self.relevant[:]
     relevant.append(("Pairs", 'pairs'))
+    if self.store.mode == 'a':
+      relevant.append(("Delete", 'delete'))
+
     with TableSort(text) as renderer:
       result_summary_table(summaries, renderer, relevant)
 
     page.add(text.getvalue())
     return str(page)
 
+  @cherrypy.expose
+  def delete(self, uuid, confirmed='N'):
+    if self.store.mode != 'a':
+      raise ValueError, "Store open in read-only mode"
+    uuid = as_set(uuid)
+
+    page = markup.page()
+    page.init(**page_config)
+    if confirmed == 'N':
+      page.add("Delete the following results?")
+      with page.ul:
+        for id in uuid: page.li(uuid)
+      page.a('YES', href='delete?' + urllib.urlencode({'uuid':uuid, 'confirmed':'Y'}, True))
+    else:
+      page.add("Deleted the folliwng results:")
+      with page.ul:
+        for id in uuid: 
+          try:
+            self.store._del_TaskSetResult(id)
+            page.li('(Success) '+id)
+          except KeyError:
+            page.li('(Failure) '+id)
+    return str(page)
+      
+
+    
   @cherrypy.expose
   def view(self, uuid):
     from hydrat.display.tsr import render_TaskSetResult
