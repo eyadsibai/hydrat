@@ -48,12 +48,13 @@ class Spaces(object):
 
   @cherrypy.expose
   def view(self, name):
+    encoding = self.store.get_SpaceMetadata(name)['encoding']
     page = markup.page()
     page.init(**page_config)
     with page.ul:
       for item in self.store.get_Space(name):
         with page.li:
-          page.add(str(item))
+          page.add(str(item.encode(encoding)))
     return str(page)
 
 
