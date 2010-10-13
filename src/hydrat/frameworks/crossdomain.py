@@ -69,16 +69,20 @@ class CrossDomainFramework(Framework):
       return True
 
   # TODO: Clean up and refactor this cut&paste from offline.
-  def generate_output(self, summary_fn=sf_featuresets, fields = summary_fields, interpreter = None):
+  def generate_output(self, path=None, summary_fn=sf_featuresets, fields = summary_fields, interpreter = None):
     """
     Generate HTML output
     """
+    if path is None: 
+      path = hydrat.config.getpath('paths', 'output')
+    if not os.path.exists(path): 
+      os.mkdir(path)
     self.notify("Generating output")
     summaries = process_results\
       ( self.store 
       , self.store
       , summary_fn = summary_fn
-      , output_path= self.outputP
+      , output_path = path
       , interpreter = interpreter
       ) 
 
@@ -87,9 +91,10 @@ class CrossDomainFramework(Framework):
     for f_name in self.store.list_FeatureSpaces():
       relevant.append( ({'label':f_name, 'searchable':True}, 'feat_' + f_name) )
 
-    indexpath = os.path.join(self.outputP, 'index.html')
+    indexpath = os.path.join(path, 'index.html')
     with TableSort(open(indexpath, "w")) as renderer:
       result_summary_table(summaries, renderer, relevant = relevant)
+    self.outputP = path
 
   def upload_output(self, target):
     """
@@ -100,5 +105,3 @@ class CrossDomainFramework(Framework):
     import updatedir
     updatedir.logger = logger
     updatedir.updatetree(self.outputP, target, overwrite=True)
-    
-
