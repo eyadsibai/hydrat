@@ -87,6 +87,8 @@ class HydratCmdln(cmdln.Cmdln):
                     help="set up remote access to browser webapp")
   @cmdln.option("-b", "--nobrowse", action="store_true", default=False,
                     help="do not attempt to launch a webbrowser")
+  @cmdln.option("-m", "--modify", action="store_true", default=False,
+                    help="allow the store to be modified")
   @cmdln.option("-p", "--port", type='int', default=8080,
                     help="listen on port number")
   def do_browse(self, subcmd, opts, store_path):
@@ -107,7 +109,7 @@ class HydratCmdln(cmdln.Cmdln):
     import cherrypy
     from hydrat.store import Store
     from hydrat.browser import StoreBrowser
-    store = Store(store_path, 'r')
+    store = Store(store_path, 'a' if opts.modify else 'r')
     import sys
     sys.path.append('.')
     try:
