@@ -13,21 +13,56 @@ class Datasets(object):
       setattr(self, dsname, Dataset(store,dsname) )
 
   @cherrypy.expose
+  def class_distribution(self):
+    # TODO: Sort the class distribution by class population across all datasets, so
+    # we get a pretty descending graph.
+    rows=[]
+    for dsname in self.store.list_Datasets():
+      class_spaces = self.store.list_ClassSpaces(dsname)
+      row = {}
+      row['name']            = markup.oneliner.a(dsname, href=dsname)
+      for c in class_spaces:
+        classmap = self.store.get_ClassMap(dsname, c)
+        from hydrat.display.sparklines import barchart 
+        dist = classmap.raw.sum(axis=0)
+        width = min(10, 500 / len(dist))
+        row[c] = markup.oneliner.img(src=barchart(dist, height=15, width=width, gap=0)) 
+      rows.append(row)
+
+    cols = [ ('Dataset Name', 'name') ]
+    for c in self.store.list_ClassSpaces():
+      cols.append( (c,c) )
+    col_headings, col_keys = zip(*cols)
+
+    page = markup.page()
+    page.init(**page_config)
+    table = dict_table(rows, col_keys, col_headings, default='ABSENT')
+    page.add(table)
+    return str(page)
+
+  @cherrypy.expose
   def index(self):
     rows = []
     for dsname in self.store.list_Datasets():
       row = {}
-      row['name']       = markup.oneliner.a(dsname, href=dsname)
-      row['instances']  = str(len(self.store.get_InstanceIds(dsname)))
+      row['name']            = markup.oneliner.a(dsname, href=dsname)
+      row['instances']       = str(len(self.store.get_InstanceIds(dsname)))
+      row['feature_spaces']  = str(len(self.store.list_FeatureSpaces(dsname)))
+      row['class_spaces']    = str(len(self.store.list_ClassSpaces(dsname)))
+      row['tokenstreams']    = str(len(self.store.list_TokenStreams(dsname)))
       rows.append(row)
 
     cols = [ ('Dataset Name', 'name')
            , ('Instances', 'instances')
+           , ('Feature Spaces', 'feature_spaces')
+           , ('Class Spaces', 'class_spaces')
+           , ('Tokenstreams', 'tokenstreams')
            ]
     col_headings, col_keys = zip(*cols)
 
     page = markup.page()
     page.init(**page_config)
+    page.a('Class Distribution', href='class_distribution')
     table = dict_table(rows, col_keys, col_headings)
     page.add(table)
     return str(page)
@@ -152,6 +187,7 @@ class Dataset(object):
     md['num_docs'] = featuremap.raw.shape[0]
     md['num_features'] = featuremap.raw.shape[1]
     feat_dist = featuremap.raw.sum(axis=0)
+    md['num_features_nonzero'] = feat_dist.nonzero()[1].shape[1]
     md['Feature Occurrance distribution'] = markup.oneliner.img(src=histogram(feat_dist))
     md['Feature Occurrance mean'] = feat_dist.mean()
     md['Feature Occurrance std']  = feat_dist.std()
