@@ -18,13 +18,13 @@ class Results(object):
     return self.list()
 
   @cherrypy.expose
-  def list(self):
+  def list(self, **params):
     from hydrat.display.tsr import result_summary_table
     page = markup.page()
     page.init(**page_config)
 
     summaries = []
-    for uuid in self.store._resolve_TaskSetResults({}):
+    for uuid in self.store._resolve_TaskSetResults(params):
       result = self.store._get_TaskSetResult(uuid)
       summary = self.summary_fn(result, self.interpreter)
       link = markup.oneliner.a('link', href='view?'+urllib.urlencode({'uuid':uuid}))
