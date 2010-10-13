@@ -38,6 +38,22 @@ class TaskSetResult(RichComparisonMixin):
   # Should work on providing access to taskset-level
   # confusion and classification matrices.
   ###
+  def overall_classification(self, indices): 
+    r = self.raw_results[0]
+    num_inst = len(indices)
+    num_class = r.goldstandard.shape[1]
+    num_res = len(self.raw_results)
+    result = numpy.zeros((num_inst, num_class, num_res), dtype=r.classifications.dtype)
+
+    for r_i, r in enumerate(self.raw_results): 
+      r_map = dict( (k,v) for v,k in enumerate(r.instance_indices))
+      for i in indices: 
+        result[i,:,r_i] = r.classifications[r_map[i]]
+    return result
+      
+
+      
+    
 
   def overall_classpairs(self, interpreter):
     """
