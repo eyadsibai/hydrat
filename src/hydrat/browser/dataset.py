@@ -26,7 +26,8 @@ class Datasets(object):
         from hydrat.display.sparklines import barchart 
         dist = classmap.raw.sum(axis=0)
         width = min(10, 500 / len(dist))
-        row[c] = markup.oneliner.img(src=barchart(dist, height=15, width=width, gap=0)) 
+        image = markup.oneliner.img(src=barchart(dist, height=15, width=width, gap=0)) 
+        row[c] = markup.oneliner.a(image, href='%s/classspace/%s' % (dsname,c))
       rows.append(row)
 
     cols = [ ('Dataset Name', 'name') ]
