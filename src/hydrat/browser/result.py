@@ -51,6 +51,7 @@ class Results(object):
   @cherrypy.expose
   def compare(self, uuid):
     # TODO: Parametrize interpreter for non one-of-m highest-best results
+    # TODO: Add a count of # of compared result which are correct
     import numpy
     from hydrat.common import as_set
     from hydrat.result.interpreter import SingleHighestValue
