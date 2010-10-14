@@ -46,11 +46,10 @@ summary_fields=\
 class OfflineFramework(Framework):
   def __init__( self
               , dataset
-              , work_path = None
+              , store = None
               ):
-    Framework.__init__(self, dataset, work_path)
+    Framework.__init__(self, dataset, store)
 
-    self.split_name = None
     self.sequence_name = None
     self.outputP = None
 
@@ -104,12 +103,6 @@ class OfflineFramework(Framework):
     self.inducer.process_Dataset( self.dataset, sqs = sequence)
     self.sequence_name = sequence
     self.notify("Set sequence to '%s'" % sequence)
-    self.configure()
-
-  def set_split(self, split):
-    # TODO: Induce splits into Store
-    self.notify("Setting split to '%s'" % split)
-    self.split_name = split
     self.configure()
 
   def has_run(self):
