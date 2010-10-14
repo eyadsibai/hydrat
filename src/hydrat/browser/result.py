@@ -50,18 +50,32 @@ class Results(object):
 
   @cherrypy.expose
   def compare(self, uuid):
-    #TODO: Sanity checks! Need to ensure results are in same class space, on same eval_dataset
+    # TODO: Parametrize interpreter for non one-of-m highest-best results
     import numpy
     from hydrat.common import as_set
     from hydrat.result.interpreter import SingleHighestValue
     interpreter = SingleHighestValue()
     uuid = as_set(uuid)
+
+    # Hardcode interpreter
+    interpreter = SingleHighestValue()
+
+    # Read results
     results = [ self.store._get_TaskSetResult(i) for i in uuid ]
     md = results[0].metadata
+    ds_key = 'eval_dataset' if 'eval_dataset' in md else 'dataset'
+
+    # Sanity check
+    must_match = ['class_space',ds_key]
+    for m in must_match:
+      value_set = set(r.metadata[m] for r in results)
+      if len(value_set) != 1:
+        raise ValueError, "Non-uniform value for '%s' : %s" % (m, value_set)
+
+    # Grab relevant data from store
     class_space = self.store.get_Space(md['class_space'])
-    instance_ids = self.store.get_InstanceIds(md['eval_dataset'])
-    gs = self.store.get_ClassMap(md['eval_dataset'], md['class_space']).raw
-    interpreter = SingleHighestValue()
+    instance_ids = self.store.get_InstanceIds(md[ds_key])
+    gs = self.store.get_ClassMap(md[ds_key], md['class_space']).raw
 
     # Build a mapping of uuid to interpreted cl output
     classifs = []
@@ -88,6 +102,8 @@ class Results(object):
 
 
     info = {}
+    info['class_space']            = md['class_space']
+    info[ds_key]                   = md[ds_key]
     info['Total Classes']          = len(class_space)
     info['Interesting Classes']    = len(clabels)
     info['Total Instances']        = len(instance_ids)
