@@ -97,25 +97,21 @@ class Dataset(object):
     page.a("Instances", href='instances')
     page.h2("Summary")
     page.p("%d instances" % len(self.instanceids))
+
     page.h2("Class Spaces")
-    page.ul()
-    for class_space in sorted(self.classspaces):
-      page.li(class_space)
-    page.ul.close()
+    with page.ul:
+      for class_space in sorted(self.classspaces): 
+        with page.li: page.a(class_space, href="classspace/%s" % class_space)
+
     page.h2("Feature Spaces")
-    page.ul()
-    for feature_space in sorted(self.featurespaces):
-      page.li()
-      page.a(feature_space, href="featurespace/%s" % feature_space)
-      page.li.close()
-    page.ul.close()
+    with page.ul:
+      for feature_space in sorted(self.featurespaces):
+        with page.li: page.a(feature_space, href="featurespace/%s" % feature_space)
+
     page.h2("TokenStreams")
-    page.ul()
-    for tokenstream in sorted(self.tokenstreams):
-      page.li()
-      page.add(tokenstream)
-      page.li.close()
-    page.ul.close()
+    with page.ul:
+      for tokenstream in sorted(self.tokenstreams):
+        page.li(tokenstream)
     return str(page)
 
   @cherrypy.expose
@@ -175,11 +171,24 @@ class Dataset(object):
     return str(page)
 
   @cherrypy.expose
+  def classspace(self, name):
+    space = self.store.get_Space(name)
+    classmap = self.store.get_ClassMap(self.name, name)
+
+    class_dist = dict(zip(space, classmap.raw.sum(axis=0)))
+
+    page = markup.page()
+    page.init(**page_config)
+    page.h2('Class Distribution')
+    # TODO: Do this as a tablesort
+    page.add(dict_as_html(class_dist))
+    return str(page)
+
+  @cherrypy.expose
   def featurespace(self, name):
     page = markup.page()
     page.init(**page_config)
 
-    tag = self.store.resolve_Space({'name':name})
     featuremap = self.store.get_FeatureMap(self.name, name)
 
     from hydrat.display.sparklines import histogram
