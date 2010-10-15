@@ -4,7 +4,7 @@ Wrapper for google's langid API
 based on code from http://stackoverflow.com/questions/1136604/how-do-i-use-the-json-google-translate-api
 """
 import urllib
-import simplejson
+import json
 import time
 import random
 import logging
@@ -21,21 +21,21 @@ class GoogleAPI(object):
   def classify(self, text):
     if isinstance(text, unicode): text = text.encode('utf-8')
     if self.simulate:
-      json = {'responseData':{'language':'en'}}
+      response = {'responseData':{'language':'en'}}
     else:
       data = urllib.urlencode({'v':1.0,'ie': 'UTF8', 'q': text})
       search_results = urllib.urlopen(self.base_url+data)
-      json = simplejson.loads(search_results.read())
-    while json['responseData'] is None:
-      logger.warning(json)
+      response = json.loads(search_results.read())
+    while response['responseData'] is None:
+      logger.warning(response)
       logger.warning("Got a None response, retrying in %d seconds", retry)
       time.sleep(self.retry)
       self.retry *= 2
       try:
-        json = simplejson.loads(search_results.read())
+        response = json.loads(search_results.read())
       except ValueError:
-        json = {'responseData': None}
-    result = json['responseData']['language']
+        response = {'responseData': None}
+    result = response['responseData']['language']
     return result
 
   def batch_classify(self, texts):
