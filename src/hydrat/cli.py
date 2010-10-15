@@ -57,6 +57,22 @@ class HydratCmdln(cmdln.Cmdln):
     configuration.write_configuration(config, path)
     logger.info("Wrote configuration file to '%s'", path)
 
+  def do_merge(self, subcmd, opts, src, dst):
+    """${cmd_name}: merge two or more stores 
+
+    ${cmd_usage} 
+    
+    To merge the contents of storeA.h5 into storeB.h5:
+
+      ${name} ${cmd_name} storeA.h5 storeB.h5
+    """
+    from store import Store
+    src_store = Store(src, 'r')
+    dst_store = Store(dst, 'a')
+    dst_store.merge(src_store)
+    logger.info("Merged %s into %s", src, dst)
+
+
   @cmdln.alias("dsinfo")
   def do_dataset_info(self, subcmd, opts, dsname):
     """${cmd_name}: display basic information about a dataset 

@@ -948,5 +948,117 @@ class Store(object):
     dsnode = getattr(self.datasets, dsname)
     return set(node._v_name for node in dsnode.sequence)
 
-  #TODO: Load/store of splits
+  ###
+  # Merge
+  ###
+  def merge(self, other, allow_duplicate=False):
+    """
+    Merge the other store's contents into self.
+    We can copy tasksets and results verbatim, but spaces and datasets need to 
+    take into account a possible re-ordering of features.
+    """
+    #TODO: May need to organize a staging area to ensure this merge is atomic
+    if self.mode == 'r': raise ValueError, "Cannot merge into read-only store"
+    ignored_md = ['uuid', 'avg_learn', 'avg_classify', 'name', 'feature_name', 'class_name']
+
+    # TODO: Copy spaces
+    space_direct_copy = [] # Spaces we copy directly, meaning the featuremap can be copied too
+    space_feature_mapping = {}
+    for space_node in ProgressIter(list(other.spaces), label='Copying spaces'):
+      logger.debug("Considering space '%s'", space_node._v_name)
+      space_name = space_node._v_name
+      if hasattr(self.spaces, space_name):
+        logger.debug('Already had %s', space_name)
+        src_space = other.get_Space(space_name)
+        # Need to merge these. Feature spaces can be extended, but there is no mechanism for doing the same with class
+        # spaces at the moment, so we must reject any that do not match. 
+        dst_space = self.get_Space(space_name)
+        if src_space == dst_space:
+          logger.debug('  Exact match')
+          space_direct_copy.append(space_name)
+        else:
+          md = get_metadata(space_node)
+          if md['type'] == 'class':
+            raise ValueError, "Cannot merge due to different versions of %s" % str(md)
+          elif md['type'] == 'feature':
+            logger.debug('  Attempting to merge %s', str(md))
+            # Reconcile the spaces. 
+            ## First we need to compute the new features to add
+            new_feats = sorted(set(src_space) - set(dst_space))
+            logger.debug('    Identified %d new features', len(new_feats))
+            reconciled_space = dst_space + new_feats
+            if len(new_feats) != 0:
+              # Only need to extend if new features are found.
+              self.extend_Space(space_name, reconciled_space)
+            ## Now we need to build the mapping from the external space to ours
+            space_index = dict( (k,v) for v,k in enumerate(reconciled_space))
+            space_feature_mapping[space_name] = dict( (i,space_index[s]) for i,s in enumerate(src_space))
+          else:
+            raise ValueError, "Unknown type of space"
+      else:
+        self.fileh.copyNode(space_node, newparent=self.spaces)
+        space_direct_copy.append(space_name)
+        
+    for src_ds in ProgressIter(list(other.datasets), label='Copying datasets'):
+      dsname = src_ds._v_name
+      logger.debug("Considering dataset '%s'", dsname)
+      if hasattr(self.datasets, dsname):
+        logger.warning("already had dataset '%s'", dsname)
+        dst_ds = getattr(self.datasets, dsname)
+        # Failure to match instance_id is an immediate reject
+        if (dst_ds.instance_id.read() != src_ds.instance_id.read()).any():
+          raise ValueError, "Instance identifiers don't match for dataset %s" % dsname
+        # The hardest to handle is the feature data, since we may need to rearrange feature maps
+      else:
+        self.add_Dataset(dsname, other.get_InstanceIds(dsname))
+        dst_ds = getattr(self.datasets, dsname)
+
+      node_names = ['class_data', 'sequence', 'tokenstream']
+      for name in node_names:
+        logger.debug('Copying %s',name)
+        if hasattr(src_ds, name):
+          src_parent = getattr(src_ds, name)
+          #TODO: may need to handle incomplete destination nodes
+          dst_parent = getattr(dst_ds, name)
+          for node in src_parent:
+            if hasattr(dst_parent, node._v_name):
+              logger.warning("already had '%s' in '%s'", node._v_name, name)
+            else:
+              self.fileh.copyNode(node, newparent=dst_parent, recursive=True)
+        else:
+          logger.warning("Source does not have '%s'", name)
+
+      logger.debug('Copying feature_data')
+      for node in src_ds.feature_data:
+        space_name = node._v_name
+        if hasattr(dst_ds.feature_data, space_name):
+          logger.warning("already had '%s' in 'feature_data'", space_name) 
+        elif space_name in space_direct_copy:
+          # Direct copy the feature data because the destination store did not have this
+          # space or had exactly this space
+          logger.debug("direct copy of '%s' in 'feature_data'", space_name)
+          self.fileh.copyNode(node, newparent=dst_ds.feature_data, recursive=True)
+        else:
+          ax0 = node.feature_map.read('ax0')
+          ax1 = node.feature_map.read('ax1')
+          values = node.feature_map.read('values')
+          feature_mapping = space_feature_mapping[space_name]
+
+          feat_map = [ (i,feature_mapping[j],v) for (i,j,v) in zip(i,j,v)]
+          self.add_FeatureDict(dsname, space_name, feat_map)
+
+      
+    for datum, check in [('tasksets', self.has_TaskSet), ('results', self.has_TaskSetResult)]:
+      logger.debug("Copying %s", datum)
+      for t in ProgressIter(list(getattr(other,datum)), label='Copying %s' % datum):
+        logger.debug("Considering %s '%s'", datum, t._v_name)
+        md = get_metadata(t)
+        for i in ignored_md: 
+          if i in md: 
+            del md[i]
+        if not allow_duplicate and check(md):
+          logger.warn("Ignoring duplicate in %s: %s", datum, str(md))
+        else:
+          self.fileh.copyNode(t, newparent=getattr(self, datum), recursive=True)
+
 
