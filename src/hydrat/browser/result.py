@@ -8,6 +8,9 @@ from common import page_config
 from display import list_as_html, dict_as_html, list_of_links
 from hydrat.common import as_set
 from collections import defaultdict
+
+# TODO: Offer meta-classification as part of comparison. Make it possible to save the meta-classified result.
+
 class Results(object):
   def __init__(self, store, bconfig):
     self.store = store
