@@ -1,5 +1,6 @@
 import cherrypy
 import urllib
+import numpy
 import StringIO
 import hydrat.common.markup as markup
 from hydrat.display.html import TableSort
@@ -55,7 +56,6 @@ class Results(object):
   def compare(self, uuid):
     # TODO: Parametrize interpreter for non one-of-m highest-best results
     # TODO: Add a count of # of compared result which are correct
-    import numpy
     from hydrat.common import as_set
     from hydrat.result.interpreter import SingleHighestValue
     interpreter = SingleHighestValue()
@@ -184,20 +184,23 @@ class Results(object):
     result = self.store._get_TaskSetResult(uuid)
     class_space = self.store.get_Space(result.metadata['class_space'])
     matrix = result.overall_classification_matrix(self.interpreter)
+    interesting = numpy.logical_or(matrix.sum(axis=0), matrix.sum(axis=1))
+    int_cs = numpy.array(class_space)[interesting]
+    matrix = matrix[interesting].transpose()[interesting].transpose()
 
     page = markup.page()
     page.init(**page_config)
     with page.table:
       with page.tr:
         page.th()
-        [ page.th(c) for c in class_space ]
+        [ page.th(c) for c in int_cs ]
       for i, row in enumerate(matrix):
         with page.tr:
-          page.th(class_space[i])
+          page.th(int_cs[i])
           for j, val in enumerate(row):
             with page.td:
-              gs = class_space[i]
-              cl = class_space[j]
+              gs = int_cs[i]
+              cl = int_cs[j]
               link = 'classpair?'+urllib.urlencode({'uuid':uuid, 'gs':gs, 'cl':cl})
               page.a(str(val), href=link)
 
