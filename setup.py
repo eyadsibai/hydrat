@@ -13,7 +13,7 @@ install_requires =\
   , 'cmdln==1.1.2'
   , 'updatedir>=0.1'
   , 'cherrypy==3.1.2'
-  , 'pexpect=2.4'
+  , 'pexpect==2.4'
   , 'numpy'
   , 'scipy'
   , 'tables' # setuptools doesn't seem to realize this is installed?
