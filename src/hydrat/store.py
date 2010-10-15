@@ -30,9 +30,6 @@ class AlreadyHaveData(StoreError): pass
 class InsufficientMetadata(StoreError): pass
 
 # TODO: Provide a facility for saving splits
-# TODO: Provide a method to merge existing stores
-#       - This is particularly tricky because we may have different orderings of the same feature space
-#         which may require a pretty tricky rearrange to work correctly.
 # TODO: Avoid leaking uuids out with tasksets and/or results.
 
 # Features are internally stored as sparse arrays, which are serialized at the
@@ -961,7 +958,6 @@ class Store(object):
     if self.mode == 'r': raise ValueError, "Cannot merge into read-only store"
     ignored_md = ['uuid', 'avg_learn', 'avg_classify', 'name', 'feature_name', 'class_name']
 
-    # TODO: Copy spaces
     space_direct_copy = [] # Spaces we copy directly, meaning the featuremap can be copied too
     space_feature_mapping = {}
     for space_node in ProgressIter(list(other.spaces), label='Copying spaces'):
