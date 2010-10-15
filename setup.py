@@ -6,7 +6,7 @@ README = open(os.path.join(here, 'README.rst')).read()
 NEWS = open(os.path.join(here, 'NEWS.txt')).read()
 
 
-version = '0.9.2.3'
+version = '0.9.2.4'
 
 install_requires =\
   [ 'progressbar==2.2'
