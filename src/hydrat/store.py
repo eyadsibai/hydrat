@@ -110,7 +110,8 @@ class Store(object):
                             , 'results'
                             , 'TaskSetResult Data'
                             )
-    self.__update_format()
+    if self.mode != 'r':
+      self.__update_format()
   
   def __str__(self):
     return "<Store mode '%s' @ '%s'>" % (self.mode, self.path)
