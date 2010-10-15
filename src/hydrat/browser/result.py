@@ -184,7 +184,8 @@ class Results(object):
     result = self.store._get_TaskSetResult(uuid)
     class_space = self.store.get_Space(result.metadata['class_space'])
     matrix = result.overall_classification_matrix(self.interpreter)
-    interesting = numpy.logical_or(matrix.sum(axis=0), matrix.sum(axis=1))
+    matrix_sans_diag = numpy.logical_not(numpy.diag(numpy.ones(len(class_space), dtype=bool))) * matrix
+    interesting = numpy.logical_or(matrix_sans_diag.sum(axis=0), matrix_sans_diag.sum(axis=1))
     int_cs = numpy.array(class_space)[interesting]
     matrix = matrix[interesting].transpose()[interesting].transpose()
 
@@ -198,11 +199,16 @@ class Results(object):
         with page.tr:
           page.th(int_cs[i])
           for j, val in enumerate(row):
-            with page.td:
-              gs = int_cs[i]
-              cl = int_cs[j]
-              link = 'classpair?'+urllib.urlencode({'uuid':uuid, 'gs':gs, 'cl':cl})
-              page.a(str(val), href=link)
+            gs = int_cs[i]
+            cl = int_cs[j]
+            if val > 0 and gs != cl:
+              td_attr={'class':'highlight'}
+            else:
+              td_attr={}
+            page.td(**td_attr)
+            link = 'classpair?'+urllib.urlencode({'uuid':uuid, 'gs':gs, 'cl':cl})
+            page.a(str(val), href=link)
+            page.td.close()
 
     return str(page)
 
