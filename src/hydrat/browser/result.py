@@ -6,7 +6,7 @@ from hydrat.display.html import TableSort
 from common import page_config
 from display import list_as_html, dict_as_html, list_of_links
 from hydrat.common import as_set
-
+from collections import defaultdict
 class Results(object):
   def __init__(self, store, bconfig):
     self.store = store
@@ -23,6 +23,8 @@ class Results(object):
     from hydrat.display.tsr import result_summary_table
     page = markup.page()
     page.init(**page_config)
+    page.h3('Parameters')
+    page.add(dict_as_html(params))
 
     summaries = []
     for uuid in self.store._resolve_TaskSetResults(params):
@@ -47,6 +49,92 @@ class Results(object):
       result_summary_table(summaries, renderer, relevant)
 
     page.add(text.getvalue())
+    return str(page)
+
+@cherrypy.expose
+  def compare(self, uuid):
+    # TODO: Parametrize interpreter for non one-of-m highest-best results
+    # TODO: Add a count of # of compared result which are correct
+    import numpy
+    from hydrat.common import as_set
+    from hydrat.result.interpreter import SingleHighestValue
+    interpreter = SingleHighestValue()
+    uuid = as_set(uuid)
+
+    # Hardcode interpreter
+    interpreter = SingleHighestValue()
+
+    # Read results
+    results = [ self.store._get_TaskSetResult(i) for i in uuid ]
+    md = results[0].metadata
+    ds_key = 'eval_dataset' if 'eval_dataset' in md else 'dataset'
+
+    # Sanity check
+    must_match = ['class_space',ds_key]
+    for m in must_match:
+      value_set = set(r.metadata[m] for r in results)
+      if len(value_set) != 1:
+        raise ValueError, "Non-uniform value for '%s' : %s" % (m, value_set)
+
+    # Grab relevant data from store
+    class_space = self.store.get_Space(md['class_space'])
+    instance_ids = self.store.get_InstanceIds(md[ds_key])
+    gs = self.store.get_ClassMap(md[ds_key], md['class_space']).raw
+
+    # Build a mapping of uuid to interpreted cl output
+    classifs = []
+    for result in results:
+      cl = result.overall_classification(range(len(instance_ids)))
+      cl = cl.sum(axis=2)
+      cl = interpreter(cl)
+      classifs.append(cl)
+    classifs = numpy.dstack(classifs)
+
+    # Identify classes that neither GS nor CL utilize, we can just skip these.
+    boring_cl_unused = numpy.logical_and(gs.sum(axis=0) == 0, classifs.sum(axis=2).sum(axis=0) == 0)
+    int_cl = numpy.logical_not(boring_cl_unused)
+
+    boring_inst_allright = (numpy.logical_and((classifs.sum(axis=2) == len(uuid)), gs).sum(axis=1) == 1)
+    int_inst = numpy.logical_not(boring_inst_allright)
+
+    clabels = numpy.array(class_space)[int_cl]
+    instlabels = numpy.array(instance_ids)[int_inst]
+    classifs = classifs[:,int_cl,:]
+    classifs = classifs[int_inst,:,:]
+    gs = gs[int_inst,:]
+    gs = gs[:,int_cl]
+
+
+    info = {}
+    info['class_space']            = md['class_space']
+    info[ds_key]                   = md[ds_key]
+    info['Total Classes']          = len(class_space)
+    info['Interesting Classes']    = len(clabels)
+    info['Total Instances']        = len(instance_ids)
+    info['Interesting Instances']  = len(instlabels)
+
+    page = markup.page()
+    page.init(**page_config)
+
+    page.add(dict_as_html(info))
+
+    # TODO: Color the cells by correctness
+    # TODO: Link to instance
+    with page.table:
+      with page.tr:
+        page.th()
+        page.th('Goldstandard')
+        for id in uuid: page.th(id)
+
+      for i, instance_id in enumerate(instlabels):
+        with page.tr:
+          page.th(instance_id)
+          inst_gs = gs[i]
+          page.td(clabels[inst_gs])
+          for j, r_id in enumerate(uuid):
+            inst_cl = classifs[i,:,j]
+            page.td(clabels[inst_cl], **{'class':'correct' if (inst_gs==inst_cl).all() else 'wrong'})
+      
     return str(page)
 
   @cherrypy.expose
