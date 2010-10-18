@@ -1039,12 +1039,12 @@ class Store(object):
           logger.debug("direct copy of '%s' in 'feature_data'", space_name)
           self.fileh.copyNode(node, newparent=dst_ds.feature_data, recursive=True)
         else:
-          ax0 = node.feature_map.read('ax0')
-          ax1 = node.feature_map.read('ax1')
-          values = node.feature_map.read('values')
+          ax0 = node.feature_map.read(field='ax0')
+          ax1 = node.feature_map.read(field='ax1')
+          value = node.feature_map.read(field='value')
           feature_mapping = space_feature_mapping[space_name]
 
-          feat_map = [ (i,feature_mapping[j],v) for (i,j,v) in zip(i,j,v)]
+          feat_map = [ (i,feature_mapping[j],v) for (i,j,v) in zip(ax0,ax1,value)]
           self.add_FeatureDict(dsname, space_name, feat_map)
 
       
