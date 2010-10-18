@@ -25,7 +25,7 @@ def results_metadata_map(store, params, max_uniq = 10):
         # Skip unhashable values
         pass
   for key in mapping.keys():
-    if len(mapping[key]) > max_uniq or len(mapping[key]) == 0:
+    if len(mapping[key]) > max_uniq or len(mapping[key]) <= 1:
       del mapping[key]
   return mapping
 
@@ -57,25 +57,31 @@ class Results(object):
         summary['delete'] = str(link)
       summaries.append(summary)
 
-    # Show all our metadata if no filter is specified
-    if relevant is None:
-      relevant = [(k.title(),k) for k in sorted(summaries[0].keys())]
-
-    text = StringIO.StringIO()
-    relevant.append(("Pairs", 'pairs'))
-    if self.store.mode == 'a':
-      relevant.append(("Delete", 'delete'))
-
-    with TableSort(text) as renderer:
-      result_summary_table(summaries, renderer, relevant)
-
-    page.add('Displaying %d results' % len(uuids))
     page.h3('Parameters')
     page.add(dict_as_html(params))
-    page.add(text.getvalue())
+
+    if len(summaries) == 0:
+      page.h1('No results')
+    else:
+      # Show all our metadata if no filter is specified
+      if relevant is None:
+        relevant = [(k.title(),k) for k in sorted(summaries[0].keys())]
+
+      text = StringIO.StringIO()
+      relevant.append(("Pairs", 'pairs'))
+      if self.store.mode == 'a':
+        relevant.append(("Delete", 'delete'))
+
+      with TableSort(text) as renderer:
+        result_summary_table(summaries, renderer, relevant)
+
+      page.add('Displaying %d results' % len(uuids))
+      page.add(text.getvalue())
 
   @cherrypy.expose
   def list(self, **params):
+    # TODO: Find a way of handling this that does not need feature_desc transform to be hardcoded
+    if 'feature_desc' in params: params['feature_desc'] = tuple(sorted(as_set(params['feature_desc'])))
     page = markup.page()
     page.init(**page_config)
 
@@ -88,7 +94,7 @@ class Results(object):
       new_params = dict(params)
       for value in values:
         new_params[key] = value
-        links.append( markup.oneliner.a(value, href='list?'+urllib.urlencode(new_params)))
+        links.append( markup.oneliner.a(value, href='list?'+urllib.urlencode(new_params, True)))
       param_links[key] = links
       
     page.add(dict_as_html(param_links))
@@ -104,6 +110,7 @@ class Results(object):
 
   @cherrypy.expose
   def details(self, **params):
+    if 'feature_desc' in params: params['feature_desc'] = tuple(sorted(as_set(params['feature_desc'])))
     page = markup.page()
     page.init(**page_config)
     self.result_summary_page(params, page, self.summary_fn, self.relevant)
