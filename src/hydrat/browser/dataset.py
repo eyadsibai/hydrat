@@ -120,23 +120,23 @@ class Dataset(object):
     page = markup.page()
     page.init(**page_config)
     if id is None:
-      page.ul()
-      for i in self.instanceids: 
-        page.li(i)
-      page.ul.close()
+      with page.ul:
+        for i in self.instanceids: 
+          with page.li:
+            page.a(i, href='instances?'+urllib.urlencode({'id':i}))
     else:
       page.h1(id)
       page.h2("TokenStreams")
       with page.ul:
         for ts in self.tokenstreams:
           with page.li:
-            link = '../tokenstream/%s/%s' % (ts, id)
+            link = 'tokenstream/%s/%s' % (ts, id)
             page.a(ts, href=link)
       page.h2("Feature Spaces")
       with page.ul:
         for fs in self.featurespaces:
           with page.li:
-            link = '../features/%s/%s' % (fs, id)
+            link = 'features/%s/%s' % (fs, id)
             page.a(fs, href=link)
       page.h2("Class Spaces")
       page.add(list_as_html(self.classspaces))
