@@ -20,7 +20,7 @@ def results_metadata_map(store, params, max_uniq = 10):
     summary = result.metadata
     for key in summary:
       try:
-        mapping[key].add(summary[key])
+        mapping[key].add(str(summary[key]))
       except TypeError:
         # Skip unhashable values
         pass
@@ -52,6 +52,7 @@ class Results(object):
       summary['link'] = str(link)
       link = markup.oneliner.a('link', href='matrix?'+urllib.urlencode({'uuid':uuid}))
       summary['pairs'] = str(link)
+      summary['select'] = markup.oneliner.input(type='checkbox', name='uuid', value=uuid)
       if self.store.mode == 'a':
         link = markup.oneliner.a('delete', href='delete?'+urllib.urlencode({'uuid':uuid}))
         summary['delete'] = str(link)
@@ -68,6 +69,7 @@ class Results(object):
         relevant = [(k.title(),k) for k in sorted(summaries[0].keys())]
 
       text = StringIO.StringIO()
+      relevant = [({'label':'Select','sorter':None},'select')] + relevant
       relevant.append(("Pairs", 'pairs'))
       if self.store.mode == 'a':
         relevant.append(("Delete", 'delete'))
@@ -75,8 +77,13 @@ class Results(object):
       with TableSort(text) as renderer:
         result_summary_table(summaries, renderer, relevant)
 
-      page.add('Displaying %d results' % len(uuids))
+      page.p('Displaying %d results' % len(uuids))
+      page.form(action='compare', method='get')
+      page.input(type='submit', value='Compare Selected')
+      page.br()
       page.add(text.getvalue())
+      page.form.close()
+
 
   @cherrypy.expose
   def list(self, **params):
@@ -120,6 +127,7 @@ class Results(object):
   def compare(self, uuid):
     # TODO: Parametrize interpreter for non one-of-m highest-best results
     # TODO: Add a count of # of compared result which are correct
+    # TODO: show metadata keys in which the results differ
     from hydrat.common import as_set
     from hydrat.result.interpreter import SingleHighestValue
     interpreter = SingleHighestValue()
@@ -182,9 +190,18 @@ class Results(object):
 
     page.add(dict_as_html(info))
 
-    # TODO: Color the cells by correctness
-    # TODO: Link to instance
     with page.table:
+      for key in sorted(reduce(set.union, (set(r.metadata.keys()) for r in results))):
+        try:
+          if len(set(r.metadata.get(key,'UNKNOWN') for r in results)) > 1:
+            with page.tr:
+              page.th(key)
+              page.td()
+              for r in results:
+                page.td(str(r.metadata.get(key,'-')))
+        except TypeError:
+          continue
+
       with page.tr:
         page.th()
         page.th('Goldstandard')
@@ -192,7 +209,10 @@ class Results(object):
 
       for i, instance_id in enumerate(instlabels):
         with page.tr:
-          page.th(instance_id)
+          with page.th:
+            link = '../datasets/'+md[ds_key]+'/instances?'+urllib.urlencode({'id':instance_id})
+            page.a(instance_id, href= link)
+
           inst_gs = gs[i]
           page.td(clabels[inst_gs])
           for j, r_id in enumerate(uuid):
