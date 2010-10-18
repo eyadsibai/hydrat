@@ -8,8 +8,26 @@ from common import page_config
 from display import list_as_html, dict_as_html, list_of_links
 from hydrat.common import as_set
 from collections import defaultdict
+from hydrat.display.summary_fns import result_metadata
+from hydrat.display.tsr import result_summary_table
 
-# TODO: Offer meta-classification as part of comparison. Make it possible to save the meta-classified result.
+
+def results_metadata_map(store, params, max_uniq = 10):
+  mapping = defaultdict(set)
+  uuids = store._resolve_TaskSetResults(params)
+  for uuid in uuids:
+    result = store._get_TaskSetResult(uuid)
+    summary = result.metadata
+    for key in summary:
+      try:
+        mapping[key].add(summary[key])
+      except TypeError:
+        # Skip unhashable values
+        pass
+  for key in mapping.keys():
+    if len(mapping[key]) > max_uniq or len(mapping[key]) == 0:
+      del mapping[key]
+  return mapping
 
 class Results(object):
   def __init__(self, store, bconfig):
@@ -22,18 +40,14 @@ class Results(object):
   def index(self):
     return self.list()
 
-  @cherrypy.expose
-  def list(self, **params):
-    from hydrat.display.tsr import result_summary_table
-    page = markup.page()
-    page.init(**page_config)
-    page.h3('Parameters')
-    page.add(dict_as_html(params))
 
+  def result_summary_page(self, params, page, summary_fn, relevant = None):
     summaries = []
-    for uuid in self.store._resolve_TaskSetResults(params):
+    uuids = self.store._resolve_TaskSetResults(params)
+    for uuid in uuids:
       result = self.store._get_TaskSetResult(uuid)
-      summary = self.summary_fn(result, self.interpreter)
+      summary = summary_fn(result, self.interpreter)
+      #TODO: Pull these key-adders out
       link = markup.oneliner.a('link', href='view?'+urllib.urlencode({'uuid':uuid}))
       summary['link'] = str(link)
       link = markup.oneliner.a('link', href='matrix?'+urllib.urlencode({'uuid':uuid}))
@@ -43,8 +57,11 @@ class Results(object):
         summary['delete'] = str(link)
       summaries.append(summary)
 
+    # Show all our metadata if no filter is specified
+    if relevant is None:
+      relevant = [(k.title(),k) for k in sorted(summaries[0].keys())]
+
     text = StringIO.StringIO()
-    relevant = self.relevant[:]
     relevant.append(("Pairs", 'pairs'))
     if self.store.mode == 'a':
       relevant.append(("Delete", 'delete'))
@@ -52,7 +69,44 @@ class Results(object):
     with TableSort(text) as renderer:
       result_summary_table(summaries, renderer, relevant)
 
+    page.add('Displaying %d results' % len(uuids))
+    page.h3('Parameters')
+    page.add(dict_as_html(params))
     page.add(text.getvalue())
+
+  @cherrypy.expose
+  def list(self, **params):
+    page = markup.page()
+    page.init(**page_config)
+
+    # Show contstraint options
+    mapping = results_metadata_map(self.store, params)
+    param_links = {}
+    for key in mapping:
+      links = []
+      values = mapping[key]
+      new_params = dict(params)
+      for value in values:
+        new_params[key] = value
+        links.append( markup.oneliner.a(value, href='list?'+urllib.urlencode(new_params)))
+      param_links[key] = links
+      
+    page.add(dict_as_html(param_links))
+
+    # Link to detailed results for these parameters
+    with page.p:
+      #TODO: This is how we can parametrize which key-value pairs to show
+      page.a('Show detailed results', href='details?'+urllib.urlencode(params))
+
+    # Draw the actual summary
+    self.result_summary_page(params, page, result_metadata, None)
+    return str(page)
+
+  @cherrypy.expose
+  def details(self, **params):
+    page = markup.page()
+    page.init(**page_config)
+    self.result_summary_page(params, page, self.summary_fn, self.relevant)
     return str(page)
 
   @cherrypy.expose
