@@ -56,20 +56,18 @@ class Precision(ConfusionMatrixMetric):
     # Undefined if there are no goldstandard positives
     if self.tp == self.fn == 0:
       return numpy.nan 
-    try:
-      return self.tp / float(self.tp + self.fp)
-    except FloatingPointError:
+    elif self.tp == self.fp == 0:
       return 0
+    else:
+      return self.tp / float(self.tp + self.fp)
     
 class Recall(ConfusionMatrixMetric):
   def compute(self):
     # Undefined if there are no goldstandard positives
     if self.tp == self.fn == 0:
       return numpy.nan 
-    try:
+    else:
       return self.tp / float(self.tp + self.fn)
-    except FloatingPointError:
-      return 0
 
 def fscore(p, r, b):
   try:
