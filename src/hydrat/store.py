@@ -819,7 +819,12 @@ class Store(object):
     results = []
     for result_entry in tsr_entry._v_groups.values():
       results.append(self._get_Result(result_entry))
-    results.sort(key=lambda r:r.metadata['index'])
+
+    try:
+      results.sort(key=lambda r:r.metadata['index'])
+    except KeyError:
+      logger.warning("Tasks do not have index- returning in unspecified order")
+      
     return TaskSetResult(results, metadata)
 
   def _get_Result(self, result_entry):
