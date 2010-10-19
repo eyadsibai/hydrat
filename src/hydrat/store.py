@@ -488,14 +488,14 @@ class Store(object):
   ###
   def list_ClassSpaces(self, dsname = None):
     if dsname is None:
-      return set(s._v_attrs.name for s in self.spaces if s._v_attrs.type == 'class')
+      return set(s._v_name for s in self.spaces if s._v_attrs.type == 'class')
     else:
       ds = getattr(self.datasets, dsname)
       return set(node._v_name for node in ds.class_data)
 
   def list_FeatureSpaces(self, dsname = None):
     if dsname is None:
-      return set(s._v_attrs.name for s in self.spaces if s._v_attrs.type == 'feature')
+      return set(s._v_name for s in self.spaces if s._v_attrs.type == 'feature')
     else:
       ds = getattr(self.datasets, dsname)
       return set(node._v_name for node in ds.feature_data)
