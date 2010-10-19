@@ -48,7 +48,8 @@ class TaskSetResult(RichComparisonMixin):
     for r_i, r in enumerate(self.raw_results): 
       r_map = dict( (k,v) for v,k in enumerate(r.instance_indices))
       for i in indices: 
-        result[i,:,r_i] = r.classifications[r_map[i]]
+        if i in r_map:
+          result[i,:,r_i] = r.classifications[r_map[i]]
     return result
       
 
