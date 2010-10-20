@@ -4,6 +4,7 @@ import numpy
 
 from hydrat.common.invert_dict import invert_dict
 from hydrat.common.richcomp import RichComparisonMixin
+from hydrat.common.metadata import metadata_matches
 from hydrat.result import confusion_matrix 
 
 def result_from_task(task, classifications, metadata = {}):
@@ -96,16 +97,7 @@ class Result(RichComparisonMixin):
     """
     Test for equality over the metadata
     """
-    metadata_conditons = [    self.metadata[c] == other.metadata[c]
-                        for  c
-                        in   [ "class_space"
-                             , "dataset"
-                             , "classifier"
-                             , "feature_desc"
-                             , "task_type"
-                             ]
-                        ]
-    return all(metadata_conditons)
+    return metadata_matches(self.metadata, other.metadata)
 
   def _eq_data(self, other):
     """
