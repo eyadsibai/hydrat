@@ -37,6 +37,30 @@ class SingleDir(TextDataset):
         instances[filename] = open(filepath).read()
     return instances
 
+class FilePerClass(TextDataset):
+  def data_path(self):
+    raise NotImplementedError, "Deriving class must implement this"
+
+  def ts_byte(self):
+    path = self.data_path()
+    ts = {}
+    for cl in os.listdir(path):
+      with open(os.path.join(path, cl)) as f:
+        for i,instance in enumerate(f):
+          instance_id = '%s%d'%(cl, i)
+          ts[instance_id] = instance
+    return ts
+
+  def cm_filename(self):
+    path = self.data_path()
+    cm = {}
+    for cl in os.listdir(path):
+      with open(os.path.join(path, cl)) as f:
+        for i,instance in enumerate(f):
+          instance_id = '%s%d'%(cl, i)
+          cm[instance_id] = [cl]
+    return cm
+
 class ByteUnigram(TextDataset):
   def fm_byte_unigram(self):   return self.features('byte', ext.unigram)
 
