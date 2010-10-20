@@ -1,4 +1,5 @@
 import numpy
+import hydrat
 
 from hydrat.frameworks.common import Framework
 from hydrat.result.result import Result
@@ -9,6 +10,7 @@ import os
 from hydrat.display.html import TableSort 
 from hydrat.display.summary_fns import sf_featuresets
 from hydrat.frameworks.offline import process_results, result_summary_table
+from hydrat.result.interpreter import SingleHighestValue, NonZero, SingleLowestValue
 # TODO: Allow for feature weighting and selection
 # TODO: Produce tasksets, and bring this more in line with the offline framework.
 #       This would reduce the burden in implementing weighting and selection.
@@ -38,6 +40,11 @@ summary_fields=\
 
  
 class CrossDomainFramework(Framework):
+  # TODO: Refactor with OfflineFramework - there is much in common.
+  def __init__(self, dataset, store=None):
+    Framework.__init__(self, dataset, store)
+
+    self.interpreter = SingleHighestValue()
 
   def evaluate(self, dataset):
     # NOTE: This approach to constructing metadata is brittle, in that it will not
@@ -69,7 +76,7 @@ class CrossDomainFramework(Framework):
       return True
 
   # TODO: Clean up and refactor this cut&paste from offline.
-  def generate_output(self, path=None, summary_fn=sf_featuresets, fields = summary_fields, interpreter = None):
+  def generate_output(self, path=None, summary_fn=sf_featuresets, fields = summary_fields):
     """
     Generate HTML output
     """
@@ -83,7 +90,7 @@ class CrossDomainFramework(Framework):
       , self.store
       , summary_fn = summary_fn
       , output_path = path
-      , interpreter = interpreter
+      , interpreter = self.interpreter
       ) 
 
     # render a HTML version of the summaries
