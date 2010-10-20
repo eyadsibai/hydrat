@@ -261,11 +261,13 @@ class Results(object):
     return str(page)
 
   @cherrypy.expose
-  def matrix(self, uuid):
+  def matrix(self, uuid, threshold=0):
+    threshold = int(threshold)
     result = self.store._get_TaskSetResult(uuid)
     class_space = self.store.get_Space(result.metadata['class_space'])
     matrix = result.overall_classification_matrix(self.interpreter)
     matrix_sans_diag = numpy.logical_not(numpy.diag(numpy.ones(len(class_space), dtype=bool))) * matrix
+    matrix_sans_diag *= matrix >= threshold
     interesting = numpy.logical_or(matrix_sans_diag.sum(axis=0), matrix_sans_diag.sum(axis=1))
     int_cs = numpy.array(class_space)[interesting]
     matrix = matrix[interesting].transpose()[interesting].transpose()
@@ -282,7 +284,7 @@ class Results(object):
           for j, val in enumerate(row):
             gs = int_cs[i]
             cl = int_cs[j]
-            if val > 0 and gs != cl:
+            if val > threshold and gs != cl:
               td_attr={'class':'highlight'}
             else:
               td_attr={}
@@ -310,14 +312,22 @@ class Results(object):
 
     page = markup.page()
     page.init(**page_config)
+    page.add(dict_as_html(result.metadata))
     page.h1("Classified from '%s' to '%s'" % (gs,cl))
     key = (gs_i, cl_i)
-    with page.ul:
+    tokenstreams = sorted(self.store.list_TokenStreams(dataset))
+    featurespaces = sorted(self.store.list_FeatureSpaces(dataset))
+    with page.table:
       for i in pairs[key]:
-        with page.li:
+        with page.tr:
           id = docids[i]
-          # TODO: Build a table of what is available instead, for easy acces. Add mouseover ajax maybe.
-          page.a(id, href='../datasets/%s/instances/%s' % (dataset, id))
-          page.a('byte',href='../datasets/%s/tokenstream/byte/%s' % (dataset, id))
+          with page.th:
+            page.a(id, href='../datasets/%s/instances/%s' % (dataset, id))
+          for ts in tokenstreams:
+            with page.td:
+              page.a(ts,href='../datasets/%s/tokenstream/%s/%s' % (dataset, ts, id))
+          for fs in featurespaces:
+            with page.td:
+              page.a(fs,href='../datasets/%s/features/%s/%s' % (dataset, fs, id))
     return str(page)
 

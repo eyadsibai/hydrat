@@ -130,13 +130,13 @@ class Dataset(object):
       with page.ul:
         for ts in self.tokenstreams:
           with page.li:
-            link = 'tokenstream/%s/%s' % (ts, id)
+            link = '../tokenstream/%s/%s' % (ts, id)
             page.a(ts, href=link)
       page.h2("Feature Spaces")
       with page.ul:
         for fs in self.featurespaces:
           with page.li:
-            link = 'features/%s/%s' % (fs, id)
+            link = '../features/%s/%s' % (fs, id)
             page.a(fs, href=link)
       page.h2("Class Spaces")
       page.add(list_as_html(self.classspaces))
@@ -144,12 +144,15 @@ class Dataset(object):
 
   @cherrypy.expose
   def tokenstream(self, name, instance):
+    import cgi
     page = markup.page()
     #TODO: should we really be specifying this here?
     page.init(**page_config)
     ts = self.store.get_TokenStreams(self.name, name)
     index = self.instanceids.index(instance)
-    page.add(ts[index])
+    with page.table:
+      with page.td:
+        page.pre(cgi.escape(ts[index]))
     return str(page)
 
   @cherrypy.expose
@@ -158,14 +161,15 @@ class Dataset(object):
     instance_index = self.store.get_InstanceIds(self.name).index(instance_id) 
     instance = featuremap.raw[instance_index]
     present_features = instance.nonzero()[1]
-    feature_space = self.store.get_Space(feature_space)
+    space = self.store.get_Space(feature_space)
+    encoding = self.store.get_SpaceMetadata(feature_space)['encoding']
 
     page = markup.page()
     page.init(**page_config)
     page.table()
     for i in present_features:
       page.tr()
-      page.td(feature_space[i])
+      page.td(space[i].encode(encoding))
       page.td(str(instance[0,i]))
       page.tr.close()
     page.table.close()
