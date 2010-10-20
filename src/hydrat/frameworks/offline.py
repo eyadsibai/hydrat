@@ -8,6 +8,7 @@ import hydrat.display.summary_fns as sf
 import hydrat.task.transform as tx
 from hydrat.display.tsr import render_TaskSetResult
 from hydrat.result.interpreter import SingleHighestValue, NonZero, SingleLowestValue
+from hydrat.summary import classification_summary
 from hydrat.display.summary_fns import sf_featuresets
 from hydrat.display.html import TableSort 
 from hydrat.display.tsr import result_summary_table
@@ -18,6 +19,7 @@ from hydrat.task.taskset import TaskSet, from_partitions
 from hydrat.experiments import Experiment
 from hydrat.task.sampler import membership_vector
 from hydrat.frameworks.common import Framework
+from hydrat.common.decorators import deprecated
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +54,36 @@ class OfflineFramework(Framework):
 
     self.sequence_name = None
     self.outputP = None
+    self.interpreter = SingleHighestValue()
+    self.summary_fn = classification_summary
+
+  @property
+  def summary(self):
+    # TODO: Can we avoid loading the result?
+    tsr_id = self.store._resolve_TaskSetResults(self.result_desc)[0]
+    int_id = self.interpreter.__name__
+    summary = self.store.get_Summary(tsr_id, int_id)
+    missing_keys = set(self.summary_fn.keys) - set(summary)
+    if len(missing_keys) > 0:
+      result = self.result
+      self.summary_fn.init(result, self.interpreter)
+      new_values = dict( (key, self.summary_fn[key]) for key in missing_keys )
+      self.store.add_Summary(tsr_id, int_id, new_values) 
+      summary.update(new_values)
+    return summary
+
+  @property
+  def result_desc(self):
+    result_metadata = self.taskset_desc
+    result_metadata['learner'] = self.learner.__name__
+    result_metadata['learner_params'] = self.learner.params
+    return result_metadata 
+
+  @property 
+  def result(self):
+    if not self.store.has_TaskSetResult(self.result_desc):
+      run_experiment(self.taskset, self.learner, self.store)
+    return self.store.get_TaskSetResult(self.result_desc)
 
   @property
   def taskset_desc(self):
@@ -65,6 +97,11 @@ class OfflineFramework(Framework):
 
   @property
   def taskset(self):
+    if not self.store.has_TaskSet(self.taskset_desc):
+      self.notify('Generating TaskSet')
+      # TODO: This is likely to break if not fully configured, so do something here.
+      taskset = from_partitions(self.split, self.featuremap, self.classmap, self.sequence, self.taskset_desc) 
+      self.store.new_TaskSet(taskset)
     return self.store.get_TaskSet(self.taskset_desc)
 
   @property
@@ -105,21 +142,20 @@ class OfflineFramework(Framework):
     self.notify("Set sequence to '%s'" % sequence)
     self.configure()
 
+  def set_interpreter(self, interpreter):
+    self.interpreter = interpreter
+    self.notify("Set interpreter to '%s'" % interpreter)
+
+  def set_summary(self, summary_fn):
+    self.summary_fn = summary_fn
+    self.notify("Set summary_fn to '%s'" % summary_fn)
+
   def has_run(self):
-    m = dict( self.taskset_desc )
-    m['learner'] = self.learner.__name__
-    m['learner_params'] = self.learner.params
-    return self.store.has_TaskSetResult(m)
+    return self.store.has_TaskSetResult(self.result_desc)
 
   def run(self, force=False):
     # Check if we already have this result
     if force or not self.has_run():
-      # Check if we already have this task
-      if not self.store.has_TaskSet(self.taskset_desc):
-        self.notify('Generating TaskSet')
-        # TODO: This is likely to break if not fully configured, so do something here.
-        taskset = from_partitions(self.split, self.featuremap, self.classmap, self.sequence, self.taskset_desc) 
-        self.store.new_TaskSet(taskset)
       run_experiment(self.taskset, self.learner, self.store)
 
   def transform_taskset(self, transformer, save_intermediate=False):
@@ -158,7 +194,7 @@ class OfflineFramework(Framework):
       self.store.new_TaskSet(taskset)
     self.feature_desc += tuple(sorted(feature_spaces))
 
-  def generate_output(self, path=None, summary_fn=sf_featuresets, fields = summary_fields, interpreter = None):
+  def generate_output(self, path=None, summary_fn=sf_featuresets, fields = summary_fields):
     """
     Generate HTML output
     """
@@ -170,9 +206,9 @@ class OfflineFramework(Framework):
     summaries = process_results\
       ( self.store 
       , self.store
+      , self.interpreter
       , summary_fn = summary_fn
       , output_path = path
-      , interpreter = interpreter
       ) 
 
     # render a HTML version of the summaries
@@ -209,18 +245,13 @@ def run_experiment(taskset, learner, result_store):
 
 def process_results( data_store
                    , result_store
+                   , interpreter
                    , summary_fn=sf.sf_basic
                    , output_path=None
-                   , interpreter=None
                    ):
   """
   If output_path is not None, per-result summaries will be produced in that folder.
   """
-
-  # Set a default interpreter
-  if interpreter is None:
-    interpreter = SingleHighestValue()
-
   summaries = []
   # TODO: Must only allow the framework to process results
   # relevant to it. Need to look into TaskSetResult metadata
