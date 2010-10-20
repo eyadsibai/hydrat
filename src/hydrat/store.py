@@ -804,6 +804,10 @@ class Store(object):
     elif len(tags) > 1: raise InsufficientMetadata
     return self._get_TaskSetResult(tags[0])
 
+  def _get_TaskSetResultMetadata(self, tsr_tag):
+    tsr_entry  = getattr(self.results, tsr_tag)
+    return get_metadata(tsr_entry)
+
   def _del_TaskSetResult(self, tsr_tag):
     if not hasattr(self.results, tsr_tag):
       raise KeyError, str(tsr_tag)
@@ -817,8 +821,9 @@ class Store(object):
       raise KeyError, str(tsr_tag)
     metadata = get_metadata(tsr_entry)
     results = []
-    for result_entry in tsr_entry._v_groups.values():
-      results.append(self._get_Result(result_entry))
+    for node in tsr_entry._v_groups.values():
+      if node._v_name != 'summary':
+        results.append(self._get_Result(node))
 
     try:
       results.sort(key=lambda r:r.metadata['index'])
@@ -949,6 +954,46 @@ class Store(object):
   def list_Sequence(self, dsname):
     dsnode = getattr(self.datasets, dsname)
     return set(node._v_name for node in dsnode.sequence)
+
+  ###
+  # Summary
+  ###
+
+  def add_Summary(self, tsr_id, interpreter_id, summary, overwrite=False):
+    """
+    Add a summary, pertaining to a particular interpreter over a 
+    particular tsr. Will create the summary node if needed, and
+    check for duplicate keys. Overwrite skips the duplicate check
+    and immediately updates the keys. 
+    """
+    tsr_node = getattr(self.results, str(tsr_id))
+    if not hasattr(tsr_node, 'summary'):
+      self.fileh.createGroup(tsr_node,'summary')
+    group_node = tsr_node.summary
+    if hasattr(group_node, interpreter_id):
+      summary_node = getattr(group_node, interpreter_id)
+      if not overwrite:
+        # Check for key collisions first 
+        old_keys = set(summary_node._v_attrs._v_attrnamesuser)
+        new_keys = set(summary.keys())
+        overlap = old_keys & new_keys
+        if len(overlap) != 0:
+          raise ValueError, "Already had the following keys: %s" % str(list(overlap))
+    else:
+      summary_node = self.fileh.createGroup(group_node, interpreter_id)
+    for k,v in summary.iteritems():
+      summary_node._v_attrs[k] = v
+
+  def get_Summary(self, tsr_id, interpreter_id):
+    """
+    Get a summary back from a tsr given an interpreter id
+    """
+    try:
+      group_node = getattr(self.results, str(tsr_id)).summary
+      attr_node = getattr(group_node, interpreter_id)._v_attrs
+      return dict( (k,attr_node[k]) for k in attr_node._v_attrnamesuser )
+    except tables.NoSuchNodeError:
+      return {}
 
   ###
   # Merge
