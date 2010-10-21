@@ -17,5 +17,5 @@ if __name__ == "__main__":
       result = store._get_TaskSetResult(tsr_id)
       summary_fn.init(result, interpreter)
       new_values = dict( (key, summary_fn[key]) for key in missing_keys )
-      self.store.add_Summary(tsr_id, int_id, new_values) 
+      store.add_Summary(tsr_id, int_id, new_values) 
     print "Added", missing_keys, "to", tsr_id
