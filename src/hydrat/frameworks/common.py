@@ -52,6 +52,7 @@ class Framework(object):
     self.feature_desc = None
     self.class_space = None
     self.learner = None
+    self.split_name = None
   
   @property
   def featuremap(self):
@@ -88,11 +89,22 @@ class Framework(object):
     learner = self.learner
     if self.learner is None:
       raise ValueError, "Learner has not been set"
-    cm = self.classmap
-    fm = self.featuremap
+    if self.split_name is None:
+      cm = self.classmap.raw
+      fm = self.featuremap.raw
+    else:
+      mv = membership_vector(self.dataset.instance_ids, self.split['train'])
+      train_indices = mv.nonzero()[0]
+      cm = self.classmap.raw[train_indices]
+      fm = self.featuremap.raw[train_indices]
     self.notify("Training '%s'" % self.learner)
-    classifier = learner(fm.raw, cm.raw)
+    classifier = learner(fm, cm)
     return classifier
+
+  @property
+  def split(self):
+    # TODO: Obtain this from store once splits are stored as well
+    return self.dataset.split(split)
 
   def notify(self, str):
     self.logger.info(str)
@@ -121,9 +133,7 @@ class Framework(object):
     for training. Setting a split that does not contain a 'train' partition will cause
     an error.
     """
-    self.split = self.dataset.split(split)
-    mv = membership_vector(self.dataset.instance_ids, self.split['train'])
-    self.train_indices = mv.nonzero()[0]
+    self.split_name = split
     self.notify("Set split to '%s'" % split)
     self.configure()
 

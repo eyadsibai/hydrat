@@ -57,6 +57,22 @@ class HydratCmdln(cmdln.Cmdln):
     configuration.write_configuration(config, path)
     logger.info("Wrote configuration file to '%s'", path)
 
+  def do_merge(self, subcmd, opts, src, dst):
+    """${cmd_name}: merge two or more stores 
+
+    ${cmd_usage} 
+    
+    To merge the contents of storeA.h5 into storeB.h5:
+
+      ${name} ${cmd_name} storeA.h5 storeB.h5
+    """
+    from store import Store
+    src_store = Store(src, 'r')
+    dst_store = Store(dst, 'a')
+    dst_store.merge(src_store)
+    logger.info("Merged %s into %s", src, dst)
+
+
   @cmdln.alias("dsinfo")
   def do_dataset_info(self, subcmd, opts, dsname):
     """${cmd_name}: display basic information about a dataset 
@@ -87,6 +103,8 @@ class HydratCmdln(cmdln.Cmdln):
                     help="set up remote access to browser webapp")
   @cmdln.option("-b", "--nobrowse", action="store_true", default=False,
                     help="do not attempt to launch a webbrowser")
+  @cmdln.option("-m", "--modify", action="store_true", default=False,
+                    help="allow the store to be modified")
   @cmdln.option("-p", "--port", type='int', default=8080,
                     help="listen on port number")
   def do_browse(self, subcmd, opts, store_path):
@@ -107,7 +125,7 @@ class HydratCmdln(cmdln.Cmdln):
     import cherrypy
     from hydrat.store import Store
     from hydrat.browser import StoreBrowser
-    store = Store(store_path, 'r')
+    store = Store(store_path, 'a' if opts.modify else 'r')
     import sys
     sys.path.append('.')
     try:

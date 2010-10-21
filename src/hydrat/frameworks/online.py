@@ -4,6 +4,7 @@
 
 import os
 import logging
+import time
 import numpy
 import scipy.sparse
 
@@ -20,20 +21,27 @@ from hydrat.frameworks.common import Framework
 class OnlineFramework(Framework):
   def __init__( self
               , dataset
-              , work_path = None
+              , store = None
               ):
-    Framework.__init__(self, dataset, work_path)
+    Framework.__init__(self, dataset, store)
 
+    self.interpreter = None
     self.vectorize = None
     self.__classifier = None
 
   def notify(self, str):
     self.logger.info(str)
 
+  def set_interpreter(self, interpreter):
+    self.interpreter = interpreter
+    self.notify("Set interpreter to '%s'" % str(interpreter))
+    self.configure()
+
   def is_configurable(self):
     return self.feature_spaces is not None\
        and self.class_space is not None\
-       and self.learner is not None
+       and self.learner is not None\
+       and self.interpreter is not None
 
   def configure(self):
     if self.is_configurable():
@@ -89,8 +97,54 @@ class OnlineFramework(Framework):
       raise ValueError, "Can only handle byte streams for now"
     feat_map = self.vectorize(text)
     result = self.__classifier(feat_map)
+    # TODO: We should interpret at this point.
     classlabels = numpy.array(self.classlabels)
     if solo:
       return classlabels[result[0]]
     else:
       return [classlabels[r] for r in result]
+
+  def serve_xmlrpc(self, host='localhost', port=9000):
+    # TODO: Allow configuration of classify server via XMLRPC.
+    from SimpleXMLRPCServer import SimpleXMLRPCServer
+    import json
+    server = SimpleXMLRPCServer((host, port), logRequests=True)
+    server.register_introspection_functions()
+
+    # TODO: Note hydrat version?
+    server_metadata = dict\
+      ( feature_spaces = sorted(self.feature_spaces)
+      , class_spaces   = self.class_space
+      , learner        = {'name':self.learner.__name__, 'params':self.learner._params()}
+      , split          = self.split_name
+      , interpreter    = self.interpreter.__name__
+      , dataset        = self.dataset.__name__
+      )
+
+    def configuration():
+      self.logger.info('Serving configuration')
+      return json.dumps(server_metadata)
+      
+    def classify(text):
+      if isinstance(text, str):
+        self.logger.info('Classifying 1 instance of len %d', len(text))
+      else: 
+        self.logger.info('Classifying %d instances', len(text))
+      response = {}
+
+      start = time.time()
+      outcome = self.classify(text)
+      
+      response['timeTaken'] = time.time() - start
+      response['prediction'] = [ str(x) for x in outcome ]
+      # TODO: Add confidence?
+      return json.dumps(response)
+
+    server.register_function(configuration)
+    server.register_function(classify)
+
+    try:
+      print 'Use Crtl+C to exit'
+      server.serve_forever()
+    except KeyboardInterrupt:
+      print 'Exiting'
