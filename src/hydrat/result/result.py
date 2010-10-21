@@ -5,7 +5,7 @@ import numpy
 from hydrat.common.invert_dict import invert_dict
 from hydrat.common.richcomp import RichComparisonMixin
 from hydrat.common.metadata import metadata_matches
-from hydrat.result import confusion_matrix 
+from hydrat.result import confusion_matrix, classification_matrix
 
 def result_from_task(task, classifications, metadata = {}):
   """
@@ -123,14 +123,7 @@ class Result(RichComparisonMixin):
              axis 1 is Classifier Output 
     """
     classifications = interpreter(self.classifications)
-    doc_count, class_count = classifications.shape
-    matrix = numpy.empty((class_count, class_count), dtype='int64')
-    for gs_i in xrange(class_count):
-      for cl_i in xrange(class_count):
-        gs = self.goldstandard[:,gs_i]
-        cl = classifications[:,cl_i]
-        matrix[gs_i,cl_i] = numpy.logical_and(gs,cl).sum()
-    return matrix
+    return classification_matrix(self.goldstandard, classifications)
 
   def classpairs(self, interpreter):
     """
