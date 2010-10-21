@@ -117,10 +117,6 @@ class OfflineFramework(Framework):
     self.notify("Set sequence to '%s'" % sequence)
     self.configure()
 
-  def set_interpreter(self, interpreter):
-    self.interpreter = interpreter
-    self.notify("Set interpreter to '%s'" % interpreter)
-
   def set_summary(self, summary_fn):
     self.summary_fn = summary_fn
     self.notify("Set summary_fn to '%s'" % summary_fn)
