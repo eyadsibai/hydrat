@@ -1,10 +1,10 @@
 from hydrat import config
 from hydrat.dataset.text import ByteUBT, FilePerClass
-from hydrat.dataset.encoded import CodepointUBT
+from hydrat.dataset.encoded import UTF8, CodepointUBT
 from hydrat.dataset.iso639 import ISO639_1
 from hydrat.configuration import Configurable, DIR
 
-class WikiTweets(Configurable, UTF8, ISO639_1, EnBinary, FilePerClass, ByteUBT, CodepointUBT):
+class WikiTweets(Configurable, UTF8, ISO639_1, FilePerClass, ByteUBT, CodepointUBT):
   __name__ = "WikiTweets"
   requires=\
     { ('corpora', 'wikitweets') : DIR('wikitweets')
