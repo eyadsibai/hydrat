@@ -105,31 +105,6 @@ class OfflineFramework(Framework):
     return self.store.get_TaskSet(self.taskset_desc)
 
   @property
-  def split(self):
-    # TODO: grab from store instead. must ensure it has been induced.
-    split_raw = self.dataset.split(self.split_name)
-    if 'train' in split_raw and 'test' in split_raw:
-      # Train/test type split.
-      all_ids = self.dataset.instance_ids
-      train_ids = membership_vector(all_ids, split_raw['train'])
-      test_ids = membership_vector(all_ids, split_raw['test'])
-      split = numpy.dstack((train_ids, test_ids)).swapaxes(0,1)
-    elif any(key.startswith('fold') for key in split_raw):
-      # Cross-validation folds
-      all_ids = self.dataset.instance_ids
-      folds_present = sorted(key for key in split_raw if key.startswith('fold'))
-      partitions = []
-      for fold in folds_present:
-        test_ids = membership_vector(all_ids, split_raw[fold])
-        train_docids = sum((split_raw[f] for f in folds_present if f is not fold), [])
-        train_ids = membership_vector(all_ids, train_docids)
-        partitions.append( numpy.dstack((train_ids, test_ids)).swapaxes(0,1) )
-      split = numpy.hstack(partitions)
-    else:
-      raise ValueError, "Unknown type of split"
-    return split
-
-  @property
   def sequence(self):
     if self.sequence_name is None:
       return None
