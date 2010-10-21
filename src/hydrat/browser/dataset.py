@@ -130,13 +130,13 @@ class Dataset(object):
       with page.ul:
         for ts in self.tokenstreams:
           with page.li:
-            link = '../tokenstream/%s/%s' % (ts, id)
+            link = 'tokenstream/%s/%s' % (ts, id)
             page.a(ts, href=link)
       page.h2("Feature Spaces")
       with page.ul:
         for fs in self.featurespaces:
           with page.li:
-            link = '../features/%s/%s' % (fs, id)
+            link = 'features/%s/%s' % (fs, id)
             page.a(fs, href=link)
       page.h2("Class Spaces")
       page.add(list_as_html(self.classspaces))
