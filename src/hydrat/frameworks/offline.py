@@ -157,6 +157,7 @@ class OfflineFramework(Framework):
     # Check if we already have this result
     if force or not self.has_run():
       run_experiment(self.taskset, self.learner, self.store)
+      self.summary
 
   def transform_taskset(self, transformer, save_intermediate=False):
     metadata = tx.update_metadata(self.taskset_desc, transformer)
