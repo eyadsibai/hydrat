@@ -6,6 +6,21 @@
 News
 ====
 
+0.9.2.4
+-------
+
+*Release date: 16-10-2010*
+
+* Developed the cherrypy-based store browser. The browser is invoked via 'hydrat browse <file.h5>'
+** Split into subcomponents
+** Added result deletion via the browser
+** Added result-set comparison, showing instances misclassified in a set of results
+** Added intelligent class-space reduction in displaying a result's class-class confusion matrix
+* Added an xmlrpc server to the online framework. Classification as a service!
+* Added merge capabilities to store
+* Fixed a missing dependency on pexpect
+
+
 0.9.2.3
 -------
 

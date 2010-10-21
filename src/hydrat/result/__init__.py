@@ -14,6 +14,18 @@ def confusion_matrix(gs, cl):
 
   return numpy.column_stack((tp, tn, fp, fn))
 
+def classification_matrix(gs, cl):
+  assert gs.shape == cl.shape
+  class_count = cl.shape[1]
+  matrix = numpy.empty((class_count, class_count), dtype='int64')
+  for gs_i in xrange(class_count):
+    for cl_i in xrange(class_count):
+      gs_c = gs[:,gs_i]
+      cl_c = cl[:,cl_i]
+      matrix[gs_i,cl_i] = numpy.logical_and(gs_c,cl_c).sum()
+  return matrix
+  
+
 class Microaverage(object):
   def __call__(self, matrix, function = None):
     micro_matrix = matrix.sum(axis=0)
@@ -56,20 +68,18 @@ class Precision(ConfusionMatrixMetric):
     # Undefined if there are no goldstandard positives
     if self.tp == self.fn == 0:
       return numpy.nan 
-    try:
-      return self.tp / float(self.tp + self.fp)
-    except FloatingPointError:
+    elif self.tp == self.fp == 0:
       return 0
+    else:
+      return self.tp / float(self.tp + self.fp)
     
 class Recall(ConfusionMatrixMetric):
   def compute(self):
     # Undefined if there are no goldstandard positives
     if self.tp == self.fn == 0:
       return numpy.nan 
-    try:
+    else:
       return self.tp / float(self.tp + self.fn)
-    except FloatingPointError:
-      return 0
 
 def fscore(p, r, b):
   try:

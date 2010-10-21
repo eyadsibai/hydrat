@@ -37,7 +37,5 @@ class Experiment(object):
     # TODO: is this the right place to generate uuid?
     metadata['uuid'] = uuid.uuid4()
     t = TaskSetResult(raw_results, metadata)
-    t.metadata['avg_learn'] = numpy.mean(t.individual_metadata('learn_time'))
-    t.metadata['avg_classify'] = numpy.mean(t.individual_metadata('classify_time'))
     return t
 
