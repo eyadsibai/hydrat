@@ -53,6 +53,7 @@ class Framework(object):
     self.class_space = None
     self.learner = None
     self.split_name = None
+    self.interpreter = None
   
   @property
   def featuremap(self):
@@ -156,6 +157,11 @@ class Framework(object):
     self.split_name = split
     self.notify("Set split to '%s'" % split)
     self.configure()
+
+  def set_interpreter(self, interpreter):
+    self.interpreter = interpreter
+    self.notify("Set interpreter to '%s'" % interpreter)
+
 
   def configure(self): 
     self.inducer.process_Dataset(self.dataset, fms=self.feature_spaces, cms=self.class_space)
