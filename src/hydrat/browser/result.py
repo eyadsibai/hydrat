@@ -10,6 +10,7 @@ from hydrat.common import as_set
 from collections import defaultdict
 from hydrat.display.summary_fns import result_metadata
 from hydrat.display.tsr import result_summary_table
+from hydrat.result import classification_matrix
 
 
 def results_metadata_map(store, params, max_uniq = 10):
@@ -121,7 +122,8 @@ class Results(object):
     return str(page)
 
   @cherrypy.expose
-  def compare(self, uuid):
+  def compare(self, uuid, show_wrong='0', goldstandard=None):
+    print "show_wrong", show_wrong, type(show_wrong)
     # TODO: Parametrize interpreter for non one-of-m highest-best results
     # TODO: Add a count of # of compared result which are correct
     # TODO: show metadata keys in which the results differ
@@ -139,18 +141,18 @@ class Results(object):
     ds_key = 'eval_dataset' if 'eval_dataset' in md else 'dataset'
 
     # Sanity check
-    must_match = ['class_space',ds_key]
+    must_match = ['class_space']
     for m in must_match:
       value_set = set(r.metadata[m] for r in results)
       if len(value_set) != 1:
         raise ValueError, "Non-uniform value for '%s' : %s" % (m, value_set)
+    # TODO: Check that the instance IDs match
 
     # Grab relevant data from store
     class_space = self.store.get_Space(md['class_space'])
     instance_ids = self.store.get_InstanceIds(md[ds_key])
     gs = self.store.get_ClassMap(md[ds_key], md['class_space']).raw
 
-    # Build a mapping of uuid to interpreted cl output
     classifs = []
     for result in results:
       cl = result.overall_classification(range(len(instance_ids)))
@@ -164,7 +166,12 @@ class Results(object):
     int_cl = numpy.logical_not(boring_cl_unused)
 
     boring_inst_allright = (numpy.logical_and((classifs.sum(axis=2) == len(uuid)), gs).sum(axis=1) == 1)
-    int_inst = numpy.logical_not(boring_inst_allright)
+    boring_inst_allwrong = (numpy.logical_and((classifs.sum(axis=2) == len(uuid)), numpy.logical_not(gs)).sum(axis=1) == 1)
+    if show_wrong != '0':
+      boring_inst = boring_inst_allright 
+    else:
+      boring_inst = numpy.logical_or(boring_inst_allright, boring_inst_allwrong)
+    int_inst = numpy.logical_not(boring_inst)
 
     clabels = numpy.array(class_space)[int_cl]
     instlabels = numpy.array(instance_ids)[int_inst]
@@ -173,6 +180,21 @@ class Results(object):
     gs = gs[int_inst,:]
     gs = gs[:,int_cl]
 
+    # Compute confusion pairs
+    cm_all = []
+    for i in xrange(classifs.shape[2]):
+      cl = classifs[:,:,i]
+      cm = classification_matrix(gs, cl)
+      cm_all.append(cm)
+    cm_all = numpy.dstack(cm_all)
+
+    pairs = {}
+    for i, l_i in enumerate(clabels):
+      for j, l_j in enumerate(clabels):
+        if i != j:
+          pairs[(i,j)] = list(cm_all[i,j,:])
+
+    pairs_by_size = sorted(pairs, key=lambda x: sum(pairs[x]), reverse=True)
 
     info = {}
     info['class_space']            = md['class_space']
@@ -182,39 +204,81 @@ class Results(object):
     info['Total Instances']        = len(instance_ids)
     info['Interesting Instances']  = len(instlabels)
 
+    # Compute the set of keys present in the metadata over all results 
+    all_keys = sorted(reduce(set.union, (set(r.metadata.keys()) for r in results)))
+    # Compute the set of possible values for each key 
+    values_set = {}
+    for k in all_keys:
+      for r in results:
+        try:
+          values_set[k] = set(r.metadata.get(k,'UNKNOWN') for r in results)
+        except TypeError:
+          # skip unhashable
+          pass
+    # Compute the set of key-values which all the results have in common
+    common_values = dict( (k, values_set[k].pop()) for k in values_set if len(values_set[k]) == 1)
+
     page = markup.page()
     page.init(**page_config)
 
+    page.h2('Summary')
     page.add(dict_as_html(info))
-
+    page.h2('Common Metadata')
+    page.add(dict_as_html(common_values))
+    if show_wrong != '0':
+      page.a('Hide Wrong', href='compare?' + urllib.urlencode({'uuid':uuid, 'show_wrong':0}, True))
+    else:
+      page.a('Show Wrong', href='compare?' + urllib.urlencode({'uuid':uuid, 'show_wrong':1}, True))
     with page.table:
-      for key in sorted(reduce(set.union, (set(r.metadata.keys()) for r in results))):
-        try:
-          if len(set(r.metadata.get(key,'UNKNOWN') for r in results)) > 1:
-            with page.tr:
-              page.th(key)
-              page.td()
-              for r in results:
-                page.td(str(r.metadata.get(key,'-')))
-        except TypeError:
-          continue
+      for key in values_set:
+        # Display keys which differ
+        if len(values_set[key]) > 1:
+          with page.tr:
+            page.th(key)
+            page.td()
+            for r in results:
+              page.td(str(r.metadata.get(key,'-')))
+      with page.tr:
+        page.th()
+        page.td()
+        for id in uuid: page.th(id)
 
+      # Display classification pairs
+      for pair in pairs_by_size:
+        fr = clabels[pair[0]]  
+        to = clabels[pair[1]] 
+        if goldstandard is None or goldstandard == fr:
+          with page.tr:
+            label = ' => '.join((fr, to))
+            page.th(label)
+            page.td()
+            for i, id in enumerate(uuid):
+              with page.td:
+                page.a(pairs[pair][i], href='classpair?'+urllib.urlencode({'gs':fr,'cl':to,'uuid':id}))
+
+      # Display individual instances
       with page.tr:
         page.th()
         page.th('Goldstandard')
-        for id in uuid: page.th(id)
+        for id in uuid: 
+          with page.th:
+            page.a(id, href='view?'+urllib.urlencode({'uuid':id}))
 
       for i, instance_id in enumerate(instlabels):
-        with page.tr:
-          with page.th:
-            link = '../datasets/'+md[ds_key]+'/instances?'+urllib.urlencode({'id':instance_id})
-            page.a(instance_id, href= link)
+        inst_gs = gs[i]
+        label = clabels[inst_gs]
+        if goldstandard is None or goldstandard == label:
+          with page.tr:
+            with page.th:
+              link = '../datasets/'+md[ds_key]+'/instances?'+urllib.urlencode({'id':instance_id})
+              page.a(instance_id, href= link)
 
-          inst_gs = gs[i]
-          page.td(clabels[inst_gs])
-          for j, r_id in enumerate(uuid):
-            inst_cl = classifs[i,:,j]
-            page.td(clabels[inst_cl], **{'class':'correct' if (inst_gs==inst_cl).all() else 'wrong'})
+            with page.td:
+              page.a(label, href='compare?' + urllib.urlencode({'uuid':uuid, 'show_wrong':show_wrong, 'goldstandard':label}, True))
+            for j, r_id in enumerate(uuid):
+              inst_cl = classifs[i,:,j]
+              labels = list(clabels[inst_cl])
+              page.td(labels, **{'class':'correct' if (inst_gs==inst_cl).all() else 'wrong'})
       
     return str(page)
 
@@ -322,7 +386,7 @@ class Results(object):
         with page.tr:
           id = docids[i]
           with page.th:
-            page.a(id, href='../datasets/%s/instances/%s' % (dataset, id))
+            page.a(id, href='../datasets/%s/instances?' % dataset + urllib.urlencode({'id':id}))
           for ts in tokenstreams:
             with page.td:
               page.a(ts,href='../datasets/%s/tokenstream/%s/%s' % (dataset, ts, id))
