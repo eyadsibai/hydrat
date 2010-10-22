@@ -11,6 +11,8 @@ from hydrat.display.html import TableSort
 from hydrat.display.summary_fns import sf_featuresets
 from hydrat.frameworks.offline import process_results, result_summary_table
 from hydrat.result.interpreter import SingleHighestValue, NonZero, SingleLowestValue
+from hydrat.task.taskset import TaskSet
+from hydrat.task.task import Task
 # TODO: Allow for feature weighting and selection
 # TODO: Produce tasksets, and bring this more in line with the offline framework.
 #       This would reduce the burden in implementing weighting and selection.
@@ -76,16 +78,16 @@ class CrossDomainFramework(OfflineFramework):
       task_md = dict(md)
       task_md['index'] = 0
       task = Task()
-      task.train_vectors   = self.featuremap
-      task.train_classes   = self.classmap
+      task.train_vectors   = self.featuremap.raw
+      task.train_classes   = self.classmap.raw
       task.train_sequence  = self.sequence
       task.train_indices   = self.train_indices
 
-      other = Framework(dataset, store = self.store) 
+      other = OfflineFramework(self.eval_dataset, store = self.store) 
       other.set_feature_spaces(self.feature_spaces)
       other.set_class_space(self.class_space)
-      task.test_vectors   = other.featuremap
-      task.test_classes   = other.classmap
+      task.test_vectors   = other.featuremap.raw
+      task.test_classes   = other.classmap.raw
       task.test_sequence  = other.sequence
       task.test_indices   = other.train_indices
 
