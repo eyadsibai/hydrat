@@ -135,13 +135,15 @@ class OfflineFramework(Framework):
       exp = Experiment(self.taskset, self.learner)
       try:
         tsr = exp.run()
+        self.store.add_TaskSetResult(tsr)
+        self.summary # forces the summary to be generated
       except Exception, e:
         logger.critical('Experiment failed with %s', e.__class__.__name__)
-        logger.debug(e)
         if hydrat.config.getboolean('debug','pdb_on_classifier_exception'):
+          logger.critical(e)
           import pdb;pdb.post_mortem()
-      self.store.add_TaskSetResult(tsr)
-      self.summary # forces the summary to be generated
+        else:
+          logger.debug(e)
 
   def transform_taskset(self, transformer):
     metadata = tx.update_metadata(self.taskset_desc, transformer)
