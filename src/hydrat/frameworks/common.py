@@ -1,5 +1,6 @@
 import logging
 import os
+import numpy
 
 import hydrat
 from hydrat.common.pb import ProgressIter
@@ -59,9 +60,9 @@ class Framework(object):
   def train_indices(self):
     if self.split_name is None:
       # TODO: Find a faster way of computing this if necessary.
-      return numpy.arange(self.classmap.shape[0])
+      return numpy.ones(len(self.dataset.instance_ids), dtype='bool')
     else:
-      return numpy.flatnonzero(self.split[:,0,0])
+      return self.split[:,0,0]
 
   @property
   def featuremap(self):
@@ -134,6 +135,7 @@ class Framework(object):
 
   @property
   def sequence(self):
+    # TODO: Does this need to be filtered by training_indices?
     if self.sequence_name is None:
       return None
     else:
