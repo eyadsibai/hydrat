@@ -74,7 +74,8 @@ class Framework(object):
 
     # Join the featuremaps into a single featuremap
     fm = union(*featuremaps)
-    return fm[self.train_indices]
+    # NOTE: caution here, sparse arrays must not be indexed by boolean arrays
+    return fm[numpy.flatnonzero(self.train_indices)]
 
   @property
   def featurelabels(self):
@@ -89,7 +90,6 @@ class Framework(object):
     self.inducer.process_Dataset(self.dataset, cms=self.class_space)
     ds_name = self.dataset.__name__
     cm = self.store.get_ClassMap(ds_name, self.class_space)
-
     return cm[self.train_indices]
 
   @property
