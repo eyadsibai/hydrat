@@ -58,3 +58,7 @@ class ClassMap(object):
     self.raw = raw
     self.metadata = dict(metadata)
 
+  def __getitem__(self, key):
+    # TODO: Take note of what has been selecte somehow?
+    return ClassMap(self.raw[key], self.metadata)
+
