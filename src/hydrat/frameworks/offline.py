@@ -90,7 +90,7 @@ class OfflineFramework(Framework):
   @property 
   def result(self):
     if not self.store.has_TaskSetResult(self.result_desc):
-      run_experiment(self.taskset, self.learner, self.store)
+      self.run()
     return self.store.get_TaskSetResult(self.result_desc)
 
   @property
@@ -108,7 +108,17 @@ class OfflineFramework(Framework):
     if not self.store.has_TaskSet(self.taskset_desc):
       self.notify('Generating TaskSet')
       # TODO: This is likely to break if not fully configured, so do something here.
-      taskset = from_partitions(self.split, self.featuremap, self.classmap, self.sequence, self.taskset_desc) 
+      # We do this dance because we need to grab the featuremap and classmap under conditions
+      # where we have no split, to get the full feature/classmaps. If this proves problematic,
+      # should refactor.
+      split = self.split
+      split_name = self.split_name
+      self.split_name = None
+      fm = self.featuremap
+      cm = self.classmap
+      sq = self.sequence
+      self.split_name = split_name
+      taskset = from_partitions(split, fm, cm, sq, self.taskset_desc) 
       self.store.new_TaskSet(taskset)
     return self.store.get_TaskSet(self.taskset_desc)
 
@@ -122,22 +132,21 @@ class OfflineFramework(Framework):
   def run(self, force=False):
     # Check if we already have this result
     if force or not self.has_run():
-      run_experiment(self.taskset, self.learner, self.store)
-      self.summary
+      exp = Experiment(self.taskset, self.learner)
+      try:
+        tsr = exp.run()
+      except Exception, e:
+        logger.critical('Experiment failed with %s', e.__class__.__name__)
+        logger.debug(e)
+        if hydrat.config.getboolean('debug','pdb_on_classifier_exception'):
+          import pdb;pdb.post_mortem()
+      self.store.add_TaskSetResult(tsr)
+      self.summary # forces the summary to be generated
 
-  def transform_taskset(self, transformer, save_intermediate=False):
+  def transform_taskset(self, transformer):
     metadata = tx.update_metadata(self.taskset_desc, transformer)
     if not self.store.has_TaskSet(metadata):
-      #TODO: this step can be unified with run if we can reliably map from taskset_desc to the transformers involved.
-      if self.store.has_TaskSet(self.taskset_desc):
-        taskset = self.taskset
-      else:
-        # TODO: This can go away once we unify, but for now we need to make sure that the taskset to modify
-        # exists before we modify it.
-        taskset = from_partitions(self.split, self.featuremap, self.classmap, self.sequence, self.taskset_desc) 
-        if save_intermediate:
-          self.store.new_TaskSet(taskset)
-      # Now do the actual transform
+      taskset = self.taskset
       taskset = tx.transform_taskset(taskset, transformer)
       self.store.new_TaskSet(taskset)
     # Only copy over the new feature_desc
@@ -197,17 +206,6 @@ class OfflineFramework(Framework):
     updatedir.logger = logger
     updatedir.updatetree(self.outputP, target, overwrite=True)
     
-
-def run_experiment(taskset, learner, result_store):
-  exp = Experiment(taskset, learner)
-  try:
-    tsr = exp.run()
-    result_store.add_TaskSetResult(tsr)
-  except Exception, e:
-    logger.critical('Experiment failed with %s', e.__class__.__name__)
-    logger.debug(e)
-    if hydrat.config.getboolean('debug','pdb_on_classifier_exception'):
-      import pdb;pdb.post_mortem()
 
 def process_results( data_store
                    , result_store
