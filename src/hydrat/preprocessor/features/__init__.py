@@ -5,3 +5,7 @@ class FeatureMap(object):
     self.metadata = deepcopy(metadata)
     if 'feature_desc' not in metadata:
       self.metadata['feature_desc'] = tuple()
+
+  def __getitem__(self, key):
+    # TODO: Take note of what has been selecte somehow?
+    return FeatureMap(self.raw[key], self.metadata)
