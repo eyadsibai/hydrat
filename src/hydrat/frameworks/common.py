@@ -56,6 +56,14 @@ class Framework(object):
     self.interpreter = None
   
   @property
+  def train_indices(self):
+    if self.split_name is None:
+      # TODO: Find a faster way of computing this if necessary.
+      return numpy.arange(self.classmap.shape[0])
+    else:
+      return numpy.flatnonzero(self.split[:,0,0])
+
+  @property
   def featuremap(self):
     self.inducer.process_Dataset(self.dataset, fms=self.feature_spaces)
     ds_name = self.dataset.__name__
@@ -65,7 +73,7 @@ class Framework(object):
 
     # Join the featuremaps into a single featuremap
     fm = union(*featuremaps)
-    return fm
+    return fm[self.train_indices]
 
   @property
   def featurelabels(self):
@@ -79,7 +87,9 @@ class Framework(object):
   def classmap(self):
     self.inducer.process_Dataset(self.dataset, cms=self.class_space)
     ds_name = self.dataset.__name__
-    return self.store.get_ClassMap(ds_name, self.class_space)
+    cm = self.store.get_ClassMap(ds_name, self.class_space)
+
+    return cm[self.train_indices]
 
   @property
   def classlabels(self):
@@ -90,14 +100,8 @@ class Framework(object):
     learner = self.learner
     if self.learner is None:
       raise ValueError, "Learner has not been set"
-    if self.split_name is None:
-      cm = self.classmap.raw
-      fm = self.featuremap.raw
-    else:
-      mv = membership_vector(self.dataset.instance_ids, self.split['train'])
-      train_indices = mv.nonzero()[0]
-      cm = self.classmap.raw[train_indices]
-      fm = self.featuremap.raw[train_indices]
+    cm = self.classmap.raw
+    fm = self.featuremap.raw
     self.notify("Training '%s'" % self.learner)
     classifier = learner(fm, cm)
     return classifier
@@ -105,6 +109,7 @@ class Framework(object):
   @property
   def split(self):
     # TODO: grab from store instead. must ensure it has been induced.
+    #       this code goes into the inducer
     split_raw = self.dataset.split(self.split_name)
     if 'train' in split_raw and 'test' in split_raw:
       # Train/test type split.
@@ -126,6 +131,13 @@ class Framework(object):
     else:
       raise ValueError, "Unknown type of split"
     return split
+
+  @property
+  def sequence(self):
+    if self.sequence_name is None:
+      return None
+    else:
+      return self.store.get_Sequence(self.dataset.__name__, self.sequence_name)
 
   def notify(self, str):
     self.logger.info(str)
@@ -161,7 +173,13 @@ class Framework(object):
   def set_interpreter(self, interpreter):
     self.interpreter = interpreter
     self.notify("Set interpreter to '%s'" % interpreter)
+    self.configure()
 
+  def set_sequence(self, sequence):
+    self.inducer.process_Dataset( self.dataset, sqs = sequence)
+    self.sequence_name = sequence
+    self.notify("Set sequence to '%s'" % sequence)
+    self.configure()
 
   def configure(self): 
     self.inducer.process_Dataset(self.dataset, fms=self.feature_spaces, cms=self.class_space)
