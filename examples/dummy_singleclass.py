@@ -13,8 +13,8 @@ import hydrat.classifier.knn as knn
 import hydrat.classifier.nearest_prototype as np
 import hydrat.classifier.maxent as maxent
 import hydrat.classifier.scikits_learn as scikits_learn
+import hydrat.classifier.flann as flann
 
-import flann
 learners=\
   [ np.cosine_mean_prototypeL()
   , knn.cosine_1nnL()
