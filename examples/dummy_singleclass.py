@@ -12,7 +12,9 @@ import hydrat.classifier.SVM as svm
 import hydrat.classifier.knn as knn
 import hydrat.classifier.nearest_prototype as np
 import hydrat.classifier.maxent as maxent
+import hydrat.classifier.scikits_learn as scikits_learn
 
+import flann
 learners=\
   [ np.cosine_mean_prototypeL()
   , knn.cosine_1nnL()
@@ -23,6 +25,13 @@ learners=\
   , svm.bsvmL(kernel_type='linear')
   , nltk.naivebayesL()
   , nltk.decisiontreeL()
+  , scikits_learn.SVC()
+  , scikits_learn.SVC(kernel='rbf')
+  , scikits_learn.NuSVC()
+  , scikits_learn.LinearSVC()
+  , flann.FLANNL()
+  , flann.kl()
+  , flann.cs()
   ]
 
 if __name__ == "__main__":
