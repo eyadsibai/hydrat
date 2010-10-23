@@ -55,6 +55,16 @@ class Framework(object):
     self.learner = None
     self.split_name = None
     self.interpreter = None
+    # NOTE: The following is a hack to avoid a particular issue resulting from a bad interaction
+    # between pytables and h5py. Pytables registers an exitfunc with atexit which closes any
+    # open h5files by calling their .close() method. This happens before any __del__ methods
+    # are invoked. When h5py is imported, this causes an error. However, explicitly closing a 
+    # pytables tableFile with its close method does not cause the same error. This hook forces
+    # that to happen before pytables' atexit is called. It calls store.__del__ to avoid diving
+    # too deeply into the store implementation. 
+    # Perhaps the issue is with h5py registering a hook that gets called first. The hooks are 
+    # called LIFO, so ours will always get called first.
+    import atexit; atexit.register(lambda: self.store.__del__())
   
   @property
   def train_indices(self):
