@@ -112,6 +112,7 @@ class OnlineFramework(Framework):
       , split          = self.split_name
       , interpreter    = self.interpreter.__name__
       , dataset        = self.dataset.__name__
+      , instance_space = self.dataset.instance_space
       )
 
     def configuration():

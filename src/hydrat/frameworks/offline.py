@@ -96,11 +96,12 @@ class OfflineFramework(Framework):
   @property
   def taskset_desc(self):
     taskset_metadata = dict()
-    taskset_metadata['dataset']       = self.dataset.__name__
-    taskset_metadata['split']         = self.split_name
-    taskset_metadata['sequence']      = self.sequence_name
-    taskset_metadata['feature_desc']  = self.feature_desc
-    taskset_metadata['class_space']   = self.class_space
+    taskset_metadata['dataset']         = self.dataset.__name__
+    taskset_metadata['instance_space']  = self.dataset.instance_space
+    taskset_metadata['split']           = self.split_name
+    taskset_metadata['sequence']        = self.sequence_name
+    taskset_metadata['feature_desc']    = self.feature_desc
+    taskset_metadata['class_space']     = self.class_space
     return taskset_metadata
 
   @property

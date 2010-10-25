@@ -53,7 +53,7 @@ class BoolFeature(tables.IsDescription):
 # TODO: Declare a configurable compression filter
 #         tables.Filters(complevel=5, complib='zlib') 
 
-STORE_VERSION = 1
+STORE_VERSION = 2
 
 def update_h5store(fileh):
   """
@@ -66,15 +66,17 @@ def update_h5store(fileh):
   """
   logger.debug("Running update_h5store")
   root = fileh.root
-  for node in ['spaces', 'datasets', 'tasksets', 'results']:
-    if not hasattr(root, node):
-      fileh.createGroup( root, node )
 
   version = root._v_attrs['version'] if 'version' in root._v_attrs else 0
   
   if version < 1:
     # No version, or new file
+    # Ensure that the major nodes exist
     logger.debug('updating to version 1')
+    for node in ['spaces', 'datasets', 'tasksets', 'results']:
+      if not hasattr(root, node):
+        fileh.createGroup( root, node )
+    # Check that the dataset nodes are well-formed
     for dsnode in root.datasets:
       if not hasattr(dsnode, 'tokenstreams'):
         logger.debug('Node %s did not have tokenstreams node; adding.', dsnode._v_name)
@@ -82,6 +84,44 @@ def update_h5store(fileh):
       if not hasattr(dsnode, 'sequence'):
         logger.debug('Node %s did not have sequence node; adding.', dsnode._v_name)
         fileh.createGroup( dsnode, "sequence" )
+  if version < 2:
+    # In version 2, we introduce the concept of instance spaces, detaching the instance
+    # identifiers from the dataset nodes and instead attaching them to the space nodes
+    logger.debug('updating to version 2')
+    for dsnode in root.datasets:
+      # Move the instance id node to spaces
+      id_node = dsnode.instance_id
+      id_node._v_attrs['date']      = dt.datetime.now().isoformat() 
+      id_node._v_attrs['size']      = len(dsnode.instance_id)
+      id_node._v_attrs['type']      = 'instance'
+      id_node._v_attrs['name']      = dsnode._v_name
+      id_node._v_attrs['encoding']  = 'utf8' # to be safe, in case we had e.g. utf8 filenames
+      fileh.moveNode(dsnode.instance_id, root.spaces, dsnode._v_name)
+      # Unless otherwise specified, the instance space is the dataset name
+      dsnode._v_attrs['instance_space'] = dsnode._v_name
+
+    # Add the instance space metadata to all tasksets
+    for tsnode in root.tasksets:
+      tsnode._v_attrs.instance_space = tsnode._v_attrs.dataset
+      for t in tsnode:
+        t._v_attrs.instance_space = t._v_attrs.dataset
+        
+    # Add the instance space metadata to all results
+    for rnode in root.results:
+      rnode._v_attrs.instance_space = rnode._v_attrs.dataset
+      if hasattr(rnode._v_attrs, 'eval_dataset'):
+        rnode._v_attrs.eval_space = rnode._v_attrs.eval_dataset
+      for node in rnode:
+        if node._v_name == 'summary':
+          for summary in node:
+            summary._v_attrs.instance_space = summary._v_attrs.dataset
+            if hasattr(summary._v_attrs, 'eval_dataset'):
+              summary._v_attrs.eval_space = summary._v_attrs.eval_dataset
+        else:
+          node._v_attrs.instance_space = node._v_attrs.dataset
+          if hasattr(node._v_attrs, 'eval_dataset'):
+            node._v_attrs.eval_space = node._v_attrs.eval_dataset
+        
 
   logger.debug("updated store from version %d to %d", version, STORE_VERSION)
   root._v_attrs['version'] = STORE_VERSION
@@ -117,6 +157,9 @@ class Store(object):
     self.tasksets = self.root.tasksets
     self.results = self.root.results
 
+    if not 'version' in self.root._v_attrs or self.root._v_attrs['version'] != STORE_VERSION:
+      raise ValueError, "Store format is outdated; please open the store as writeable to automatically update it"
+
   
   def __str__(self):
     return "<Store mode '%s' @ '%s'>" % (self.mode, self.path)
@@ -127,7 +170,6 @@ class Store(object):
   ###
   # Utility Methods
   ###
-
   def _check_writeable(self):
     if self.mode not in "wa":
       raise IOError, "Store is not writeable!"
@@ -199,6 +241,7 @@ class Store(object):
                     , len(labels)
                     )
 
+    # TODO: Maybe check the metadata for encoding?
     # Weak assumption that if the first label is unicode,
     # they all are unicode
     if isinstance(labels[0], unicode):
@@ -259,7 +302,7 @@ class Store(object):
     self.fileh.flush()
 
 
-  def add_Dataset(self, name, instance_ids):
+  def add_Dataset(self, name, instance_space, instance_ids):
     self._check_writeable()
     if hasattr(self.datasets, name):
       raise AlreadyHaveData, "Already have dataset by name %s", name
@@ -273,15 +316,18 @@ class Store(object):
 
     # Note down our metadata
     attrs.name              = name
+    attrs.instance_space    = instance_space
     attrs.date              = dt.datetime.now().isoformat()
     attrs.num_instances     = len(instance_ids)
 
     # Create the instance_id array
-    self.fileh.createArray( ds 
-                          , "instance_id"
-                          , numpy.array([i.encode() for i in instance_ids])
-                          , title = "Instance Identifiers"
-                          )
+    if hasattr(self.spaces, instance_space):
+      # Check that the spaces match
+      space = self.get_Space(instance_space)
+      if (space != numpy.array(instance_ids)).any():
+        raise ValueError, "Instance identifiers don't match existing instance space"
+    else:
+      self.add_Space(instance_ids, {'type':'instance', 'name':instance_space})
 
     # Create a group for Feature Data 
     self.fileh.createGroup( ds
@@ -329,7 +375,7 @@ class Store(object):
                                     )
 
     # Initialize space to store instance sizes.
-    n_inst = len(self.get_InstanceIds(dsname))
+    n_inst = len(self.get_Space(dsname))
     instance_sizes = numpy.zeros(n_inst, dtype='uint64')
     
     attrs = fm_node._v_attrs
@@ -395,11 +441,11 @@ class Store(object):
     ds = getattr(self.datasets, dsname)
     space = getattr(self.spaces, space_name)
 
-    num_docs = len(ds.instance_id)
+    num_inst = self.get_SpaceMetadata(ds._v_attrs['instance_space'])['size'] 
     num_classes = len(space)
 
     # Check that the map is of the right shape for the dataset and space
-    if class_map.shape != (num_docs, num_classes):
+    if class_map.shape != (num_inst, num_classes):
       raise StoreError, "Wrong shape for class map!"
 
     group =  self.fileh.createGroup( ds.class_data
@@ -445,6 +491,7 @@ class Store(object):
   ###
   # Resolve
   ###
+  #TODO: Are these ever used?
   def resolve_Space(self, desired_metadata):
     """
     Uniquely resolve a single space
@@ -488,6 +535,9 @@ class Store(object):
     else:
       ds = getattr(self.datasets, dsname)
       return set(node._v_name for node in ds.feature_data)
+
+  def list_InstanceSpaces(self):
+    return set(s._v_name for s in self.spaces if s._v_attrs.type == 'instance')
 
   def list_Datasets(self):
     return set( ds._v_attrs.name for ds in self.datasets)
@@ -541,14 +591,15 @@ class Store(object):
       data = [ d.decode(encoding) for d in data ]
     return data
 
+  # Deprecated upon introduction of instance spaces. use get_Space instead.
+  @deprecated
   def get_InstanceIds(self, dsname):
     """
     @param dsname: Dataset name
     @return: Instance identifiers for dataset
     @rtype: List of strings
     """
-    ds = getattr(self.datasets, dsname)
-    return [ i.decode() for i in ds.instance_id ]
+    return self.get_Space(dsname)
 
   def has_Data(self, dsname, space_name):
     try:
@@ -573,7 +624,11 @@ class Store(object):
     except AttributeError:
       raise NoData
 
-    metadata = dict(dataset=dsname, class_space=space_name)
+    metadata = dict\
+                 ( dataset=dsname
+                 , class_space=space_name
+                 , instance_space=ds._v_attrs.instance_space
+                 )
     return ClassMap(data.read(), metadata)
 
   def get_FeatureMap(self, dsname, space_name):
@@ -593,12 +648,17 @@ class Store(object):
     data_type = feature_node._v_attrs.type
     logger.debug("Returning matrix of type %s", data_type)
     fm = getattr(feature_node, 'feature_map')
-    n_inst = len(ds.instance_id) 
+    n_inst = self.get_SpaceMetadata(ds._v_attrs['instance_space'])['size'] 
     n_feat = len(space)
     m = self._read_sparse_node(fm,shape=(n_inst, n_feat))
-    metadata = dict(dataset=dsname, feature_desc=(space_name,))
+    metadata = dict\
+                 ( dataset=dsname
+                 , feature_desc=(space_name,)
+                 , instance_space=ds._v_attrs.instance_space
+                 )
     return FeatureMap(m, metadata) 
 
+  @deprecated
   def get_SizeData(self, dsname, space_name):
     """
     TODO: Generalize this to getInstanceWeightData, which is a vector we can use
@@ -1036,6 +1096,7 @@ class Store(object):
         
     for src_ds in ProgressIter(list(other.datasets), label='Copying datasets'):
       dsname = src_ds._v_name
+
       logger.debug("Considering dataset '%s'", dsname)
       if hasattr(self.datasets, dsname):
         logger.warning("already had dataset '%s'", dsname)
@@ -1045,7 +1106,8 @@ class Store(object):
           raise ValueError, "Instance identifiers don't match for dataset %s" % dsname
         # The hardest to handle is the feature data, since we may need to rearrange feature maps
       else:
-        self.add_Dataset(dsname, other.get_InstanceIds(dsname))
+        instance_space = other.get_DatasetMetadata(dsname)['instance_space']
+        self.add_Dataset(dsname, instance_space, other.get_Space(dsname))
         dst_ds = getattr(self.datasets, dsname)
 
       node_names = ['class_data', 'sequence', 'tokenstream']
