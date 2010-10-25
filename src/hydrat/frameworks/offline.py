@@ -51,7 +51,7 @@ class OfflineFramework(Framework):
     self.sequence_name = None
     self.outputP = None
     self.interpreter = SingleHighestValue()
-    self.summary_fn = classification_summary
+    self.summary_fn = classification_summary()
 
   @property
   def classifier(self):
