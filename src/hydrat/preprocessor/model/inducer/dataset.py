@@ -28,7 +28,7 @@ class DatasetInducer(object):
       logger.debug("Already had dataset '%s'", dsname)
     else:
       logger.debug("Adding new dataset '%s'", dsname)
-      self.store.add_Dataset(dsname, dataset.instance_ids)
+      self.store.add_Dataset(dsname, dataset.instance_space, dataset.instance_ids)
 
     fms = as_set(fms)
     cms = as_set(cms)

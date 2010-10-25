@@ -8,10 +8,10 @@ class dummy(ByteUBT, CodepointUBT, UTF8):
   words = [u"test", u"exam", u"eggs", u"spam", u"blah"]
 
   def __init__(self, max_times = 100):
+    self.__name__ += str(max_times)
     ByteUBT.__init__(self)
     CodepointUBT.__init__(self)
     self.max_times = max_times
-    self.__name__ += str(max_times)
 
   def ts_byte(self):
     docmap = {}
