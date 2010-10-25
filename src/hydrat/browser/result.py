@@ -8,7 +8,6 @@ from common import page_config
 from display import list_as_html, dict_as_html, list_of_links
 from hydrat.common import as_set
 from collections import defaultdict
-from hydrat.display.summary_fns import result_metadata
 from hydrat.display.tsr import result_summary_table
 from hydrat.result import classification_matrix
 
@@ -26,6 +25,29 @@ def results_metadata_map(store, params, max_uniq = 10):
       del mapping[key]
   return mapping
 
+from hydrat.summary import Summary
+class Navigation(Summary):
+  def init(self, result, interpreter):
+    Summary.init(self, result, interpreter)
+    self.uuid = str(result.metadata['uuid'])
+
+  def key_link(self):
+    link = markup.oneliner.a('link', href='view?'+urllib.urlencode({'uuid':self.uuid}))
+    return str(link)
+    
+  def key_pairs(self):
+    link = markup.oneliner.a('link', href='matrix?'+urllib.urlencode({'uuid':self.uuid}))
+    return str(link)
+
+  def key_select(self):
+    link = markup.oneliner.input(type='checkbox', name='uuid', value=self.uuid)
+    return str(link)
+
+  # TODO: Offer this as an option associated with 'select' instead.
+  def key_delete(self):
+    link = markup.oneliner.a('delete', href='delete?'+urllib.urlencode({'uuid':self.uuid}))
+    return str(link)
+
 class Results(object):
   def __init__(self, store, bconfig):
     self.store = store
@@ -38,23 +60,32 @@ class Results(object):
     return self.list()
 
 
-  def result_summary_page(self, params, page, summary_fn, relevant = None):
+  def result_summary_page(self, params, page, ext_summary_fn = None, relevant = None):
     summaries = []
     uuids = self.store._resolve_TaskSetResults(params)
     int_id = self.interpreter.__name__
+
+    # If an external summary function is supplied, add in navigation links. It is then up
+    # to the user to use 'relevant' to decide which of these links to show.
+    if ext_summary_fn is not None:
+      summary_fn = Navigation()
+      summary_fn.extend(ext_summary_fn)
+    else:
+      summary_fn = None
+
+    # Build the display summaries as we go, based on the stored summaries and any additional
+    # summary function supplied.
     for uuid in uuids:
-      #result = self.store._get_TaskSetResult(uuid)
-      #summary = summary_fn(result, self.interpreter)
       summary = self.store.get_Summary(uuid, int_id)
-      #TODO: Pull these key-adders out
-      link = markup.oneliner.a('link', href='view?'+urllib.urlencode({'uuid':uuid}))
-      summary['link'] = str(link)
-      link = markup.oneliner.a('link', href='matrix?'+urllib.urlencode({'uuid':uuid}))
-      summary['pairs'] = str(link)
-      summary['select'] = markup.oneliner.input(type='checkbox', name='uuid', value=uuid)
-      if self.store.mode == 'a':
-        link = markup.oneliner.a('delete', href='delete?'+urllib.urlencode({'uuid':uuid}))
-        summary['delete'] = str(link)
+      if summary_fn is not None:
+        # TODO: refactor this against summary in frameworks.offline
+        missing_keys = set(summary_fn.keys) - set(summary)
+        if len(missing_keys) > 0:
+          result = self.store._get_TaskSetResult(uuid)
+          summary_fn.init(result, self.interpreter)
+          new_values = dict( (key, summary_fn[key]) for key in missing_keys )
+          summary.update(new_values)
+
       summaries.append(summary)
 
     page.h3('Parameters')
@@ -111,7 +142,7 @@ class Results(object):
       page.a('Show detailed results', href='details?'+urllib.urlencode(params))
 
     # Draw the actual summary
-    self.result_summary_page(params, page, result_metadata, None)
+    self.result_summary_page(params, page)
     return str(page)
 
   @cherrypy.expose
