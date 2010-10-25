@@ -54,7 +54,10 @@ class Spaces(object):
     with page.ul:
       for item in self.store.get_Space(name):
         with page.li:
-          page.add(str(item.encode(encoding)))
+          if isinstance(item, unicode):
+            page.add(str(item.encode(encoding)))
+          else:
+            page.add(str(item))
     return str(page)
 
 
