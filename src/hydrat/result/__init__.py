@@ -14,6 +14,18 @@ def confusion_matrix(gs, cl):
 
   return numpy.column_stack((tp, tn, fp, fn))
 
+def classification_matrix(gs, cl):
+  assert gs.shape == cl.shape
+  class_count = cl.shape[1]
+  matrix = numpy.empty((class_count, class_count), dtype='int64')
+  for gs_i in xrange(class_count):
+    for cl_i in xrange(class_count):
+      gs_c = gs[:,gs_i]
+      cl_c = cl[:,cl_i]
+      matrix[gs_i,cl_i] = numpy.logical_and(gs_c,cl_c).sum()
+  return matrix
+  
+
 class Microaverage(object):
   def __call__(self, matrix, function = None):
     micro_matrix = matrix.sum(axis=0)

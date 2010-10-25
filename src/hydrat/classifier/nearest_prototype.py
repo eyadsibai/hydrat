@@ -1,5 +1,5 @@
 import hydrat.common.distance_metrics as dm
-import prototype as p
+import hydrat.common.prototype as p
 from abstract import Learner
 from knn import KNNClassifier
 from nnstrategy import OneNN

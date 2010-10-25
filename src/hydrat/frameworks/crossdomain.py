@@ -1,6 +1,7 @@
 import numpy
+import hydrat
 
-from hydrat.frameworks.common import Framework
+from hydrat.frameworks.offline import OfflineFramework
 from hydrat.result.result import Result
 from hydrat.result.tasksetresult import TaskSetResult
 from hydrat.common.decorators import replace_with_result
@@ -9,6 +10,9 @@ import os
 from hydrat.display.html import TableSort 
 from hydrat.display.summary_fns import sf_featuresets
 from hydrat.frameworks.offline import process_results, result_summary_table
+from hydrat.result.interpreter import SingleHighestValue, NonZero, SingleLowestValue
+from hydrat.task.taskset import TaskSet
+from hydrat.task.task import Task
 # TODO: Allow for feature weighting and selection
 # TODO: Produce tasksets, and bring this more in line with the offline framework.
 #       This would reduce the burden in implementing weighting and selection.
@@ -36,16 +40,67 @@ summary_fields=\
   , ( {'sorter': None, 'label':"Details"}      , "link"          )
   ]
 
- 
-class CrossDomainFramework(Framework):
+from hydrat.common.decorators import deprecated
+class CrossDomainFramework(OfflineFramework):
+  # We use the taskset interface to give us the ability to do weighting and
+  # selection, just like in OfflineFramework. The approach here is basically
+  # to build a taskset across the two datasets.
+  
+  def __init__(self, dataset, store=None):
+    OfflineFramework.__init__(self, dataset, store)
+    # TODO: Potentially set a different default summary function here!
+    self.eval_dataset = None
 
+  def set_eval_dataset(self, dataset):
+    self.notify('Set eval_dataset to %s' % dataset.__name__)
+    self.eval_dataset = dataset
+
+  @property
+  def taskset_desc(self):
+    taskset_metadata = dict()
+    taskset_metadata['dataset']       = self.dataset.__name__
+    taskset_metadata['split']         = self.split_name
+    taskset_metadata['sequence']      = self.sequence_name
+    taskset_metadata['feature_desc']  = self.feature_desc
+    taskset_metadata['class_space']   = self.class_space
+    taskset_metadata['task_type']     = self.__class__.__name__
+    taskset_metadata['eval_dataset']  = self.eval_dataset.__name__
+    return taskset_metadata
+
+  @property
+  def taskset(self):
+    # TODO: Could save some additional recomputation by 
+    # pulling the training featuremap/classmap from an already
+    # saved version.
+    md = self.taskset_desc
+    if not self.store.has_TaskSet(md):
+      self.notify('Generating TaskSet')
+      task_md = dict(md)
+      task_md['index'] = 0
+      task = Task()
+      task.train_vectors   = self.featuremap.raw
+      task.train_classes   = self.classmap.raw
+      task.train_sequence  = self.sequence
+      task.train_indices   = self.train_indices
+
+      other = OfflineFramework(self.eval_dataset, store = self.store) 
+      other.set_feature_spaces(self.feature_spaces)
+      other.set_class_space(self.class_space)
+      task.test_vectors   = other.featuremap.raw
+      task.test_classes   = other.classmap.raw
+      task.test_sequence  = other.sequence
+      task.test_indices   = other.train_indices
+
+      task.metadata = task_md
+
+      taskset = TaskSet([task], md)
+      self.store.new_TaskSet(taskset)
+    return self.store.get_TaskSet(md)
+
+  @deprecated
   def evaluate(self, dataset):
-    # NOTE: This approach to constructing metadata is brittle, in that it will not
-    #       reflect changes made to metadata elsewhere.
-    md = {}
-    md['dataset'] = self.dataset.__name__
-    md['class_space'] = self.class_space
-    md['feature_desc'] = tuple(sorted(self.feature_spaces))
+    # TODO: How to handle feature weighting and selection?
+    md = self.taskset_desc
     md['task_type'] = self.__class__.__name__
     md['eval_dataset'] = dataset.__name__
     md.update(self.learner.metadata)
@@ -59,6 +114,8 @@ class CrossDomainFramework(Framework):
       other.set_class_space(self.class_space)
 
       classifier = self.classifier
+      # TODO: Need to transform the featuremap according to any transforms 
+      #       they may have been applied! How??
       cl = classifier(other.featuremap.raw)
       md.update(classifier.metadata)
 
@@ -67,41 +124,3 @@ class CrossDomainFramework(Framework):
       tsr = TaskSetResult([result], md)
       self.store.new_TaskSetResult(tsr)
       return True
-
-  # TODO: Clean up and refactor this cut&paste from offline.
-  def generate_output(self, path=None, summary_fn=sf_featuresets, fields = summary_fields, interpreter = None):
-    """
-    Generate HTML output
-    """
-    if path is None: 
-      path = hydrat.config.getpath('paths', 'output')
-    if not os.path.exists(path): 
-      os.mkdir(path)
-    self.notify("Generating output")
-    summaries = process_results\
-      ( self.store 
-      , self.store
-      , summary_fn = summary_fn
-      , output_path = path
-      , interpreter = interpreter
-      ) 
-
-    # render a HTML version of the summaries
-    relevant = list(fields)
-    for f_name in self.store.list_FeatureSpaces():
-      relevant.append( ({'label':f_name, 'searchable':True}, 'feat_' + f_name) )
-
-    indexpath = os.path.join(path, 'index.html')
-    with TableSort(open(indexpath, "w")) as renderer:
-      result_summary_table(summaries, renderer, relevant = relevant)
-    self.outputP = path
-
-  def upload_output(self, target):
-    """
-    Copy output to a sepecified destination.
-    Useful for transferring results to a webserver
-    """
-    self.notify("Uploading output to '%s'"% target)
-    import updatedir
-    updatedir.logger = logger
-    updatedir.updatetree(self.outputP, target, overwrite=True)

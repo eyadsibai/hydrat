@@ -8,26 +8,45 @@ from common import page_config
 from display import list_as_html, dict_as_html, list_of_links
 from hydrat.common import as_set
 from collections import defaultdict
-from hydrat.display.summary_fns import result_metadata
 from hydrat.display.tsr import result_summary_table
+from hydrat.result import classification_matrix
 
 
 def results_metadata_map(store, params, max_uniq = 10):
   mapping = defaultdict(set)
   uuids = store._resolve_TaskSetResults(params)
   for uuid in uuids:
-    result = store._get_TaskSetResult(uuid)
-    summary = result.metadata
-    for key in summary:
-      try:
-        mapping[key].add(str(summary[key]))
-      except TypeError:
-        # Skip unhashable values
-        pass
+    metadata = store._get_TaskSetResultMetadata(uuid)
+    for key, value in metadata.iteritems():
+      if isinstance(value, str):
+        mapping[key].add(value)
   for key in mapping.keys():
     if len(mapping[key]) > max_uniq or len(mapping[key]) <= 1:
       del mapping[key]
   return mapping
+
+from hydrat.summary import Summary
+class Navigation(Summary):
+  def init(self, result, interpreter):
+    Summary.init(self, result, interpreter)
+    self.uuid = str(result.metadata['uuid'])
+
+  def key_link(self):
+    link = markup.oneliner.a('link', href='view?'+urllib.urlencode({'uuid':self.uuid}))
+    return str(link)
+    
+  def key_pairs(self):
+    link = markup.oneliner.a('link', href='matrix?'+urllib.urlencode({'uuid':self.uuid}))
+    return str(link)
+
+  def key_select(self):
+    link = markup.oneliner.input(type='checkbox', name='uuid', value=self.uuid)
+    return str(link)
+
+  # TODO: Offer this as an option associated with 'select' instead.
+  def key_delete(self):
+    link = markup.oneliner.a('delete', href='delete?'+urllib.urlencode({'uuid':self.uuid}))
+    return str(link)
 
 class Results(object):
   def __init__(self, store, bconfig):
@@ -41,21 +60,32 @@ class Results(object):
     return self.list()
 
 
-  def result_summary_page(self, params, page, summary_fn, relevant = None):
+  def result_summary_page(self, params, page, ext_summary_fn = None, relevant = None):
     summaries = []
     uuids = self.store._resolve_TaskSetResults(params)
+    int_id = self.interpreter.__name__
+
+    # If an external summary function is supplied, add in navigation links. It is then up
+    # to the user to use 'relevant' to decide which of these links to show.
+    if ext_summary_fn is not None:
+      summary_fn = Navigation()
+      summary_fn.extend(ext_summary_fn)
+    else:
+      summary_fn = None
+
+    # Build the display summaries as we go, based on the stored summaries and any additional
+    # summary function supplied.
     for uuid in uuids:
-      result = self.store._get_TaskSetResult(uuid)
-      summary = summary_fn(result, self.interpreter)
-      #TODO: Pull these key-adders out
-      link = markup.oneliner.a('link', href='view?'+urllib.urlencode({'uuid':uuid}))
-      summary['link'] = str(link)
-      link = markup.oneliner.a('link', href='matrix?'+urllib.urlencode({'uuid':uuid}))
-      summary['pairs'] = str(link)
-      summary['select'] = markup.oneliner.input(type='checkbox', name='uuid', value=uuid)
-      if self.store.mode == 'a':
-        link = markup.oneliner.a('delete', href='delete?'+urllib.urlencode({'uuid':uuid}))
-        summary['delete'] = str(link)
+      summary = self.store.get_Summary(uuid, int_id)
+      if summary_fn is not None:
+        # TODO: refactor this against summary in frameworks.offline
+        missing_keys = set(summary_fn.keys) - set(summary)
+        if len(missing_keys) > 0:
+          result = self.store._get_TaskSetResult(uuid)
+          summary_fn.init(result, self.interpreter)
+          new_values = dict( (key, summary_fn[key]) for key in missing_keys )
+          summary.update(new_values)
+
       summaries.append(summary)
 
     page.h3('Parameters')
@@ -87,21 +117,21 @@ class Results(object):
 
   @cherrypy.expose
   def list(self, **params):
-    # TODO: Find a way of handling this that does not need feature_desc transform to be hardcoded
-    if 'feature_desc' in params: params['feature_desc'] = tuple(sorted(as_set(params['feature_desc'])))
     page = markup.page()
     page.init(**page_config)
 
     # Show contstraint options
     mapping = results_metadata_map(self.store, params)
     param_links = {}
-    for key in mapping:
+    for key, values in mapping.iteritems():
       links = []
-      values = mapping[key]
       new_params = dict(params)
       for value in values:
-        new_params[key] = value
-        links.append( markup.oneliner.a(value, href='list?'+urllib.urlencode(new_params, True)))
+        if isinstance(value,str):
+          new_params[key] = value
+          links.append( markup.oneliner.a(value, href='list?'+urllib.urlencode(new_params, True)))
+        else:
+          links.append( value )
       param_links[key] = links
       
     page.add(dict_as_html(param_links))
@@ -112,19 +142,19 @@ class Results(object):
       page.a('Show detailed results', href='details?'+urllib.urlencode(params))
 
     # Draw the actual summary
-    self.result_summary_page(params, page, result_metadata, None)
+    self.result_summary_page(params, page)
     return str(page)
 
   @cherrypy.expose
   def details(self, **params):
-    if 'feature_desc' in params: params['feature_desc'] = tuple(sorted(as_set(params['feature_desc'])))
     page = markup.page()
     page.init(**page_config)
     self.result_summary_page(params, page, self.summary_fn, self.relevant)
     return str(page)
 
   @cherrypy.expose
-  def compare(self, uuid):
+  def compare(self, uuid, show_wrong='0', goldstandard=None):
+    print "show_wrong", show_wrong, type(show_wrong)
     # TODO: Parametrize interpreter for non one-of-m highest-best results
     # TODO: Add a count of # of compared result which are correct
     # TODO: show metadata keys in which the results differ
@@ -142,18 +172,18 @@ class Results(object):
     ds_key = 'eval_dataset' if 'eval_dataset' in md else 'dataset'
 
     # Sanity check
-    must_match = ['class_space',ds_key]
+    must_match = ['class_space']
     for m in must_match:
       value_set = set(r.metadata[m] for r in results)
       if len(value_set) != 1:
         raise ValueError, "Non-uniform value for '%s' : %s" % (m, value_set)
+    # TODO: Check that the instance IDs match
 
     # Grab relevant data from store
     class_space = self.store.get_Space(md['class_space'])
     instance_ids = self.store.get_InstanceIds(md[ds_key])
     gs = self.store.get_ClassMap(md[ds_key], md['class_space']).raw
 
-    # Build a mapping of uuid to interpreted cl output
     classifs = []
     for result in results:
       cl = result.overall_classification(range(len(instance_ids)))
@@ -167,7 +197,12 @@ class Results(object):
     int_cl = numpy.logical_not(boring_cl_unused)
 
     boring_inst_allright = (numpy.logical_and((classifs.sum(axis=2) == len(uuid)), gs).sum(axis=1) == 1)
-    int_inst = numpy.logical_not(boring_inst_allright)
+    boring_inst_allwrong = (numpy.logical_and((classifs.sum(axis=2) == len(uuid)), numpy.logical_not(gs)).sum(axis=1) == 1)
+    if show_wrong != '0':
+      boring_inst = boring_inst_allright 
+    else:
+      boring_inst = numpy.logical_or(boring_inst_allright, boring_inst_allwrong)
+    int_inst = numpy.logical_not(boring_inst)
 
     clabels = numpy.array(class_space)[int_cl]
     instlabels = numpy.array(instance_ids)[int_inst]
@@ -176,6 +211,21 @@ class Results(object):
     gs = gs[int_inst,:]
     gs = gs[:,int_cl]
 
+    # Compute confusion pairs
+    cm_all = []
+    for i in xrange(classifs.shape[2]):
+      cl = classifs[:,:,i]
+      cm = classification_matrix(gs, cl)
+      cm_all.append(cm)
+    cm_all = numpy.dstack(cm_all)
+
+    pairs = {}
+    for i, l_i in enumerate(clabels):
+      for j, l_j in enumerate(clabels):
+        if i != j:
+          pairs[(i,j)] = list(cm_all[i,j,:])
+
+    pairs_by_size = sorted(pairs, key=lambda x: sum(pairs[x]), reverse=True)
 
     info = {}
     info['class_space']            = md['class_space']
@@ -185,39 +235,81 @@ class Results(object):
     info['Total Instances']        = len(instance_ids)
     info['Interesting Instances']  = len(instlabels)
 
+    # Compute the set of keys present in the metadata over all results 
+    all_keys = sorted(reduce(set.union, (set(r.metadata.keys()) for r in results)))
+    # Compute the set of possible values for each key 
+    values_set = {}
+    for k in all_keys:
+      for r in results:
+        try:
+          values_set[k] = set(r.metadata.get(k,'UNKNOWN') for r in results)
+        except TypeError:
+          # skip unhashable
+          pass
+    # Compute the set of key-values which all the results have in common
+    common_values = dict( (k, values_set[k].pop()) for k in values_set if len(values_set[k]) == 1)
+
     page = markup.page()
     page.init(**page_config)
 
+    page.h2('Summary')
     page.add(dict_as_html(info))
-
+    page.h2('Common Metadata')
+    page.add(dict_as_html(common_values))
+    if show_wrong != '0':
+      page.a('Hide Wrong', href='compare?' + urllib.urlencode({'uuid':uuid, 'show_wrong':0}, True))
+    else:
+      page.a('Show Wrong', href='compare?' + urllib.urlencode({'uuid':uuid, 'show_wrong':1}, True))
     with page.table:
-      for key in sorted(reduce(set.union, (set(r.metadata.keys()) for r in results))):
-        try:
-          if len(set(r.metadata.get(key,'UNKNOWN') for r in results)) > 1:
-            with page.tr:
-              page.th(key)
-              page.td()
-              for r in results:
-                page.td(str(r.metadata.get(key,'-')))
-        except TypeError:
-          continue
+      for key in values_set:
+        # Display keys which differ
+        if len(values_set[key]) > 1:
+          with page.tr:
+            page.th(key)
+            page.td()
+            for r in results:
+              page.td(str(r.metadata.get(key,'-')))
+      with page.tr:
+        page.th()
+        page.td()
+        for id in uuid: page.th(id)
 
+      # Display classification pairs
+      for pair in pairs_by_size:
+        fr = clabels[pair[0]]  
+        to = clabels[pair[1]] 
+        if goldstandard is None or goldstandard == fr:
+          with page.tr:
+            label = ' => '.join((fr, to))
+            page.th(label)
+            page.td()
+            for i, id in enumerate(uuid):
+              with page.td:
+                page.a(pairs[pair][i], href='classpair?'+urllib.urlencode({'gs':fr,'cl':to,'uuid':id}))
+
+      # Display individual instances
       with page.tr:
         page.th()
         page.th('Goldstandard')
-        for id in uuid: page.th(id)
+        for id in uuid: 
+          with page.th:
+            page.a(id, href='view?'+urllib.urlencode({'uuid':id}))
 
       for i, instance_id in enumerate(instlabels):
-        with page.tr:
-          with page.th:
-            link = '../datasets/'+md[ds_key]+'/instances?'+urllib.urlencode({'id':instance_id})
-            page.a(instance_id, href= link)
+        inst_gs = gs[i]
+        label = clabels[inst_gs]
+        if goldstandard is None or goldstandard == label:
+          with page.tr:
+            with page.th:
+              link = '../datasets/'+md[ds_key]+'/instances?'+urllib.urlencode({'id':instance_id})
+              page.a(instance_id, href= link)
 
-          inst_gs = gs[i]
-          page.td(clabels[inst_gs])
-          for j, r_id in enumerate(uuid):
-            inst_cl = classifs[i,:,j]
-            page.td(clabels[inst_cl], **{'class':'correct' if (inst_gs==inst_cl).all() else 'wrong'})
+            with page.td:
+              page.a(label, href='compare?' + urllib.urlencode({'uuid':uuid, 'show_wrong':show_wrong, 'goldstandard':label}, True))
+            for j, r_id in enumerate(uuid):
+              inst_cl = classifs[i,:,j]
+              labels = list(clabels[inst_cl])
+              page.td(labels, **{'class':'correct' if (inst_gs==inst_cl).all() else 'wrong'})
       
     return str(page)
 
@@ -264,11 +356,13 @@ class Results(object):
     return str(page)
 
   @cherrypy.expose
-  def matrix(self, uuid):
+  def matrix(self, uuid, threshold=0):
+    threshold = int(threshold)
     result = self.store._get_TaskSetResult(uuid)
     class_space = self.store.get_Space(result.metadata['class_space'])
     matrix = result.overall_classification_matrix(self.interpreter)
     matrix_sans_diag = numpy.logical_not(numpy.diag(numpy.ones(len(class_space), dtype=bool))) * matrix
+    matrix_sans_diag *= matrix >= threshold
     interesting = numpy.logical_or(matrix_sans_diag.sum(axis=0), matrix_sans_diag.sum(axis=1))
     int_cs = numpy.array(class_space)[interesting]
     matrix = matrix[interesting].transpose()[interesting].transpose()
@@ -285,7 +379,7 @@ class Results(object):
           for j, val in enumerate(row):
             gs = int_cs[i]
             cl = int_cs[j]
-            if val > 0 and gs != cl:
+            if val > threshold and gs != cl:
               td_attr={'class':'highlight'}
             else:
               td_attr={}
@@ -313,14 +407,22 @@ class Results(object):
 
     page = markup.page()
     page.init(**page_config)
+    page.add(dict_as_html(result.metadata))
     page.h1("Classified from '%s' to '%s'" % (gs,cl))
     key = (gs_i, cl_i)
-    with page.ul:
+    tokenstreams = sorted(self.store.list_TokenStreams(dataset))
+    featurespaces = sorted(self.store.list_FeatureSpaces(dataset))
+    with page.table:
       for i in pairs[key]:
-        with page.li:
+        with page.tr:
           id = docids[i]
-          # TODO: Build a table of what is available instead, for easy acces. Add mouseover ajax maybe.
-          page.a(id, href='../datasets/%s/instances/%s' % (dataset, id))
-          page.a('byte',href='../datasets/%s/tokenstream/byte/%s' % (dataset, id))
+          with page.th:
+            page.a(id, href='../datasets/%s/instances?' % dataset + urllib.urlencode({'id':id}))
+          for ts in tokenstreams:
+            with page.td:
+              page.a(ts,href='../datasets/%s/tokenstream/%s/%s' % (dataset, ts, id))
+          for fs in featurespaces:
+            with page.td:
+              page.a(fs,href='../datasets/%s/features/%s/%s' % (dataset, fs, id))
     return str(page)
 

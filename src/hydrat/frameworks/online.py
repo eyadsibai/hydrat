@@ -25,17 +25,11 @@ class OnlineFramework(Framework):
               ):
     Framework.__init__(self, dataset, store)
 
-    self.interpreter = None
     self.vectorize = None
     self.__classifier = None
 
   def notify(self, str):
     self.logger.info(str)
-
-  def set_interpreter(self, interpreter):
-    self.interpreter = interpreter
-    self.notify("Set interpreter to '%s'" % str(interpreter))
-    self.configure()
 
   def is_configurable(self):
     return self.feature_spaces is not None\
@@ -96,8 +90,7 @@ class OnlineFramework(Framework):
     elif isinstance(text, unicode):
       raise ValueError, "Can only handle byte streams for now"
     feat_map = self.vectorize(text)
-    result = self.__classifier(feat_map)
-    # TODO: We should interpret at this point.
+    result = self.interpreter(self.__classifier(feat_map))
     classlabels = numpy.array(self.classlabels)
     if solo:
       return classlabels[result[0]]

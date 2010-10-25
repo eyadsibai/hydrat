@@ -8,6 +8,7 @@ import hydrat.display.summary_fns as sf
 import hydrat.task.transform as tx
 from hydrat.display.tsr import render_TaskSetResult
 from hydrat.result.interpreter import SingleHighestValue, NonZero, SingleLowestValue
+from hydrat.summary import classification_summary
 from hydrat.display.summary_fns import sf_featuresets
 from hydrat.display.html import TableSort 
 from hydrat.display.tsr import result_summary_table
@@ -18,12 +19,9 @@ from hydrat.task.taskset import TaskSet, from_partitions
 from hydrat.experiments import Experiment
 from hydrat.task.sampler import membership_vector
 from hydrat.frameworks.common import Framework
+from hydrat.common.decorators import deprecated
 
 logger = logging.getLogger(__name__)
-
-# TODO:
-# set_feature_space should be able to deal with a list of feature spaces being passed.
-# Ideally, it should receive a feature_desc object, but that is for further work.
 
 summary_fields=\
   [ ( {'label':"Dataset", 'searchable':True}       , "dataset"       )
@@ -52,6 +50,48 @@ class OfflineFramework(Framework):
 
     self.sequence_name = None
     self.outputP = None
+    self.interpreter = SingleHighestValue()
+    self.summary_fn = classification_summary()
+
+  @property
+  def classifier(self):
+    raise NotImplementedError, "What should this actually do?"
+    # We override the definition of classifier, as with a taskset context we want to
+    # train the classifier over the taskset's training data, which may have had transforms
+    # applied to it already.
+    if self.learner is None:
+      raise ValueError, "Learner has not been set"
+    task = self.taskset.tasks[0]
+    classifier = self.learner(task.train_vectors, task.train_classes, sequence=task.train_sequence)
+    return classifier
+
+  @property
+  def summary(self):
+    # TODO: Can we avoid loading the result?
+    tsr_id = self.store._resolve_TaskSetResults(self.result_desc)[0]
+    int_id = self.interpreter.__name__
+    summary = self.store.get_Summary(tsr_id, int_id)
+    missing_keys = set(self.summary_fn.keys) - set(summary)
+    if len(missing_keys) > 0:
+      result = self.result
+      self.summary_fn.init(result, self.interpreter)
+      new_values = dict( (key, self.summary_fn[key]) for key in missing_keys )
+      self.store.add_Summary(tsr_id, int_id, new_values) 
+      summary.update(new_values)
+    return summary
+
+  @property
+  def result_desc(self):
+    result_metadata = self.taskset_desc
+    result_metadata['learner'] = self.learner.__name__
+    result_metadata['learner_params'] = self.learner.params
+    return result_metadata 
+
+  @property 
+  def result(self):
+    if not self.store.has_TaskSetResult(self.result_desc):
+      self.run()
+    return self.store.get_TaskSetResult(self.result_desc)
 
   @property
   def taskset_desc(self):
@@ -65,81 +105,53 @@ class OfflineFramework(Framework):
 
   @property
   def taskset(self):
+    if not self.store.has_TaskSet(self.taskset_desc):
+      self.notify('Generating TaskSet')
+      # TODO: This is likely to break if not fully configured, so do something here.
+      # We do this dance because we need to grab the featuremap and classmap under conditions
+      # where we have no split, to get the full feature/classmaps. If this proves problematic,
+      # should refactor.
+      split = self.split
+      split_name = self.split_name
+      self.split_name = None
+      fm = self.featuremap
+      cm = self.classmap
+      sq = self.sequence
+      self.split_name = split_name
+      taskset = from_partitions(split, fm, cm, sq, self.taskset_desc) 
+      self.store.new_TaskSet(taskset)
     return self.store.get_TaskSet(self.taskset_desc)
 
-  @property
-  def split(self):
-    # TODO: grab from store instead. must ensure it has been induced.
-    split_raw = self.dataset.split(self.split_name)
-    if 'train' in split_raw and 'test' in split_raw:
-      # Train/test type split.
-      all_ids = self.dataset.instance_ids
-      train_ids = membership_vector(all_ids, split_raw['train'])
-      test_ids = membership_vector(all_ids, split_raw['test'])
-      split = numpy.dstack((train_ids, test_ids)).swapaxes(0,1)
-    elif any(key.startswith('fold') for key in split_raw):
-      # Cross-validation folds
-      all_ids = self.dataset.instance_ids
-      folds_present = sorted(key for key in split_raw if key.startswith('fold'))
-      partitions = []
-      for fold in folds_present:
-        test_ids = membership_vector(all_ids, split_raw[fold])
-        train_docids = sum((split_raw[f] for f in folds_present if f is not fold), [])
-        train_ids = membership_vector(all_ids, train_docids)
-        partitions.append( numpy.dstack((train_ids, test_ids)).swapaxes(0,1) )
-      split = numpy.hstack(partitions)
-    else:
-      raise ValueError, "Unknown type of split"
-    return split
-
-  @property
-  def sequence(self):
-    if self.sequence_name is None:
-      return None
-    else:
-      return self.store.get_Sequence(self.dataset.__name__, self.sequence_name)
-
-  def set_sequence(self, sequence):
-    self.inducer.process_Dataset( self.dataset, sqs = sequence)
-    self.sequence_name = sequence
-    self.notify("Set sequence to '%s'" % sequence)
-    self.configure()
+  def set_summary(self, summary_fn):
+    self.summary_fn = summary_fn
+    self.notify("Set summary_fn to '%s'" % summary_fn)
 
   def has_run(self):
-    m = dict( self.taskset_desc )
-    m['learner'] = self.learner.__name__
-    m['learner_params'] = self.learner.params
-    return self.store.has_TaskSetResult(m)
+    return self.store.has_TaskSetResult(self.result_desc)
 
   def run(self, force=False):
     # Check if we already have this result
     if force or not self.has_run():
-      # Check if we already have this task
-      if not self.store.has_TaskSet(self.taskset_desc):
-        self.notify('Generating TaskSet')
-        # TODO: This is likely to break if not fully configured, so do something here.
-        taskset = from_partitions(self.split, self.featuremap, self.classmap, self.sequence, self.taskset_desc) 
-        self.store.new_TaskSet(taskset)
-      run_experiment(self.taskset, self.learner, self.store)
+      exp = Experiment(self.taskset, self.learner)
+      try:
+        tsr = exp.run()
+        self.store.add_TaskSetResult(tsr)
+        self.summary # forces the summary to be generated
+      except Exception, e:
+        logger.critical('Experiment failed with %s', e.__class__.__name__)
+        if hydrat.config.getboolean('debug','pdb_on_classifier_exception'):
+          logger.critical(e)
+          import pdb;pdb.post_mortem()
+        else:
+          logger.debug(e)
 
-  def transform_taskset(self, transformer, save_intermediate=False):
+  def transform_taskset(self, transformer):
     metadata = tx.update_metadata(self.taskset_desc, transformer)
     if not self.store.has_TaskSet(metadata):
-      #TODO: this step can be unified with run if we can reliably map from taskset_desc to the transformers involved.
-      if self.store.has_TaskSet(self.taskset_desc):
-        taskset = self.taskset
-      else:
-        # TODO: This can go away once we unify, but for now we need to make sure that the taskset to modify
-        # exists before we modify it.
-        taskset = from_partitions(self.split, self.featuremap, self.classmap, self.sequence, self.taskset_desc) 
-        if save_intermediate:
-          self.store.new_TaskSet(taskset)
-      # Now do the actual transform
+      taskset = self.taskset
       taskset = tx.transform_taskset(taskset, transformer)
       self.store.new_TaskSet(taskset)
     # Only copy over the new feature_desc
-    # TODO: Why bother with configure generating taskset_desc at all? we can't manipulate taskset_desc
-    #       directly because configure will mercilessly overwrite it from the base parameters.
     self.feature_desc = metadata['feature_desc']
 
   def extend_taskset(self, feature_spaces):
@@ -158,7 +170,8 @@ class OfflineFramework(Framework):
       self.store.new_TaskSet(taskset)
     self.feature_desc += tuple(sorted(feature_spaces))
 
-  def generate_output(self, path=None, summary_fn=sf_featuresets, fields = summary_fields, interpreter = None):
+  # TODO: Update to new-style summary function!!!
+  def generate_output(self, path=None, summary_fn=sf_featuresets, fields = summary_fields):
     """
     Generate HTML output
     """
@@ -170,9 +183,9 @@ class OfflineFramework(Framework):
     summaries = process_results\
       ( self.store 
       , self.store
+      , self.interpreter
       , summary_fn = summary_fn
       , output_path = path
-      , interpreter = interpreter
       ) 
 
     # render a HTML version of the summaries
@@ -196,31 +209,15 @@ class OfflineFramework(Framework):
     updatedir.updatetree(self.outputP, target, overwrite=True)
     
 
-def run_experiment(taskset, learner, result_store):
-  exp = Experiment(taskset, learner)
-  try:
-    tsr = exp.run()
-    result_store.add_TaskSetResult(tsr)
-  except Exception, e:
-    logger.critical('Experiment failed with %s', e.__class__.__name__)
-    logger.debug(e)
-    if hydrat.config.getboolean('debug','pdb_on_classifier_exception'):
-      import pdb;pdb.post_mortem()
-
 def process_results( data_store
                    , result_store
+                   , interpreter
                    , summary_fn=sf.sf_basic
                    , output_path=None
-                   , interpreter=None
                    ):
   """
   If output_path is not None, per-result summaries will be produced in that folder.
   """
-
-  # Set a default interpreter
-  if interpreter is None:
-    interpreter = SingleHighestValue()
-
   summaries = []
   # TODO: Must only allow the framework to process results
   # relevant to it. Need to look into TaskSetResult metadata

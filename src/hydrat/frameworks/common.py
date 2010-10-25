@@ -1,5 +1,6 @@
 import logging
 import os
+import numpy
 
 import hydrat
 from hydrat.common.pb import ProgressIter
@@ -53,7 +54,26 @@ class Framework(object):
     self.class_space = None
     self.learner = None
     self.split_name = None
+    self.interpreter = None
+    # NOTE: The following is a hack to avoid a particular issue resulting from a bad interaction
+    # between pytables and h5py. Pytables registers an exitfunc with atexit which closes any
+    # open h5files by calling their .close() method. This happens before any __del__ methods
+    # are invoked. When h5py is imported, this causes an error. However, explicitly closing a 
+    # pytables tableFile with its close method does not cause the same error. This hook forces
+    # that to happen before pytables' atexit is called. It calls store.__del__ to avoid diving
+    # too deeply into the store implementation. 
+    # Perhaps the issue is with h5py registering a hook that gets called first. The hooks are 
+    # called LIFO, so ours will always get called first.
+    import atexit; atexit.register(lambda: self.store.__del__())
   
+  @property
+  def train_indices(self):
+    if self.split_name is None:
+      # TODO: Find a faster way of computing this if necessary.
+      return numpy.ones(len(self.dataset.instance_ids), dtype='bool')
+    else:
+      return self.split[:,0,0]
+
   @property
   def featuremap(self):
     self.inducer.process_Dataset(self.dataset, fms=self.feature_spaces)
@@ -64,7 +84,8 @@ class Framework(object):
 
     # Join the featuremaps into a single featuremap
     fm = union(*featuremaps)
-    return fm
+    # NOTE: caution here, sparse arrays must not be indexed by boolean arrays
+    return fm[numpy.flatnonzero(self.train_indices)]
 
   @property
   def featurelabels(self):
@@ -78,7 +99,8 @@ class Framework(object):
   def classmap(self):
     self.inducer.process_Dataset(self.dataset, cms=self.class_space)
     ds_name = self.dataset.__name__
-    return self.store.get_ClassMap(ds_name, self.class_space)
+    cm = self.store.get_ClassMap(ds_name, self.class_space)
+    return cm[self.train_indices]
 
   @property
   def classlabels(self):
@@ -89,22 +111,45 @@ class Framework(object):
     learner = self.learner
     if self.learner is None:
       raise ValueError, "Learner has not been set"
-    if self.split_name is None:
-      cm = self.classmap.raw
-      fm = self.featuremap.raw
-    else:
-      mv = membership_vector(self.dataset.instance_ids, self.split['train'])
-      train_indices = mv.nonzero()[0]
-      cm = self.classmap.raw[train_indices]
-      fm = self.featuremap.raw[train_indices]
+    cm = self.classmap.raw
+    fm = self.featuremap.raw
     self.notify("Training '%s'" % self.learner)
     classifier = learner(fm, cm)
     return classifier
 
   @property
   def split(self):
-    # TODO: Obtain this from store once splits are stored as well
-    return self.dataset.split(split)
+    # TODO: grab from store instead. must ensure it has been induced.
+    #       this code goes into the inducer
+    split_raw = self.dataset.split(self.split_name)
+    if 'train' in split_raw and 'test' in split_raw:
+      # Train/test type split.
+      all_ids = self.dataset.instance_ids
+      train_ids = membership_vector(all_ids, split_raw['train'])
+      test_ids = membership_vector(all_ids, split_raw['test'])
+      split = numpy.dstack((train_ids, test_ids)).swapaxes(0,1)
+    elif any(key.startswith('fold') for key in split_raw):
+      # Cross-validation folds
+      all_ids = self.dataset.instance_ids
+      folds_present = sorted(key for key in split_raw if key.startswith('fold'))
+      partitions = []
+      for fold in folds_present:
+        test_ids = membership_vector(all_ids, split_raw[fold])
+        train_docids = sum((split_raw[f] for f in folds_present if f is not fold), [])
+        train_ids = membership_vector(all_ids, train_docids)
+        partitions.append( numpy.dstack((train_ids, test_ids)).swapaxes(0,1) )
+      split = numpy.hstack(partitions)
+    else:
+      raise ValueError, "Unknown type of split"
+    return split
+
+  @property
+  def sequence(self):
+    # TODO: Does this need to be filtered by training_indices?
+    if self.sequence_name is None:
+      return None
+    else:
+      return self.store.get_Sequence(self.dataset.__name__, self.sequence_name)
 
   def notify(self, str):
     self.logger.info(str)
@@ -135,6 +180,17 @@ class Framework(object):
     """
     self.split_name = split
     self.notify("Set split to '%s'" % split)
+    self.configure()
+
+  def set_interpreter(self, interpreter):
+    self.interpreter = interpreter
+    self.notify("Set interpreter to '%s'" % interpreter)
+    self.configure()
+
+  def set_sequence(self, sequence):
+    self.inducer.process_Dataset( self.dataset, sqs = sequence)
+    self.sequence_name = sequence
+    self.notify("Set sequence to '%s'" % sequence)
     self.configure()
 
   def configure(self): 
