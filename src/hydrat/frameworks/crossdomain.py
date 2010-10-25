@@ -58,13 +58,15 @@ class CrossDomainFramework(OfflineFramework):
   @property
   def taskset_desc(self):
     taskset_metadata = dict()
-    taskset_metadata['dataset']       = self.dataset.__name__
-    taskset_metadata['split']         = self.split_name
-    taskset_metadata['sequence']      = self.sequence_name
-    taskset_metadata['feature_desc']  = self.feature_desc
-    taskset_metadata['class_space']   = self.class_space
-    taskset_metadata['task_type']     = self.__class__.__name__
-    taskset_metadata['eval_dataset']  = self.eval_dataset.__name__
+    taskset_metadata['dataset']         = self.dataset.__name__
+    taskset_metadata['instance_space']  = self.dataset.instance_space
+    taskset_metadata['split']           = self.split_name
+    taskset_metadata['sequence']        = self.sequence_name
+    taskset_metadata['feature_desc']    = self.feature_desc
+    taskset_metadata['class_space']     = self.class_space
+    taskset_metadata['task_type']       = self.__class__.__name__
+    taskset_metadata['eval_dataset']    = self.eval_dataset.__name__
+    taskset_metadata['eval_space']      = self.eval_dataset.instance_space
     return taskset_metadata
 
   @property
@@ -103,6 +105,7 @@ class CrossDomainFramework(OfflineFramework):
     md = self.taskset_desc
     md['task_type'] = self.__class__.__name__
     md['eval_dataset'] = dataset.__name__
+    md['eval_space'] = dataset.instance_space
     md.update(self.learner.metadata)
     if self.store.has_TaskSetResult(md):
       self.notify("Previously evaluated over '%s'" % dataset.__name__)
