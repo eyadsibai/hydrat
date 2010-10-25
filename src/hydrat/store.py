@@ -117,6 +117,9 @@ class Store(object):
     self.tasksets = self.root.tasksets
     self.results = self.root.results
 
+    if not 'version' in root._v_attrs or root._v_attrs['version'] != STORE_VERSION:
+      raise ValueError, "Store format is outdated; please open the store as writeable to automatically update it"
+
   
   def __str__(self):
     return "<Store mode '%s' @ '%s'>" % (self.mode, self.path)
@@ -127,7 +130,6 @@ class Store(object):
   ###
   # Utility Methods
   ###
-
   def _check_writeable(self):
     if self.mode not in "wa":
       raise IOError, "Store is not writeable!"
