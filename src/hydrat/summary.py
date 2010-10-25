@@ -11,6 +11,7 @@ class Summary(object):
     Override this if you need to pre-compute some values if
     a result and/or interpreter change.
     """
+    # TODO: How to ensure any extended handlers get a proper init if we override this??
     self.result = result
     self.interpreter = interpreter
 
@@ -100,8 +101,29 @@ class Metadata(Summary):
   def __getitem__(self, key):
     return self.result.metadata.get(key, None)
 
-classification_summary = Summary()
-classification_summary.extend(MacroPRF())
-classification_summary.extend(MicroPRF())
-classification_summary.extend(Metadata(['dataset','class_space','feature_desc','split_name','learner','learner_params']))
-classification_summary.extend(TimeTaken())
+class ProjectMetadata(Summary):
+  """
+  Project keys from a dictionary associated with a metadata value
+  """
+  def __init__(self, meta_key, keys):
+    self.__meta_key = meta_key
+    self.__keys = keys
+    Summary.__init__(self)
+
+  @property
+  def keys(self): return (':'.join((self.__meta_key, key)) for key in self.__keys)
+
+  def __getitem__(self, key):
+    mk, k = key.split(':')
+    if mk != self.__meta_key:
+      raise ValueError, "incorrect metakey"
+    return self.result.metadata.get(mk,{}).get(k,None)
+    
+
+def classification_summary():
+  sf = Summary()
+  sf.extend(MacroPRF())
+  sf.extend(MicroPRF())
+  sf.extend(Metadata(['dataset','class_space','feature_desc','split_name','learner','learner_params']))
+  sf.extend(TimeTaken())
+  return sf
