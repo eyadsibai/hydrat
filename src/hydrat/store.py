@@ -53,6 +53,40 @@ class BoolFeature(tables.IsDescription):
 # TODO: Declare a configurable compression filter
 #         tables.Filters(complevel=5, complib='zlib') 
 
+STORE_VERSION = 1
+
+def update_h5store(fileh):
+  """
+  Update the format of a h5file-backed store from an earlier version.
+  This is done as an incremental procress, i.e. an update 0->2 is done as
+  0->1->2
+  The fileh is assumed to be writeable.
+  An update from a file without version number is taken to mean that is is either
+  version unknown or a brand new file.
+  """
+  logger.debug("Running update_h5store")
+  root = fileh.root
+  for node in ['spaces', 'datasets', 'tasksets', 'results']:
+    if not hasattr(root, node):
+      fileh.createGroup( root, node )
+
+  version = root._v_attrs['version'] if 'version' in root._v_attrs else 0
+  
+  if version < 1:
+    # No version, or new file
+    logger.debug('updating to version 1')
+    for dsnode in root.datasets:
+      if not hasattr(dsnode, 'tokenstreams'):
+        logger.debug('Node %s did not have tokenstreams node; adding.', dsnode._v_name)
+        fileh.createGroup( dsnode, "tokenstreams" )
+      if not hasattr(dsnode, 'sequence'):
+        logger.debug('Node %s did not have sequence node; adding.', dsnode._v_name)
+        fileh.createGroup( dsnode, "sequence" )
+
+  logger.debug("updated store from version %d to %d", version, STORE_VERSION)
+  root._v_attrs['version'] = STORE_VERSION
+  fileh.flush()
+
 class Store(object):
   """
   This is the master store class for hydrat. It manages all of the movement of data
@@ -67,70 +101,25 @@ class Store(object):
     # results
     """
     self.path = path
+    logger.debug("Opening Store at '%s', mode '%s'", self.path, mode)
     self.fileh = tables.openFile(self.path, mode=mode)
     self.mode = mode
-    logger.debug("Opening Store at '%s', mode '%s'", self.path, mode)
+
+    try:
+      self._check_writeable()
+      update_h5store(self.fileh)
+    except IOError:
+      pass
+
     self.root = self.fileh.root
+    self.datasets = self.root.datasets
+    self.spaces = self.root.spaces
+    self.tasksets = self.root.tasksets
+    self.results = self.root.results
 
-    try:
-      self.datasets = self.root.datasets
-    except tables.exceptions.NoSuchNodeError:
-      self._check_writeable()
-      self.datasets = self.fileh.createGroup( self.root
-                            , 'datasets'
-                            , 'Per-dataset Data'
-                            )
-
-    try:
-      self.spaces = self.root.spaces
-    except tables.exceptions.NoSuchNodeError:
-      self._check_writeable()
-      self.spaces = self.fileh.createGroup( self.root
-                            , 'spaces'
-                            , 'Space Information'
-                            )
-
-    try:
-      self.tasksets = self.root.tasksets
-    except tables.exceptions.NoSuchNodeError:
-      self._check_writeable()
-      self.tasksets = self.fileh.createGroup( self.root
-                            , 'tasksets'
-                            , 'TaskSet Data'
-                            )
-
-    try:
-      self.results = self.root.results
-    except tables.exceptions.NoSuchNodeError:
-      self._check_writeable()
-      self.results = self.fileh.createGroup( self.root
-                            , 'results'
-                            , 'TaskSetResult Data'
-                            )
-    if self.mode != 'r':
-      self.__update_format()
   
   def __str__(self):
     return "<Store mode '%s' @ '%s'>" % (self.mode, self.path)
-
-  def __update_format(self):
-    for dsnode in self.datasets:
-      if not hasattr(dsnode, 'tokenstreams'):
-        logger.warning('Node %s did not have tokenstreams node; adding.', dsnode._v_name)
-        # Create a group for Token Streams
-        self.fileh.createGroup( dsnode
-                              , "tokenstreams"
-                              , "Token Streams"
-                              )
-      if not hasattr(dsnode, 'sequence'):
-        logger.warning('Node %s did not have sequence node; adding.', dsnode._v_name)
-        # Create a group for Token Streams
-        self.fileh.createGroup( dsnode
-                              , "sequence"
-                              , "Instance sequencing information"
-                              )
-        
-
 
   def __del__(self):
     self.fileh.close()
