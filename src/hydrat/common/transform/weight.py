@@ -52,12 +52,9 @@ class TFIDF(LearnlessTransformer):
 class Weighter(Transformer):
   __name__ = "weighter"
 
-  def __init__(self):
-    self.logger = logging.getLogger('hydrat.classifier.weighter.' + self.__name__)
-
-
-class SimpleWeighter(Weighter):
   def __init__(self, weighting_function):
+    Transformer.__init__(self)
+    self.logger = logging.getLogger('hydrat.classifier.weighter.' + self.__name__)
     self.__name__ = weighting_function.__name__
     Weighter.__init__(self)
     self.weighting_function = weighting_function
@@ -66,6 +63,20 @@ class SimpleWeighter(Weighter):
   def learn(self, feature_map, class_map):
     self.weights = self.weighting_function(feature_map, class_map)
     
+
+class BinaryWeighted(Weighter):
+  def apply(self, feature_map):
+    assert self.weights is not None, "Weights have not been learned!"
+    assert feature_map.shape[1] == len(self.weights), "Shape of feature map is wrong!"
+
+    weighted_feature_map = numpy.empty(feature_map.shape, dtype=float)
+    for i,row in enumerate(feature_map):
+      weighted_feature_map[i] = self.weights * (row > 0)
+    return csr_matrix(weighted_feature_map)
+
+
+#TODO: Rename to something more informative
+class Weighted(Weighter):
   def apply(self, feature_map):
     assert self.weights is not None, "Weights have not been learned!"
     assert feature_map.shape[1] == len(self.weights), "Shape of feature map is wrong!"
