@@ -86,7 +86,7 @@ class Weighted(Weighter):
       weighted_feature_map[i] = row.multiply(self.weights.reshape(row.shape))
     return csr_matrix(weighted_feature_map)
 
-class CutoffWeighter(SimpleWeighter):
+class CutoffWeighter(Weighter):
   """ Similar to SimpleWeighter, but applies a Cutoff value after doing the weighting
   """
   def __init__(self, weighting_function, threshold = 1):
