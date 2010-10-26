@@ -2,14 +2,40 @@ import numpy
 
 class WeightingFunction(object):
   """
-  Class representing a weighting function
+  Class representing a weighting function, which is simply
+  a single value for each term (feature).
   must implement self.weight(feature_map, class_map)
   """
+  def __init__(self):
+    if not hasattr(self, '__name__'):
+      self.__name__ = self.__class__.__name__
+
   def __call__(self, feature_map, class_map):
     return self.weight(feature_map, class_map)
 
   def weight(self, feature_map, class_map):
     raise NotImplementedError
+
+class TermFrequency(WeightingFunction):
+  """
+  Returns the summation across all instances
+  """
+  def weight(self, feature_map, class_map):
+    raw = feature_map.sum(axis=0)
+    return numpy.array(raw)[0]
+
+class DocumentFrequency(WeightingFunction):
+  """
+  Returns how many instances each term occurs more than threshold
+  times in.
+  """
+  def __init__(self, threshold = 0):
+    WeightingFunction.__init__(self)
+    self.threshold = threshold
+
+  def weight(self, feature_map, class_map):
+    raw = (feature_map > self.threshold).sum(axis=0)
+    return numpy.array(raw)[0]
 
 class CavnarTrenkle94(WeightingFunction):
   """
@@ -17,6 +43,7 @@ class CavnarTrenkle94(WeightingFunction):
   influential 1994 paper N-gram based text categorization
   """
   def __init__(self, count=300):
+    WeightingFunction.__init__(self)
     self.count = count
     self.__name__ = 'CavTrenk%d' % count
 
