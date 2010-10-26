@@ -124,6 +124,6 @@ def classification_summary():
   sf = Summary()
   sf.extend(MacroPRF())
   sf.extend(MicroPRF())
-  sf.extend(Metadata(['dataset','class_space','feature_desc','split_name','learner','learner_params']))
+  sf.extend(Metadata(['dataset','class_space','feature_desc','split','learner','learner_params']))
   sf.extend(TimeTaken())
   return sf
