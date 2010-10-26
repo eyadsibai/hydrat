@@ -149,6 +149,7 @@ class OfflineFramework(Framework):
   def transform_taskset(self, transformer):
     metadata = tx.update_metadata(self.taskset_desc, transformer)
     if not self.store.has_TaskSet(metadata):
+      self.notify('Applying %s to taskset\n\t%s' % (str(transformer), str(self.taskset_desc)))
       taskset = self.taskset
       taskset = tx.transform_taskset(taskset, transformer)
       self.store.new_TaskSet(taskset)
