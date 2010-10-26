@@ -18,5 +18,4 @@ relevant  = \
             , ( "Micro-R"        , "micro_recall"        )
             , ( {'sorter':'digit', 'label':"Learn Time"}    , "avg_learn"     )
             , ( {'sorter':'digit', 'label':"Classify Time"} , "avg_classify"  )
-            , ( {'sorter': None, 'label':"Details"}      , "link"          )
             ]
