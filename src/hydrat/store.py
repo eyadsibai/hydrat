@@ -208,7 +208,7 @@ class Store(object):
     setattr(attrs, 'shape', data.shape)
     # Add the features to the table
     feature = node.row
-    for i,row in enumerate(data):
+    for i,row in enumerate(ProgressIter(data, label='writing sparse node', maxval=data.shape[0])):
       for j,v in numpy.vstack((row.indices, row.data)).transpose():
         feature['ax0'] = i
         feature['ax1'] = j
