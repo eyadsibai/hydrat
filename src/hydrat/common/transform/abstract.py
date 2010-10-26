@@ -1,4 +1,7 @@
 class Transformer(object):
+  def __str__(self):
+    return '<Transformer %s>' % self.__name__
+
   def learn(feature_map, class_map):
     raise NotImplemented
 
