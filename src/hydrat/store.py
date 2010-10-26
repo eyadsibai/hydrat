@@ -792,6 +792,19 @@ class Store(object):
       self.fileh.removeNode(self.tasksets, tags[0], recursive=True)
       raise NoData
 
+  def _get_TaskSetMetadata(self, taskset_tag):
+    try:
+      taskset_entry  = getattr(self.tasksets, taskset_tag)
+    except AttributeError:
+      raise KeyError, str(taskset_tag)
+    metadata = get_metadata(taskset_entry)
+    return metadata
+
+  def _del_TaskSet(self, taskset_tag):
+    if not hasattr(self.tasksets, taskset_tag):
+      raise KeyError, str(taskset_tag)
+    self.fileh.removeNode(self.tasksets, taskset_tag, True)
+
   def _get_TaskSet(self, taskset_tag):
     try:
       taskset_entry  = getattr(self.tasksets, taskset_tag)
