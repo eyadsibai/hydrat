@@ -2,7 +2,7 @@ import numpy
 import logging
 from hydrat.common.transform import Transformer
 from infogain import ig_bernoulli
-from weighting_function import CavnarTrenkle94
+from weighting_function import CavnarTrenkle94, TermFrequency
 
 class KeepRule(object):
   __name__ = 'keeprule'
@@ -28,11 +28,19 @@ class NonZero(KeepRule):
   def __call__(self, weight_vector):
     return numpy.flatnonzero(weight_vector)
 
+class Exceeds(KeepRule):
+  def __init__(self, n):
+    self.n = n
+    self.__name__ = 'Exceeds%d' % n
+
+  def __call__(self, weight_vector):
+    return numpy.flatnonzero(weight_vector >= self.n)
+
 class FeatureSelect(Transformer):
   def __init__(self, weighting_function, keep_rule):
     self.__name__ = weighting_function.__name__
     self.__name__+= '_fs%s' % keep_rule.__name__
-    self.logger = logging.getLogger('hydrat.classifier.featureselect.' + self.__name__)
+    self.logger = logging.getLogger(__name__ + self.__name__)
     self.keep_rule = keep_rule
     self.weighting_function = weighting_function
     self.keep_indices = None
@@ -47,8 +55,9 @@ class FeatureSelect(Transformer):
     assert self.keep_indices is not None, "Weights have not been learned!"
     self.logger.debug('Applying Weights')
     
-    selected_map = feature_map.transpose()[self.keep_indices].transpose()
+    selected_map = feature_map[:,self.keep_indices]
     return selected_map 
 
 ig_bern_top500 = FeatureSelect(ig_bernoulli, HighestN(500))
 cavnar_trenkle = FeatureSelect(CavnarTrenkle94(300), NonZero())
+def occurs(x): return FeatureSelect(TermFrequency(), Exceeds(x))
