@@ -31,20 +31,20 @@ class Navigation(Summary):
     Summary.init(self, result, interpreter)
     self.uuid = str(result.metadata['uuid'])
 
-  def key_link(self):
+  def key__link(self):
     link = markup.oneliner.a('link', href='view?'+urllib.urlencode({'uuid':self.uuid}))
     return str(link)
     
-  def key_pairs(self):
+  def key__pairs(self):
     link = markup.oneliner.a('link', href='matrix?'+urllib.urlencode({'uuid':self.uuid}))
     return str(link)
 
-  def key_select(self):
+  def key__select(self):
     link = markup.oneliner.input(type='checkbox', name='uuid', value=self.uuid)
     return str(link)
 
   # TODO: Offer this as an option associated with 'select' instead.
-  def key_delete(self):
+  def key__delete(self):
     link = markup.oneliner.a('delete', href='delete?'+urllib.urlencode({'uuid':self.uuid}))
     return str(link)
 
@@ -65,26 +65,22 @@ class Results(object):
     uuids = self.store._resolve_TaskSetResults(params)
     int_id = self.interpreter.__name__
 
-    # If an external summary function is supplied, add in navigation links. It is then up
-    # to the user to use 'relevant' to decide which of these links to show.
+    summary_fn = Navigation()
     if ext_summary_fn is not None:
-      summary_fn = Navigation()
       summary_fn.extend(ext_summary_fn)
-    else:
-      summary_fn = None
 
     # Build the display summaries as we go, based on the stored summaries and any additional
     # summary function supplied.
     for uuid in uuids:
       summary = self.store.get_Summary(uuid, int_id)
-      if summary_fn is not None:
-        # TODO: refactor this against summary in frameworks.offline
-        missing_keys = set(summary_fn.keys) - set(summary)
-        if len(missing_keys) > 0:
-          result = self.store._get_TaskSetResult(uuid)
-          summary_fn.init(result, self.interpreter)
-          new_values = dict( (key, summary_fn[key]) for key in missing_keys )
-          summary.update(new_values)
+
+      # TODO: refactor this against summary in frameworks.offline
+      missing_keys = set(summary_fn.keys) - set(summary)
+      if len(missing_keys) > 0:
+        result = self.store._get_TaskSetResult(uuid)
+        summary_fn.init(result, self.interpreter)
+        new_values = dict( (key, summary_fn[key]) for key in missing_keys )
+        summary.update(new_values)
 
       summaries.append(summary)
 
@@ -94,15 +90,19 @@ class Results(object):
     if len(summaries) == 0:
       page.h1('No results')
     else:
+      text = StringIO.StringIO()
+
       # Show all our metadata if no filter is specified
       if relevant is None:
-        relevant = [(k.title(),k) for k in sorted(summaries[0].keys())]
+        relevant = [(k.title(),k) for k in sorted(summaries[0].keys()) if not k.startswith('_')]
+      else:
+        relevant = relevant[:]
 
-      text = StringIO.StringIO()
-      relevant = [({'label':'Select','sorter':None},'select')] + relevant
-      relevant.append(("Pairs", 'pairs'))
+      relevant.insert(0, ({'label':'Select','sorter':None},'_select') )
+      relevant.append( ( {'sorter': None, 'label':"Details"}      , "_link"          ) )
+      relevant.append(("Pairs", '_pairs'))
       if self.store.mode == 'a':
-        relevant.append(("Delete", 'delete'))
+        relevant.insert(0,("Delete", '_delete'))
 
       with TableSort(text) as renderer:
         result_summary_table(summaries, renderer, relevant)
