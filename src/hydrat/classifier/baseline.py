@@ -7,32 +7,37 @@ __all__=['randomL','majorityL']
 
 class majorityL(Learner):
   __name__ = 'majority'
+
+  def __init__(self, n=1):
+    Learner.__init__(self)
+    self.n = n
   
   def _check_installed(self):
     pass
 
   def _params(self):
-    return dict()
+    return dict(n=self.n)
 
   def _learn(self, feature_map, class_map):
-    return majorityC(class_map)
+    return majorityC(class_map, self.n)
 
 
 class majorityC(Classifier):
   """ Implements a simple majority-class classifier """
   __name__ = "majorityclass"
 
-  def __init__(self, class_map):
+  def __init__(self, class_map, n):
     Classifier.__init__(self)
+    self.n = n
     self.class_map = class_map
 
   def _classify(self, test_fm):
     num_docs         = test_fm.shape[0]
     num_classes      = self.class_map.shape[1]
     frequencies      = self.class_map.sum(0)
-    majority_class   = frequencies.argmax() #could sort instead for top N classes
+    majority_classes = frequencies.argsort()[-self.n:]
     classifications  = numpy.zeros((num_docs, num_classes), dtype='bool')
-    classifications[:,majority_class] = True
+    classifications[:,majority_classes] = True
     return classifications
 
 from hydrat.common.sampling import CheckRNG
