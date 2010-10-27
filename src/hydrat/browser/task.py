@@ -29,8 +29,7 @@ class Tasks(object):
     uuids = self.store._resolve_TaskSet(params)
     for uuid in uuids:
       summary = self.store._get_TaskSetMetadata(uuid)
-      #TODO: Add delete link
-      summary['_delete'] = markup.oneliner.a('delete', href='delete?'+urllib.urlencode({'uuid':uuid}))
+      summary['_select'] = markup.oneliner.input(type='checkbox', name='uuid', value=uuid)
       summary['uuid'] = str(summary['uuid'])
       summaries.append(summary)
 
@@ -41,16 +40,55 @@ class Tasks(object):
       page.h1('No tasksets for given parameters')
     else:
       relevant = [(k.title(),k) for k in sorted(summaries[0].keys()) if not k.startswith('_')]
+      relevant.insert(0, ("Select", '_select'))
 
       text = StringIO.StringIO()
-      if self.store.mode == 'a':
-        relevant = [("Delete", '_delete')] + relevant
 
       with TableSort(text) as renderer:
         result_summary_table(summaries, renderer, relevant)
 
       page.p('Displaying %d tasksets' % len(uuids))
+
+      page.form(action='receive', method='post')
+      page.input(type='submit', name='action', value='view')
+      if self.store.mode == 'a':
+        page.input(type='submit', name='action', value='delete')
+      page.br()
       page.add(text.getvalue())
+      page.form.close()
+
+    return str(page)
+
+  @cherrypy.expose
+  def receive(self, **params):
+    if 'action' in params:
+      action = params['action']
+      del params['action']
+      raise cherrypy.HTTPRedirect(action+'?'+urllib.urlencode(params, True))
+    else:
+      raise cherrypy.HTTPRedirect("list")
+
+  @cherrypy.expose
+  def view(self, uuid):
+    uuid = as_set(uuid).pop()
+    taskset = self.store._get_TaskSet(uuid)
+
+    summaries = []
+    for task in taskset.tasks:
+      summary = {}
+      summary['features']     = task.train_vectors.shape[1]
+      summary['train_count']  = task.train_vectors.shape[0]
+      summary['test_count']   = task.test_vectors.shape[0]
+      summaries.append(summary)
+
+    text = StringIO.StringIO()
+    with TableSort(text) as renderer:
+      result_summary_table(summaries, renderer)
+
+    page = markup.page()
+    page.init(**page_config)
+    page.add(dict_as_html(taskset.metadata))
+    page.add(text.getvalue())
 
     return str(page)
 
