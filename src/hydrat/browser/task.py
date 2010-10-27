@@ -31,6 +31,7 @@ class Tasks(object):
       summary = self.store._get_TaskSetMetadata(uuid)
       #TODO: Add delete link
       summary['_delete'] = markup.oneliner.a('delete', href='delete?'+urllib.urlencode({'uuid':uuid}))
+      summary['uuid'] = str(summary['uuid'])
       summaries.append(summary)
 
     page.h3('Parameters')
