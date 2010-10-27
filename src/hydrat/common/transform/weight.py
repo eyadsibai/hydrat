@@ -27,6 +27,7 @@ class TFIDF(LearnlessTransformer):
     weighted_fm = lil_matrix(feature_map.shape, dtype=float)
     instance_sizes = feature_map.sum(axis=1)
     
+    # TODO: Why are we calculating this at all?
     # Frequency of each term is the sum alog axis 0
     tf = feature_map.sum(axis=0)
     # Total number of terms in fm
