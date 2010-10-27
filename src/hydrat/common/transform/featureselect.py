@@ -2,7 +2,7 @@ import numpy
 import logging
 from hydrat.common.transform import Transformer
 from infogain import ig_bernoulli
-from weighting_function import CavnarTrenkle94, TermFrequency
+from weighting_function import CavnarTrenkle94, TermFrequency, DocumentFrequency
 
 class KeepRule(object):
   __name__ = 'keeprule'
@@ -60,4 +60,5 @@ class FeatureSelect(Transformer):
 
 ig_bern_top500 = FeatureSelect(ig_bernoulli, HighestN(500))
 cavnar_trenkle = FeatureSelect(CavnarTrenkle94(300), NonZero())
-def occurs(x): return FeatureSelect(TermFrequency(), Exceeds(x))
+def term_count_exceeds(x): return FeatureSelect(TermFrequency(), Exceeds(x))
+def doc_count_exceeds(x): return FeatureSelect(DocumentFrequency(), Exceeds(x))
