@@ -57,8 +57,7 @@ class Results(object):
 
   @cherrypy.expose
   def index(self):
-    return self.list()
-
+    raise cherrypy.HTTPRedirect('list')
 
   def result_summary_page(self, params, page, ext_summary_fn = None, relevant = None):
     summaries = []
@@ -108,12 +107,23 @@ class Results(object):
         result_summary_table(summaries, renderer, relevant)
 
       page.p('Displaying %d results' % len(uuids))
-      page.form(action='compare', method='get')
-      page.input(type='submit', value='Compare Selected')
+
+      page.form(action='receive', method='post')
+      page.input(type='submit', name='action', value='compare')
+      if self.store.mode == 'a':
+        page.input(type='submit', name='action', value='delete')
       page.br()
       page.add(text.getvalue())
       page.form.close()
 
+  @cherrypy.expose
+  def receive(self, **params):
+    if 'action' in params:
+      action = params['action']
+      del params['action']
+      raise cherrypy.HTTPRedirect(action+'?'+urllib.urlencode(params, True))
+    else:
+      raise cherrypy.HTTPRedirect("list")
 
   @cherrypy.expose
   def list(self, **params):
