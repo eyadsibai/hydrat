@@ -15,26 +15,9 @@ logger = getLogger('hydrat.display.tsr')
 def summarize_TaskSetResult(result, interpreter):
   raise NotImplementedError, "Stop using this! Use hydrat.display.summary_fn"
 
-default_relevant = \
-            [ ( {'label':"Dataset", 'searchable':True}       , "dataset"       )
-            , ( {'label':"Class Space",'searchable':True}     , "class_space"     )
-            , ( {'label':"Feature Desc",'searchable':True}   , "feature_desc"     )
-            , ( {'label':"Learner",'searchable':True}    , "learner"    )
-            , ( {'label':"Params",'searchable':True}    , "learner_params"    )
-            , ( "Macro-F"       , "macro_fscore"        )
-            , ( "Macro-P"     , "macro_precision"     )
-            , ( "Macro-R"        , "macro_recall"        )
-            , ( "Micro-F"       , "micro_fscore"        )
-            , ( "Micro-P"     , "micro_precision"     )
-            , ( "Micro-R"        , "micro_recall"        )
-            , ( {'sorter':'digit', 'label':"Learn Time"}    , "avg_learn"     )
-            , ( {'sorter':'digit', 'label':"Classify Time"} , "avg_classify"  )
-            , ( {'sorter': None, 'label':"Details"}      , "link"          )
-            ]
-
 def result_summary_table(summaries, renderer, relevant = None, title = None):
   if relevant is None:
-    relevant = default_relevant
+    relevant = [(k.title(),k) for k in sorted(summaries[0].keys()) if not k.startswith('_')]
   headings, cols = zip(*relevant)
   renderer.dict_table( summaries 
                      , cols 
