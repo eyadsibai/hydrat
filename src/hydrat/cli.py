@@ -99,6 +99,35 @@ class HydratCmdln(cmdln.Cmdln):
         logger.debug(e)
         print("%s is not a dataset" % dsname)
 
+  def do_summary(self, subcmd, opts, store_path):
+    """${cmd_name}: create summaries 
+
+    ${cmd_usage} 
+    """
+    from store import Store
+    import sys
+    sys.path.append('.')
+    try:
+      import browser_config
+    except ImportError:
+      import hydrat.browser.browser_config as browser_config
+
+    store = Store(store_path,'a')
+
+    # TODO: Parametrize on summary_function and interpreter
+    summary_fn = browser_config.summary_fn
+    interpreter = browser_config.interpreter
+    int_id = interpreter.__name__
+    for tsr_id in store._resolve_TaskSetResults({}):
+      summary = store.get_Summary(tsr_id, int_id)
+      missing_keys = set(summary_fn.keys) - set(summary)
+      if len(missing_keys) > 0:
+        result = store._get_TaskSetResult(tsr_id)
+        summary_fn.init(result, interpreter)
+        new_values = dict( (key, summary_fn[key]) for key in missing_keys )
+        store.add_Summary(tsr_id, int_id, new_values) 
+      print "Added", missing_keys, "to", tsr_id
+
   @cmdln.option("-r", "--remote", action="store_true", default=False,
                     help="set up remote access to browser webapp")
   @cmdln.option("-b", "--nobrowse", action="store_true", default=False,
