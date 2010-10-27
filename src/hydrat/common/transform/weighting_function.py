@@ -34,7 +34,9 @@ class DocumentFrequency(WeightingFunction):
     self.threshold = threshold
 
   def weight(self, feature_map, class_map):
-    raw = (feature_map > self.threshold).sum(axis=0)
+    fm = feature_map.copy()
+    fm.data = (fm.data > self.threshold)
+    raw = fm.sum(axis=0)
     return numpy.array(raw)[0]
 
 class CavnarTrenkle94(WeightingFunction):
