@@ -54,7 +54,7 @@ class ImmediateModel(Model):
     self.metadata = metadata.copy()
 
 class ClassMap(object):
-  def __init__(self, raw, metadata):
+  def __init__(self, raw, metadata={}):
     self.raw = raw
     self.metadata = dict(metadata)
 
