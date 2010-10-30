@@ -12,6 +12,7 @@ class WeightingFunction(object):
   def __init__(self):
     if not hasattr(self, '__name__'):
       self.__name__ = self.__class__.__name__
+    self.logger = logging.getLogger(__name__ + '.' + self.__name__)
 
   def __call__(self, feature_map, class_map):
     return self.weight(feature_map, class_map)
@@ -48,9 +49,9 @@ class CavnarTrenkle94(WeightingFunction):
   influential 1994 paper N-gram based text categorization
   """
   def __init__(self, count=300):
+    self.__name__ = 'CavnarTrenkle94-' + str(count)
     WeightingFunction.__init__(self)
     self.count = count
-    self.__name__ = 'CavTrenk%d' % count
 
   def weight(self, feature_map, class_map):
     """
@@ -75,11 +76,10 @@ class CavnarTrenkle94(WeightingFunction):
     return feature_weights
 
 class InfoGain(WeightingFunction):
-  __name__ = 'infogain'
   def __init__(self, feature_discretizer):
-    self.__name__ = 'infogain_' + feature_discretizer.__name__
+    self.__name__ = 'infogain-' + feature_discretizer.__name__
+    WeightingFunction.__init__(self)
     self.feature_discretizer = feature_discretizer
-    self.logger = logging.getLogger('hydrat.common.transform.infogain')
 
   def weight(self, feature_map, class_map):
     overall_class_distribution = class_map.sum(axis=0)
