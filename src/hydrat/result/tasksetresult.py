@@ -39,6 +39,7 @@ class TaskSetResult(RichComparisonMixin):
   # confusion and classification matrices.
   ###
   def overall_classification(self, indices): 
+    # TODO: Default value for indices, which results in iteration over all indices available.
     r = self.raw_results[0]
     num_inst = len(indices)
     num_class = r.goldstandard.shape[1]
