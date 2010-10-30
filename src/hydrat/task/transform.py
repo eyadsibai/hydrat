@@ -4,7 +4,9 @@ import time
 
 def transform_task(task, transformer):
   start = time.time()
+  transformer.weights.update(task.weights)
   transformer.learn(task.train_vectors, task.train_classes)
+  task.weights.update(transformer.weights)
   learn_time = time.time() - start
 
   t = Task()

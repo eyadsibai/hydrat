@@ -52,6 +52,7 @@ class OfflineFramework(Framework):
     self.outputP = None
     self.interpreter = SingleHighestValue()
     self.summary_fn = classification_summary()
+    self.weights = [] # list of weights to be loaded with the taskset
 
   @property
   def classifier(self):
@@ -121,7 +122,7 @@ class OfflineFramework(Framework):
       self.split_name = split_name
       taskset = from_partitions(split, fm, cm, sq, self.taskset_desc) 
       self.store.new_TaskSet(taskset)
-    return self.store.get_TaskSet(self.taskset_desc)
+    return self.store.get_TaskSet(self.taskset_desc, self.weights)
 
   def set_summary(self, summary_fn):
     self.summary_fn = summary_fn
@@ -150,9 +151,11 @@ class OfflineFramework(Framework):
     metadata = tx.update_metadata(self.taskset_desc, transformer)
     if not self.store.has_TaskSet(metadata):
       self.notify('Applying %s to taskset\n\t%s' % (str(transformer), str(self.taskset_desc)))
+      self.weights = transformer.weights.keys()
       taskset = self.taskset
-      taskset = tx.transform_taskset(taskset, transformer)
-      self.store.new_TaskSet(taskset)
+      new_taskset = tx.transform_taskset(taskset, transformer)
+      self.store.extend_Weights(taskset)
+      self.store.new_TaskSet(new_taskset)
     # Only copy over the new feature_desc
     self.feature_desc = metadata['feature_desc']
 

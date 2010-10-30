@@ -105,7 +105,6 @@ class InfoGain(WeightingFunction):
     return feature_weights
 
 from discretize import bernoulli, UniformBand, EquisizeBand
-
 ig_bernoulli = InfoGain(bernoulli)
 ig_uniform5band = InfoGain(UniformBand(5))
 ig_equisize5band = InfoGain(EquisizeBand(5))

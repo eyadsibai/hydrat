@@ -1,4 +1,12 @@
+import logging
+
 class Transformer(object):
+  def __init__(self):
+    if not hasattr(self, '__name__'):
+      self.__name__ = self.__class__.__name__
+    self.weights = {}
+    self.logger = logging.getLogger(__name__ + '.' + self.__name__)
+
   def __str__(self):
     return '<Transformer %s>' % self.__name__
 
