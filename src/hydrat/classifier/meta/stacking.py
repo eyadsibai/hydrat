@@ -1,52 +1,69 @@
-raise DeprecationWarning, "Needs to be fixed up"
 import numpy
 from scipy.sparse import csr_matrix
+import hydrat
 from hydrat.classifier.abstract import Learner, Classifier
-from hydrat.preprocessor.model import ImmediateModel
-from hydrat.task.taskset import CrossValidate
+from hydrat.task.sampler import stratify, allocate
+from hydrat.task.taskset import from_partitions
 from hydrat.experiments import Experiment
+from hydrat.preprocessor.features import FeatureMap
+from hydrat.preprocessor.model import ClassMap
 
-class StackingLearner(Learner):
-  def __init__(self, metalearner, learner_committee, folds = 10, seed = 61383441363):
-    #TODO: Better naming
-    self.__name__ = '_'.join([ 'stacking'
-                             , metalearner.__name__ 
-                             ] + [ l.__name__ for l in learner_committee ] 
-                            )
+# TODO: Make the metaclassifier respect sequence info- right now it ignores it
+# TODO: Make it possible to assemble the stackingclassifier from TaskSetResults directly
+#       may want to write a function from_tsr, which takes a list of tsr and a metalearner.
+#       Would still need some access to the l0 classifiers though.
+
+class StackingL(Learner):
+  __name__ = 'stacking'
+  def __init__(self, metalearner, learner_committee, folds=10, rng=hydrat.rng):
     Learner.__init__(self)
-    #TODO: Typechecking on metalearner and learner_committee
     self.metalearner= metalearner 
     self.learner_committee= learner_committee 
-    self.folds = 10
-    self.seed = seed
+    self.folds = folds
+    self.rng = rng
 
   def _params(self):
+    #TODO: RNG state?
     return dict( folds = self.folds
-               , seed = self.seed
                , l0 = self.metalearner.__name__
                , l0_params = self.metalearner.params
-               , l1 = [ l.__name__ for l in self.learner_committee ]
-               , l1_params = dict((l.__name__, l.params) for l in self.learner_committee)
+               , l1 = dict((l.__name__, l.params) for l in self.learner_committee)
                )
 
   def _learn(self, feature_map, class_map):
-    train_model = ImmediateModel(feature_map, class_map)
-    taskset = CrossValidate(train_model, folds = self.folds, seed = self.seed)
+    # generate a cross-validation over the training data.
+    # TODO: refactor against dataset.split
+    #
+    strata_map = stratify(class_map)
+    partition_proportions = numpy.array([1] * self.folds )
+    parts  = allocate( strata_map
+                     , partition_proportions
+                     , probabilistic = False
+                     , rng=self.rng
+                     ) 
+    parts = numpy.dstack((numpy.logical_not(parts), parts))
+    taskset = from_partitions( parts, FeatureMap(feature_map), ClassMap(class_map) )
+
+    # run each learner over the taskset, and produce a classification for each
+    # instance-learner pair
     cl_feats = []
     for learner in self.learner_committee:
       experiment = Experiment(taskset, learner)
-      tsr = experiment._run()
+      tsr = experiment.run()
+      # TODO: results should have some functionality to facilitate this now
       results = tsr.raw_results
       order = numpy.hstack([ r.instance_indices for r in results ]).argsort()
       cl    = numpy.vstack([ r.classifications for r in results])[order]
       cl_feats.append(cl)
     cl_feats = csr_matrix(numpy.hstack(cl_feats))
+    
+    # train the metaclassifier
     metaclassifier = self.metalearner(cl_feats, class_map)
     classif_committee = [ l(feature_map, class_map) for l in self.learner_committee ]
-    return StackingClassifier(metaclassifier, classif_committee, self.__name__)
+    return StackingC(metaclassifier, classif_committee, self.__name__)
       
 
-class StackingClassifier(Classifier):
+class StackingC(Classifier):
   def __init__(self, metaclassifier, classif_committee, name):
     self.__name__ = name
     Classifier.__init__(self)
