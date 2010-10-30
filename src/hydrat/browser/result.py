@@ -93,6 +93,7 @@ class Results(object):
 
       # Show all our metadata if no filter is specified
       if relevant is None:
+        #TODO: hydrat.display.tsr.result_summary_table does this by default, need to refactor against that.
         relevant = [(k.title(),k) for k in sorted(summaries[0].keys()) if not k.startswith('_')]
       else:
         relevant = relevant[:]
