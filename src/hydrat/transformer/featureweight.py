@@ -3,7 +3,7 @@ import numpy
 
 from scipy.sparse import csr_matrix, lil_matrix
 
-from hydrat.common.transform import Transformer, LearnlessTransformer
+from hydrat.transformer import Transformer, LearnlessTransformer
 
 ### Unsupervised weighting approaches ###
 class Discretize(LearnlessTransformer):
@@ -68,7 +68,7 @@ class BinaryWeighted(Weighter):
 
     weighted_feature_map = numpy.empty(feature_map.shape, dtype=float)
     for i,row in enumerate(feature_map):
-      weighted_feature_map[i] = self.weights[wf_name]] * (row > 0)
+      weighted_feature_map[i] = self.weights[wf_name] * (row > 0)
     return csr_matrix(weighted_feature_map)
 
 
