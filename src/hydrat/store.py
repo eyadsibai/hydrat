@@ -789,30 +789,34 @@ class Store(object):
 
     self.fileh.flush()
 
-  def add_Weight(self, taskset_tag, task_tag, weight_name, weight):
+  def extend_Weights(self, taskset):
     # TODO: Do we need to perform a check for some kind of characteristic
     #       of the weight?
-    taskset_entry  = getattr(self.tasksets, taskset_tag)
-    task_entry     = getattr(taskset_entry, task_tag)
-    new_weight = self.fileh.createArray\
-                    ( task_entry.weights
-                    , weight_name
-                    , weight
-                    )
-    new_weight.attrs.date = dt.datetime.now().isoformat() 
+    taskset_entry  = getattr(self.tasksets, str(taskset.metadata['uuid']))
+    for task in taskset.tasks:
+      task_tag = str(task.metadata['uuid'])
+      task_entry     = getattr(taskset_entry, task_tag)
+      for key in task.weights:
+        if not hasattr(task_entry.weights, key):
+          new_weight = self.fileh.createArray\
+                          ( task_entry.weights
+                          , key
+                          , task.weights[key]
+                          )
+          new_weight.attrs.date = dt.datetime.now().isoformat() 
     self.fileh.flush()
-
+                
   def has_TaskSet(self, desired_metadata):
     """ Check if any taskset matches the specified metadata """
     return bool(self._resolve_TaskSet(desired_metadata))
 
-  def get_TaskSet(self, desired_metadata):
+  def get_TaskSet(self, desired_metadata, weights=None):
     """ Convenience function to bypass tag resolution """
     tags = self._resolve_TaskSet(desired_metadata)
     if len(tags) == 0: raise NoData
     elif len(tags) > 1: raise InsufficientMetadata
     try:
-      return self._get_TaskSet(tags[0])
+      return self._get_TaskSet(tags[0],weights=weights)
     except tables.NoSuchNodeError:
       logger.warning('Removing damaged TaskSet node with metadata %s', str(desired_metadata))
       self.fileh.removeNode(self.tasksets, tags[0], recursive=True)
@@ -831,7 +835,7 @@ class Store(object):
       raise KeyError, str(taskset_tag)
     self.fileh.removeNode(self.tasksets, taskset_tag, True)
 
-  def _get_TaskSet(self, taskset_tag):
+  def _get_TaskSet(self, taskset_tag, weights = None):
     try:
       taskset_entry  = getattr(self.tasksets, taskset_tag)
     except AttributeError:
@@ -839,7 +843,7 @@ class Store(object):
     metadata = get_metadata(taskset_entry)
     tasks = []
     for task_entry in taskset_entry._v_groups.values():
-      tasks.append(self._get_Task(task_entry))
+      tasks.append(self._get_Task(task_entry, weights=weights))
     tasks.sort(key=lambda r:r.metadata['index'])
     return TaskSet(tasks, metadata)
 

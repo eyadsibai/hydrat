@@ -7,15 +7,15 @@ from hydrat.common.transform import Transformer, LearnlessTransformer
 
 ### Unsupervised weighting approaches ###
 class Discretize(LearnlessTransformer):
-  def __init__(self, coefficient = 1000):
-    self.__name__ = 'discretize%d' % coefficient
+  def __init__(self, df):
+    self.__name__ = 'discretize-%s' % df.__name__
     LearnlessTransformer.__init__(self)
-    self.coefficient = coefficient
+    self.df = df
 
   def apply(self, feature_map):
-    self.logger.info('Discretizing!')
-    r = (feature_map * self.coefficient).astype(int)
-    r.eliminate_zeros()
+    raise NotImplementedError
+    # TODO: common.discretize came out of work on infogain. Should come up with a 
+    #       generic formulation of discretization that can be used here as well.
     return r
 
 class TFIDF(LearnlessTransformer):
@@ -24,14 +24,9 @@ class TFIDF(LearnlessTransformer):
     LearnlessTransformer.__init__(self)
 
   def apply(self, feature_map):
+    # TODO: Update this to take advantage of weight-caching
     weighted_fm = lil_matrix(feature_map.shape, dtype=float)
     instance_sizes = feature_map.sum(axis=1)
-    
-    # TODO: Why are we calculating this at all?
-    # Frequency of each term is the sum alog axis 0
-    tf = feature_map.sum(axis=0)
-    # Total number of terms in fm
-    total_terms = tf.sum()
     
     #IDF for each term
     df = numpy.zeros(feature_map.shape[1])
@@ -51,55 +46,40 @@ class TFIDF(LearnlessTransformer):
 ### Supervised Weighting Approaches ###
 ##### Infrastructure #####
 class Weighter(Transformer):
-  __name__ = "weighter"
-
+  #TODO: Refactor against FeatureSelect
   def __init__(self, weighting_function):
+    self.__name__ = 'W-' + weighting_function.__name__
     Transformer.__init__(self)
-    self.logger = logging.getLogger('hydrat.classifier.weighter.' + self.__name__)
-    self.__name__ = weighting_function.__name__
-    Weighter.__init__(self)
     self.weighting_function = weighting_function
-    self.weights = None
+    self.weights[weighting_function.__name__] = None
 
   def learn(self, feature_map, class_map):
-    self.weights = self.weighting_function(feature_map, class_map)
+    wf_name = self.weighting_function.__name__
+    if self.weights[wf_name] is None:
+      self.weights[wf_name] = self.weighting_function(feature_map, class_map)
     
 
 class BinaryWeighted(Weighter):
+  # TODO: Rewrite as a composed Transformer
   def apply(self, feature_map):
-    assert self.weights is not None, "Weights have not been learned!"
-    assert feature_map.shape[1] == len(self.weights), "Shape of feature map is wrong!"
+    wf_name = self.weighting_function.__name__
+    assert self.weights[wf_name] is not None, "Weights have not been learned!"
+    assert feature_map.shape[1] == len(self.weights[wf_name]), "Shape of feature map is wrong!"
 
     weighted_feature_map = numpy.empty(feature_map.shape, dtype=float)
     for i,row in enumerate(feature_map):
-      weighted_feature_map[i] = self.weights * (row > 0)
+      weighted_feature_map[i] = self.weights[wf_name]] * (row > 0)
     return csr_matrix(weighted_feature_map)
 
 
 #TODO: Rename to something more informative
 class Weighted(Weighter):
   def apply(self, feature_map):
-    assert self.weights is not None, "Weights have not been learned!"
-    assert feature_map.shape[1] == len(self.weights), "Shape of feature map is wrong!"
+    wf_name = self.weighting_function.__name__
+    assert self.weights[wf_name] is not None, "Weights have not been learned!"
+    assert feature_map.shape[1] == len(self.weights[wf_name]), "Shape of feature map is wrong!"
 
     weighted_feature_map = numpy.empty(feature_map.shape, dtype=float)
     for i,row in enumerate(feature_map):
-      weighted_feature_map[i] = row.multiply(self.weights.reshape(row.shape))
+      weighted_feature_map[i] = row.multiply(self.weights[wf_name].reshape(row.shape))
     return csr_matrix(weighted_feature_map)
-
-class CutoffWeighter(Weighter):
-  """ Similar to SimpleWeighter, but applies a Cutoff value after doing the weighting
-  """
-  def __init__(self, weighting_function, threshold = 1):
-    SimpleWeighter.__init__(self, weighting_function)
-    self.__name__ += '_t%s' % str(threshold)
-    self.threshold = threshold
-    assert threshold > 0, "Not able to deal with subzero thresholds due to sparse data"
-    Weighter.__init__(self)
-
-  def apply(self, feature_map):
-    mask = feature_map.toarray() >= self.threshold
-    weighted_feature_map = SimpleWeighter.apply(self, feature_map)
-    weighted_feature_map = weighted_feature_map.toarray() * mask
-    return csr_matrix(weighted_feature_map)
-
