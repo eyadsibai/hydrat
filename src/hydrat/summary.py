@@ -101,25 +101,6 @@ class Metadata(Summary):
   def __getitem__(self, key):
     return self.result.metadata.get(key, None)
 
-class ProjectMetadata(Summary):
-  """
-  Project keys from a dictionary associated with a metadata value
-  """
-  def __init__(self, meta_key, keys):
-    self.__meta_key = meta_key
-    self.__keys = keys
-    Summary.__init__(self)
-
-  @property
-  def keys(self): return (':'.join((self.__meta_key, key)) for key in self.__keys)
-
-  def __getitem__(self, key):
-    mk, k = key.split(':')
-    if mk != self.__meta_key:
-      raise ValueError, "incorrect metakey"
-    return self.result.metadata.get(mk,{}).get(k,None)
-    
-
 def classification_summary():
   sf = Summary()
   sf.extend(MacroPRF())
