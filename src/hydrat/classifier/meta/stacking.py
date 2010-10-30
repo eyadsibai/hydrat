@@ -50,10 +50,7 @@ class StackingL(Learner):
     for learner in self.learner_committee:
       experiment = Experiment(taskset, learner)
       tsr = experiment.run()
-      # TODO: results should have some functionality to facilitate this now
-      results = tsr.raw_results
-      order = numpy.hstack([ r.instance_indices for r in results ]).argsort()
-      cl    = numpy.vstack([ r.classifications for r in results])[order]
+      cl = tsr.overall_classification(numpy.arange(feature_map.shape[0])).sum(axis=2)
       cl_feats.append(cl)
     cl_feats = csr_matrix(numpy.hstack(cl_feats))
     
