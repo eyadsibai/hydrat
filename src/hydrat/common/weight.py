@@ -1,4 +1,7 @@
 import numpy
+import logging
+from hydrat.common import entropy
+from hydrat.common.pb import ProgressIter
 
 class WeightingFunction(object):
   """
@@ -70,3 +73,39 @@ class CavnarTrenkle94(WeightingFunction):
       # Flag these features
       feature_weights[keep_indices] = True
     return feature_weights
+
+class InfoGain(WeightingFunction):
+  __name__ = 'infogain'
+  def __init__(self, feature_discretizer):
+    self.__name__ = 'infogain_' + feature_discretizer.__name__
+    self.feature_discretizer = feature_discretizer
+    self.logger = logging.getLogger('hydrat.common.transform.infogain')
+
+  def weight(self, feature_map, class_map):
+    overall_class_distribution = class_map.sum(axis=0)
+    total_instances = float(feature_map.shape[0])
+    
+    # Calculate  the entropy of the class distribution over all instances 
+    H_P = entropy(overall_class_distribution)
+    self.logger.debug("Overall entropy: %.2f", H_P)
+      
+    feature_weights = numpy.zeros(feature_map.shape[1], dtype=float)
+    for i in ProgressIter(range(len(feature_weights)), 'Calculating InfoGain'):
+      H_i = 0.0
+      for f_mask in self.feature_discretizer(feature_map[:,i]):
+        f_count = len(f_mask) 
+        if f_count == 0: continue # Skip partition if no instances are in it
+        f_distribution = class_map[f_mask].sum(axis=0)
+        f_entropy = entropy(f_distribution)
+        f_weight = f_count / total_instances
+        H_i += f_weight * f_entropy
+
+      feature_weights[i] =  H_P - H_i
+
+    return feature_weights
+
+from discretize import bernoulli, UniformBand, EquisizeBand
+
+ig_bernoulli = InfoGain(bernoulli)
+ig_uniform5band = InfoGain(UniformBand(5))
+ig_equisize5band = InfoGain(EquisizeBand(5))
