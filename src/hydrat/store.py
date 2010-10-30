@@ -53,7 +53,7 @@ class BoolFeature(tables.IsDescription):
 # TODO: Declare a configurable compression filter
 #         tables.Filters(complevel=5, complib='zlib') 
 
-STORE_VERSION = 2
+STORE_VERSION = 3
 
 def update_h5store(fileh):
   """
@@ -121,6 +121,11 @@ def update_h5store(fileh):
           node._v_attrs.instance_space = node._v_attrs.dataset
           if hasattr(node._v_attrs, 'eval_dataset'):
             node._v_attrs.eval_space = node._v_attrs.eval_dataset
+  if version < 3:
+    # In version 3, we add weights associated with task nodes
+    for tsnode in root.tasksets:
+      for t in tsnode:
+        fileh.createGroup(t, 'weights')
         
 
   logger.debug("updated store from version %d to %d", version, STORE_VERSION)
@@ -773,7 +778,28 @@ class Store(object):
                            , sqe
                            , filters = tables.Filters(complevel=5, complib='zlib') 
                            )
+    weights_node = self.fileh.createGroup(task_entry, 'weights')
+    for key in task.weights:
+      new_weight = self.fileh.createArray\
+                      ( weights_node
+                      , key
+                      , task.weights[key]
+                      )
+      new_weight.attrs.date = dt.datetime.now().isoformat() 
 
+    self.fileh.flush()
+
+  def add_Weight(self, taskset_tag, task_tag, weight_name, weight):
+    # TODO: Do we need to perform a check for some kind of characteristic
+    #       of the weight?
+    taskset_entry  = getattr(self.tasksets, taskset_tag)
+    task_entry     = getattr(taskset_entry, task_tag)
+    new_weight = self.fileh.createArray\
+                    ( task_entry.weights
+                    , weight_name
+                    , weight
+                    )
+    new_weight.attrs.date = dt.datetime.now().isoformat() 
     self.fileh.flush()
 
   def has_TaskSet(self, desired_metadata):
@@ -817,7 +843,7 @@ class Store(object):
     tasks.sort(key=lambda r:r.metadata['index'])
     return TaskSet(tasks, metadata)
 
-  def _get_Task(self,task_entry): 
+  def _get_Task(self,task_entry, weights=None): 
     metadata = get_metadata(task_entry)
     t = Task()
     t.metadata = metadata
@@ -835,6 +861,11 @@ class Store(object):
       t.test_sequence = self._read_sparse_node(task_entry.test_sequence)
     else:
       t.test_sequence  = None
+    t.weights = {}
+    if weights is not None:
+      for key in weights:
+        if key in task_entry.weights:
+          t.weights[key] = getattr(task_entry.weights, key).read()
     return t
 
   def _resolve_TaskSet(self, desired_metadata):
