@@ -77,6 +77,17 @@ class CrossDomainFramework(OfflineFramework):
     md = self.taskset_desc
     if not self.store.has_TaskSet(md):
       self.notify('Generating TaskSet')
+      # Ensure that the feature space has been processed for both datasets.
+      # This is to avoid a synchronization issue resulting from the 'other'
+      # dataset extending the space after the 'self' dataset has already read
+      # its feature map.
+      self.inducer.process_Dataset(self.dataset, fms=self.feature_spaces)
+      self.inducer.process_Dataset(self.eval_dataset, fms=self.feature_spaces)
+
+      other = OfflineFramework(self.eval_dataset, store = self.store) 
+      other.set_feature_spaces(self.feature_spaces)
+      other.set_class_space(self.class_space)
+
       task_md = dict(md)
       task_md['index'] = 0
       task = Task()
@@ -85,9 +96,6 @@ class CrossDomainFramework(OfflineFramework):
       task.train_sequence  = self.sequence
       task.train_indices   = self.train_indices
 
-      other = OfflineFramework(self.eval_dataset, store = self.store) 
-      other.set_feature_spaces(self.feature_spaces)
-      other.set_class_space(self.class_space)
       task.test_vectors   = other.featuremap.raw
       task.test_classes   = other.classmap.raw
       task.test_sequence  = other.sequence
