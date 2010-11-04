@@ -16,6 +16,8 @@ import time
 import numpy
 import sys
 
+tempfile.tempdir = config.getpath('paths','scratch')
+
 __all__ =\
   [ "libsvmExtL"
   , "bsvmL"
