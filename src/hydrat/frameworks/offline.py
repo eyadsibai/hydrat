@@ -10,8 +10,7 @@ from hydrat.display.tsr import render_TaskSetResult
 from hydrat.result.interpreter import SingleHighestValue, NonZero, SingleLowestValue
 from hydrat.summary import classification_summary
 from hydrat.display.summary_fns import sf_featuresets
-from hydrat.display.html import TableSort 
-from hydrat.display.tsr import result_summary_table
+from hydrat.display.store import results2html
 from hydrat.common import as_set
 from hydrat.preprocessor.features.transform import union
 from hydrat.task.task import Task
@@ -176,7 +175,7 @@ class OfflineFramework(Framework):
     self.feature_desc += tuple(sorted(feature_spaces))
 
   # TODO: Update to new-style summary function!!!
-  def generate_output(self, path=None, summary_fn=sf_featuresets, fields = summary_fields):
+  def generate_output(self, path=None):
     """
     Generate HTML output
     """
@@ -193,28 +192,8 @@ class OfflineFramework(Framework):
       os.mkdir(path)
 
     self.notify("Generating output")
-    # TODO: should this come from self or from browser_config?
-    int_id = browser_config.interpreter.__name__
-    summary_fn = browser_config.summary_fn
-    #TODO: Parametrize
-    summaries = []
-    for uuid in self.store._resolve_TaskSetResults({}):
-      summary = self.store.get_Summary(uuid, int_id)
-
-      # TODO: refactor this against summary in frameworks.offline
-      missing_keys = set(summary_fn.keys) - set(summary)
-      if len(missing_keys) > 0:
-        result = self.store._get_TaskSetResult(uuid)
-        summary_fn.init(result, self.interpreter)
-        new_values = dict( (key, summary_fn[key]) for key in missing_keys )
-        summary.update(new_values)
-
-      summaries.append(summary)
-    # TODO: Produce the per-result details page
-
-    indexpath = os.path.join(path, 'index.html')
-    with TableSort(open(indexpath, "w")) as renderer:
-      result_summary_table(summaries, renderer, relevant = browser_config.relevant)
+    with open( os.path.join(path, 'index.html'), 'w' ) as f:
+      f.write(results2html(self.store, browser_config))
     self.outputP = path
 
   def upload_output(self, target):
@@ -228,6 +207,8 @@ class OfflineFramework(Framework):
     updatedir.updatetree(self.outputP, target, overwrite=True)
     
 
+from hydrat.display.html import TableSort 
+@deprecated
 def process_results( data_store
                    , result_store
                    , interpreter
