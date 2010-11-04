@@ -1,17 +1,33 @@
 from hydrat.task.taskset import TaskSet
 from hydrat.task.task import Task
+import time
 
 def transform_task(task, transformer):
+  start = time.time()
+  transformer.weights.update(task.weights)
   transformer.learn(task.train_vectors, task.train_classes)
+  task.weights.update(transformer.weights)
+  learn_time = time.time() - start
+
   t = Task()
-  t.train_vectors = transformer.apply(task.train_vectors)
-  t.test_vectors  = transformer.apply(task.test_vectors)
-  t.train_classes = task.train_classes
-  t.test_classes  = task.test_classes
-  t.train_indices = task.train_indices
-  t.test_indices  = task.test_indices
+  affected = ['train_vectors', 'test_vectors']
+  start = time.time()
+  for slot in Task.__slots__:
+    if slot in affected:
+      setattr(t, slot, transformer.apply(getattr(task, slot)))
+    else:
+      setattr(t, slot, getattr(task, slot))
+  apply_time = time.time() - start
+
+  # Separately update metadata
   t.metadata      = dict(task.metadata)
   t.metadata['feature_desc']+=(transformer.__name__,)
+  if 'transform_learn_time' not in t.metadata:
+    t.metadata['transform_learn_time'] = {}
+  if 'transform_apply_time' not in t.metadata:
+    t.metadata['transform_apply_time'] = {}
+  t.metadata['transform_learn_time'][transformer.__name__] = learn_time
+  t.metadata['transform_apply_time'][transformer.__name__] = apply_time
   return t
   
 def transform_taskset(taskset, transformer):

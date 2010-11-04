@@ -4,6 +4,7 @@
 
 import os
 import logging
+import time
 import numpy
 import scipy.sparse
 
@@ -20,9 +21,9 @@ from hydrat.frameworks.common import Framework
 class OnlineFramework(Framework):
   def __init__( self
               , dataset
-              , work_path = None
+              , store = None
               ):
-    Framework.__init__(self, dataset, work_path)
+    Framework.__init__(self, dataset, store)
 
     self.vectorize = None
     self.__classifier = None
@@ -33,19 +34,13 @@ class OnlineFramework(Framework):
   def is_configurable(self):
     return self.feature_spaces is not None\
        and self.class_space is not None\
-       and self.learner is not None
+       and self.learner is not None\
+       and self.interpreter is not None
 
   def configure(self):
     if self.is_configurable():
       if not all(f.startswith('byte') for f in self.feature_spaces):
-        raise ValueError, "can only handle byte-derived feature spaces"
-      s = self.store
-
-      cm = self.classmap 
-      fm = self.featuremap
-
-      # Instantiate classifier
-      self.classifier = self.learner(fm, cm)
+        raise ValueError, "can only handle byte-derived feature spaces (for now!)"
 
       # Set up feature extraction machinery for incoming text.
       fns = {}
@@ -80,7 +75,6 @@ class OnlineFramework(Framework):
         return scipy.sparse.hstack(fms).tocsr()
       
       self.vectorize = vectorize
-      self.classlabels = numpy.array(self.store.get_Space(self.class_space))
       self.__classifier = self.classifier
 
       
@@ -96,9 +90,55 @@ class OnlineFramework(Framework):
     elif isinstance(text, unicode):
       raise ValueError, "Can only handle byte streams for now"
     feat_map = self.vectorize(text)
-    result = self.__classifier(feat_map)
+    result = self.interpreter(self.__classifier(feat_map))
     classlabels = numpy.array(self.classlabels)
     if solo:
       return classlabels[result[0]]
     else:
       return [classlabels[r] for r in result]
+
+  def serve_xmlrpc(self, host='localhost', port=9000):
+    # TODO: Allow configuration of classify server via XMLRPC.
+    from SimpleXMLRPCServer import SimpleXMLRPCServer
+    import json
+    server = SimpleXMLRPCServer((host, port), logRequests=True)
+    server.register_introspection_functions()
+
+    # TODO: Note hydrat version?
+    server_metadata = dict\
+      ( feature_spaces = sorted(self.feature_spaces)
+      , class_spaces   = self.class_space
+      , learner        = {'name':self.learner.__name__, 'params':self.learner._params()}
+      , split          = self.split_name
+      , interpreter    = self.interpreter.__name__
+      , dataset        = self.dataset.__name__
+      , instance_space = self.dataset.instance_space
+      )
+
+    def configuration():
+      self.logger.info('Serving configuration')
+      return json.dumps(server_metadata)
+      
+    def classify(text):
+      if isinstance(text, str):
+        self.logger.info('Classifying 1 instance of len %d', len(text))
+      else: 
+        self.logger.info('Classifying %d instances', len(text))
+      response = {}
+
+      start = time.time()
+      outcome = self.classify(text)
+      
+      response['timeTaken'] = time.time() - start
+      response['prediction'] = [ str(x) for x in outcome ]
+      # TODO: Add confidence?
+      return json.dumps(response)
+
+    server.register_function(configuration)
+    server.register_function(classify)
+
+    try:
+      print 'Use Crtl+C to exit'
+      server.serve_forever()
+    except KeyboardInterrupt:
+      print 'Exiting'

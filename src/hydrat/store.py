@@ -53,12 +53,91 @@ class BoolFeature(tables.IsDescription):
 # TODO: Declare a configurable compression filter
 #         tables.Filters(complevel=5, complib='zlib') 
 
+STORE_VERSION = 3
+
+def update_h5store(fileh):
+  """
+  Update the format of a h5file-backed store from an earlier version.
+  This is done as an incremental procress, i.e. an update 0->2 is done as
+  0->1->2
+  The fileh is assumed to be writeable.
+  An update from a file without version number is taken to mean that is is either
+  version unknown or a brand new file.
+  """
+  logger.debug("Running update_h5store")
+  root = fileh.root
+
+  version = root._v_attrs['version'] if 'version' in root._v_attrs else 0
+  
+  if version < 1:
+    # No version, or new file
+    # Ensure that the major nodes exist
+    logger.debug('updating to version 1')
+    for node in ['spaces', 'datasets', 'tasksets', 'results']:
+      if not hasattr(root, node):
+        fileh.createGroup( root, node )
+    # Check that the dataset nodes are well-formed
+    for dsnode in root.datasets:
+      if not hasattr(dsnode, 'tokenstreams'):
+        logger.debug('Node %s did not have tokenstreams node; adding.', dsnode._v_name)
+        fileh.createGroup( dsnode, "tokenstreams" )
+      if not hasattr(dsnode, 'sequence'):
+        logger.debug('Node %s did not have sequence node; adding.', dsnode._v_name)
+        fileh.createGroup( dsnode, "sequence" )
+  if version < 2:
+    # In version 2, we introduce the concept of instance spaces, detaching the instance
+    # identifiers from the dataset nodes and instead attaching them to the space nodes
+    logger.debug('updating to version 2')
+    for dsnode in root.datasets:
+      # Move the instance id node to spaces
+      id_node = dsnode.instance_id
+      id_node._v_attrs['date']      = dt.datetime.now().isoformat() 
+      id_node._v_attrs['size']      = len(dsnode.instance_id)
+      id_node._v_attrs['type']      = 'instance'
+      id_node._v_attrs['name']      = dsnode._v_name
+      id_node._v_attrs['encoding']  = 'utf8' # to be safe, in case we had e.g. utf8 filenames
+      fileh.moveNode(dsnode.instance_id, root.spaces, dsnode._v_name)
+      # Unless otherwise specified, the instance space is the dataset name
+      dsnode._v_attrs['instance_space'] = dsnode._v_name
+
+    # Add the instance space metadata to all tasksets
+    for tsnode in root.tasksets:
+      tsnode._v_attrs.instance_space = tsnode._v_attrs.dataset
+      for t in tsnode:
+        t._v_attrs.instance_space = t._v_attrs.dataset
+        
+    # Add the instance space metadata to all results
+    for rnode in root.results:
+      rnode._v_attrs.instance_space = rnode._v_attrs.dataset
+      if hasattr(rnode._v_attrs, 'eval_dataset'):
+        rnode._v_attrs.eval_space = rnode._v_attrs.eval_dataset
+      for node in rnode:
+        if node._v_name == 'summary':
+          for summary in node:
+            summary._v_attrs.instance_space = summary._v_attrs.dataset
+            if hasattr(summary._v_attrs, 'eval_dataset'):
+              summary._v_attrs.eval_space = summary._v_attrs.eval_dataset
+        else:
+          node._v_attrs.instance_space = node._v_attrs.dataset
+          if hasattr(node._v_attrs, 'eval_dataset'):
+            node._v_attrs.eval_space = node._v_attrs.eval_dataset
+  if version < 3:
+    # In version 3, we add weights associated with task nodes
+    for tsnode in root.tasksets:
+      for t in tsnode:
+        fileh.createGroup(t, 'weights')
+        
+
+  logger.debug("updated store from version %d to %d", version, STORE_VERSION)
+  root._v_attrs['version'] = STORE_VERSION
+  fileh.flush()
+
 class Store(object):
   """
   This is the master store class for hydrat. It manages all of the movement of data
   to and from disk.
   """
-  def __init__(self, path, mode='r', default_path = 'store'):
+  def __init__(self, path, mode='r'):
     """
     The store object has four major nodes:
     # spaces
@@ -67,69 +146,28 @@ class Store(object):
     # results
     """
     self.path = path
+    logger.debug("Opening Store at '%s', mode '%s'", self.path, mode)
     self.fileh = tables.openFile(self.path, mode=mode)
     self.mode = mode
-    logger.debug("Opening Store at '%s', mode '%s'", self.path, mode)
+
+    try:
+      self._check_writeable()
+      update_h5store(self.fileh)
+    except IOError:
+      pass
+
     self.root = self.fileh.root
+    self.datasets = self.root.datasets
+    self.spaces = self.root.spaces
+    self.tasksets = self.root.tasksets
+    self.results = self.root.results
 
-    try:
-      self.datasets = self.root.datasets
-    except tables.exceptions.NoSuchNodeError:
-      self._check_writeable()
-      self.datasets = self.fileh.createGroup( self.root
-                            , 'datasets'
-                            , 'Per-dataset Data'
-                            )
+    if not 'version' in self.root._v_attrs or self.root._v_attrs['version'] != STORE_VERSION:
+      raise ValueError, "Store format is outdated; please open the store as writeable to automatically update it"
 
-    try:
-      self.spaces = self.root.spaces
-    except tables.exceptions.NoSuchNodeError:
-      self._check_writeable()
-      self.spaces = self.fileh.createGroup( self.root
-                            , 'spaces'
-                            , 'Space Information'
-                            )
-
-    try:
-      self.tasksets = self.root.tasksets
-    except tables.exceptions.NoSuchNodeError:
-      self._check_writeable()
-      self.tasksets = self.fileh.createGroup( self.root
-                            , 'tasksets'
-                            , 'TaskSet Data'
-                            )
-
-    try:
-      self.results = self.root.results
-    except tables.exceptions.NoSuchNodeError:
-      self._check_writeable()
-      self.results = self.fileh.createGroup( self.root
-                            , 'results'
-                            , 'TaskSetResult Data'
-                            )
-    self.__update_format()
   
   def __str__(self):
     return "<Store mode '%s' @ '%s'>" % (self.mode, self.path)
-
-  def __update_format(self):
-    for dsnode in self.datasets:
-      if not hasattr(dsnode, 'tokenstreams'):
-        logger.warning('Node %s did not have tokenstreams node; adding.', dsnode._v_name)
-        # Create a group for Token Streams
-        self.fileh.createGroup( dsnode
-                              , "tokenstreams"
-                              , "Token Streams"
-                              )
-      if not hasattr(dsnode, 'sequence'):
-        logger.warning('Node %s did not have sequence node; adding.', dsnode._v_name)
-        # Create a group for Token Streams
-        self.fileh.createGroup( dsnode
-                              , "sequence"
-                              , "Instance sequencing information"
-                              )
-        
-
 
   def __del__(self):
     self.fileh.close()
@@ -137,7 +175,6 @@ class Store(object):
   ###
   # Utility Methods
   ###
-
   def _check_writeable(self):
     if self.mode not in "wa":
       raise IOError, "Store is not writeable!"
@@ -176,7 +213,7 @@ class Store(object):
     setattr(attrs, 'shape', data.shape)
     # Add the features to the table
     feature = node.row
-    for i,row in enumerate(data):
+    for i,row in enumerate(ProgressIter(data, label='writing sparse node', maxval=data.shape[0])):
       for j,v in numpy.vstack((row.indices, row.data)).transpose():
         feature['ax0'] = i
         feature['ax1'] = j
@@ -209,6 +246,7 @@ class Store(object):
                     , len(labels)
                     )
 
+    # TODO: Maybe check the metadata for encoding?
     # Weak assumption that if the first label is unicode,
     # they all are unicode
     if isinstance(labels[0], unicode):
@@ -269,7 +307,7 @@ class Store(object):
     self.fileh.flush()
 
 
-  def add_Dataset(self, name, instance_ids):
+  def add_Dataset(self, name, instance_space, instance_ids):
     self._check_writeable()
     if hasattr(self.datasets, name):
       raise AlreadyHaveData, "Already have dataset by name %s", name
@@ -283,15 +321,18 @@ class Store(object):
 
     # Note down our metadata
     attrs.name              = name
+    attrs.instance_space    = instance_space
     attrs.date              = dt.datetime.now().isoformat()
     attrs.num_instances     = len(instance_ids)
 
     # Create the instance_id array
-    self.fileh.createArray( ds 
-                          , "instance_id"
-                          , numpy.array([i.encode() for i in instance_ids])
-                          , title = "Instance Identifiers"
-                          )
+    if hasattr(self.spaces, instance_space):
+      # Check that the spaces match
+      space = self.get_Space(instance_space)
+      if (space != numpy.array(instance_ids)).any():
+        raise ValueError, "Instance identifiers don't match existing instance space"
+    else:
+      self.add_Space(instance_ids, {'type':'instance', 'name':instance_space})
 
     # Create a group for Feature Data 
     self.fileh.createGroup( ds
@@ -339,7 +380,7 @@ class Store(object):
                                     )
 
     # Initialize space to store instance sizes.
-    n_inst = len(self.get_InstanceIds(dsname))
+    n_inst = len(self.get_Space(dsname))
     instance_sizes = numpy.zeros(n_inst, dtype='uint64')
     
     attrs = fm_node._v_attrs
@@ -405,11 +446,11 @@ class Store(object):
     ds = getattr(self.datasets, dsname)
     space = getattr(self.spaces, space_name)
 
-    num_docs = len(ds.instance_id)
+    num_inst = self.get_SpaceMetadata(ds._v_attrs['instance_space'])['size'] 
     num_classes = len(space)
 
     # Check that the map is of the right shape for the dataset and space
-    if class_map.shape != (num_docs, num_classes):
+    if class_map.shape != (num_inst, num_classes):
       raise StoreError, "Wrong shape for class map!"
 
     group =  self.fileh.createGroup( ds.class_data
@@ -455,6 +496,7 @@ class Store(object):
   ###
   # Resolve
   ###
+  #TODO: Are these ever used?
   def resolve_Space(self, desired_metadata):
     """
     Uniquely resolve a single space
@@ -487,17 +529,20 @@ class Store(object):
   ###
   def list_ClassSpaces(self, dsname = None):
     if dsname is None:
-      return set(s._v_attrs.name for s in self.spaces if s._v_attrs.type == 'class')
+      return set(s._v_name for s in self.spaces if s._v_attrs.type == 'class')
     else:
       ds = getattr(self.datasets, dsname)
       return set(node._v_name for node in ds.class_data)
 
   def list_FeatureSpaces(self, dsname = None):
     if dsname is None:
-      return set(s._v_attrs.name for s in self.spaces if s._v_attrs.type == 'feature')
+      return set(s._v_name for s in self.spaces if s._v_attrs.type == 'feature')
     else:
       ds = getattr(self.datasets, dsname)
       return set(node._v_name for node in ds.feature_data)
+
+  def list_InstanceSpaces(self):
+    return set(s._v_name for s in self.spaces if s._v_attrs.type == 'instance')
 
   def list_Datasets(self):
     return set( ds._v_attrs.name for ds in self.datasets)
@@ -551,14 +596,15 @@ class Store(object):
       data = [ d.decode(encoding) for d in data ]
     return data
 
+  # Deprecated upon introduction of instance spaces. use get_Space instead.
+  @deprecated
   def get_InstanceIds(self, dsname):
     """
     @param dsname: Dataset name
     @return: Instance identifiers for dataset
     @rtype: List of strings
     """
-    ds = getattr(self.datasets, dsname)
-    return [ i.decode() for i in ds.instance_id ]
+    return self.get_Space(dsname)
 
   def has_Data(self, dsname, space_name):
     try:
@@ -583,7 +629,11 @@ class Store(object):
     except AttributeError:
       raise NoData
 
-    metadata = dict(dataset=dsname, class_space=space_name)
+    metadata = dict\
+                 ( dataset=dsname
+                 , class_space=space_name
+                 , instance_space=ds._v_attrs.instance_space
+                 )
     return ClassMap(data.read(), metadata)
 
   def get_FeatureMap(self, dsname, space_name):
@@ -603,12 +653,17 @@ class Store(object):
     data_type = feature_node._v_attrs.type
     logger.debug("Returning matrix of type %s", data_type)
     fm = getattr(feature_node, 'feature_map')
-    n_inst = len(ds.instance_id) 
+    n_inst = self.get_SpaceMetadata(ds._v_attrs['instance_space'])['size'] 
     n_feat = len(space)
     m = self._read_sparse_node(fm,shape=(n_inst, n_feat))
-    metadata = dict(dataset=dsname, feature_desc=(space_name,))
+    metadata = dict\
+                 ( dataset=dsname
+                 , feature_desc=(space_name,)
+                 , instance_space=ds._v_attrs.instance_space
+                 )
     return FeatureMap(m, metadata) 
 
+  @deprecated
   def get_SizeData(self, dsname, space_name):
     """
     TODO: Generalize this to getInstanceWeightData, which is a vector we can use
@@ -723,26 +778,64 @@ class Store(object):
                            , sqe
                            , filters = tables.Filters(complevel=5, complib='zlib') 
                            )
+    weights_node = self.fileh.createGroup(task_entry, 'weights')
+    for key in task.weights:
+      new_weight = self.fileh.createArray\
+                      ( weights_node
+                      , key
+                      , task.weights[key]
+                      )
+      new_weight.attrs.date = dt.datetime.now().isoformat() 
 
     self.fileh.flush()
 
+  def extend_Weights(self, taskset):
+    # TODO: Do we need to perform a check for some kind of characteristic
+    #       of the weight?
+    taskset_entry  = getattr(self.tasksets, str(taskset.metadata['uuid']))
+    for task in taskset.tasks:
+      task_tag = str(task.metadata['uuid'])
+      task_entry     = getattr(taskset_entry, task_tag)
+      for key in task.weights:
+        if not hasattr(task_entry.weights, key):
+          new_weight = self.fileh.createArray\
+                          ( task_entry.weights
+                          , key
+                          , task.weights[key]
+                          )
+          new_weight.attrs.date = dt.datetime.now().isoformat() 
+    self.fileh.flush()
+                
   def has_TaskSet(self, desired_metadata):
     """ Check if any taskset matches the specified metadata """
     return bool(self._resolve_TaskSet(desired_metadata))
 
-  def get_TaskSet(self, desired_metadata):
+  def get_TaskSet(self, desired_metadata, weights=None):
     """ Convenience function to bypass tag resolution """
     tags = self._resolve_TaskSet(desired_metadata)
     if len(tags) == 0: raise NoData
     elif len(tags) > 1: raise InsufficientMetadata
     try:
-      return self._get_TaskSet(tags[0])
+      return self._get_TaskSet(tags[0],weights=weights)
     except tables.NoSuchNodeError:
       logger.warning('Removing damaged TaskSet node with metadata %s', str(desired_metadata))
       self.fileh.removeNode(self.tasksets, tags[0], recursive=True)
       raise NoData
 
-  def _get_TaskSet(self, taskset_tag):
+  def _get_TaskSetMetadata(self, taskset_tag):
+    try:
+      taskset_entry  = getattr(self.tasksets, taskset_tag)
+    except AttributeError:
+      raise KeyError, str(taskset_tag)
+    metadata = get_metadata(taskset_entry)
+    return metadata
+
+  def _del_TaskSet(self, taskset_tag):
+    if not hasattr(self.tasksets, taskset_tag):
+      raise KeyError, str(taskset_tag)
+    self.fileh.removeNode(self.tasksets, taskset_tag, True)
+
+  def _get_TaskSet(self, taskset_tag, weights = None):
     try:
       taskset_entry  = getattr(self.tasksets, taskset_tag)
     except AttributeError:
@@ -750,11 +843,11 @@ class Store(object):
     metadata = get_metadata(taskset_entry)
     tasks = []
     for task_entry in taskset_entry._v_groups.values():
-      tasks.append(self._get_Task(task_entry))
+      tasks.append(self._get_Task(task_entry, weights=weights))
     tasks.sort(key=lambda r:r.metadata['index'])
     return TaskSet(tasks, metadata)
 
-  def _get_Task(self,task_entry): 
+  def _get_Task(self,task_entry, weights=None): 
     metadata = get_metadata(task_entry)
     t = Task()
     t.metadata = metadata
@@ -772,6 +865,11 @@ class Store(object):
       t.test_sequence = self._read_sparse_node(task_entry.test_sequence)
     else:
       t.test_sequence  = None
+    t.weights = {}
+    if weights is not None:
+      for key in weights:
+        if key in task_entry.weights:
+          t.weights[key] = getattr(task_entry.weights, key).read()
     return t
 
   def _resolve_TaskSet(self, desired_metadata):
@@ -803,6 +901,16 @@ class Store(object):
     elif len(tags) > 1: raise InsufficientMetadata
     return self._get_TaskSetResult(tags[0])
 
+  def _get_TaskSetResultMetadata(self, tsr_tag):
+    tsr_entry  = getattr(self.results, tsr_tag)
+    return get_metadata(tsr_entry)
+
+  def _del_TaskSetResult(self, tsr_tag):
+    if not hasattr(self.results, tsr_tag):
+      raise KeyError, str(tsr_tag)
+    self.fileh.removeNode(self.results, tsr_tag, True)
+
+
   def _get_TaskSetResult(self, tsr_tag):
     try:
       tsr_entry  = getattr(self.results, tsr_tag)
@@ -810,9 +918,15 @@ class Store(object):
       raise KeyError, str(tsr_tag)
     metadata = get_metadata(tsr_entry)
     results = []
-    for result_entry in tsr_entry._v_groups.values():
-      results.append(self._get_Result(result_entry))
-    results.sort(key=lambda r:r.metadata['index'])
+    for node in tsr_entry._v_groups.values():
+      if node._v_name != 'summary':
+        results.append(self._get_Result(node))
+
+    try:
+      results.sort(key=lambda r:r.metadata['index'])
+    except KeyError:
+      logger.warning("Tasks do not have index- returning in unspecified order")
+      
     return TaskSetResult(results, metadata)
 
   def _get_Result(self, result_entry):
@@ -938,5 +1052,158 @@ class Store(object):
     dsnode = getattr(self.datasets, dsname)
     return set(node._v_name for node in dsnode.sequence)
 
-  #TODO: Load/store of splits
+  ###
+  # Summary
+  ###
+
+  def add_Summary(self, tsr_id, interpreter_id, summary, overwrite=False):
+    """
+    Add a summary, pertaining to a particular interpreter over a 
+    particular tsr. Will create the summary node if needed, and
+    check for duplicate keys. Overwrite skips the duplicate check
+    and immediately updates the keys. 
+    """
+    tsr_node = getattr(self.results, str(tsr_id))
+    if not hasattr(tsr_node, 'summary'):
+      self.fileh.createGroup(tsr_node,'summary')
+    group_node = tsr_node.summary
+    if hasattr(group_node, interpreter_id):
+      summary_node = getattr(group_node, interpreter_id)
+      if not overwrite:
+        # Check for key collisions first 
+        old_keys = set(summary_node._v_attrs._v_attrnamesuser)
+        new_keys = set(summary.keys())
+        overlap = old_keys & new_keys
+        if len(overlap) != 0:
+          raise ValueError, "Already had the following keys: %s" % str(list(overlap))
+    else:
+      summary_node = self.fileh.createGroup(group_node, interpreter_id)
+    for k,v in summary.iteritems():
+      summary_node._v_attrs[k] = v
+
+  def get_Summary(self, tsr_id, interpreter_id):
+    """
+    Get a summary back from a tsr given an interpreter id
+    """
+    try:
+      group_node = getattr(self.results, str(tsr_id)).summary
+      attr_node = getattr(group_node, interpreter_id)._v_attrs
+      return dict( (k,attr_node[k]) for k in attr_node._v_attrnamesuser )
+    except tables.NoSuchNodeError:
+      return {}
+
+  ###
+  # Merge
+  ###
+  def merge(self, other, allow_duplicate=False):
+    """
+    Merge the other store's contents into self.
+    We can copy tasksets and results verbatim, but spaces and datasets need to 
+    take into account a possible re-ordering of features.
+    """
+    #TODO: May need to organize a staging area to ensure this merge is atomic
+    if self.mode == 'r': raise ValueError, "Cannot merge into read-only store"
+    ignored_md = ['uuid', 'avg_learn', 'avg_classify', 'name', 'feature_name', 'class_name']
+
+    space_direct_copy = [] # Spaces we copy directly, meaning the featuremap can be copied too
+    space_feature_mapping = {}
+    for space_node in ProgressIter(list(other.spaces), label='Copying spaces'):
+      logger.debug("Considering space '%s'", space_node._v_name)
+      space_name = space_node._v_name
+      if hasattr(self.spaces, space_name):
+        logger.debug('Already had %s', space_name)
+        src_space = other.get_Space(space_name)
+        # Need to merge these. Feature spaces can be extended, but there is no mechanism for doing the same with class
+        # spaces at the moment, so we must reject any that do not match. 
+        dst_space = self.get_Space(space_name)
+        if src_space == dst_space:
+          logger.debug('  Exact match')
+          space_direct_copy.append(space_name)
+        else:
+          md = get_metadata(space_node)
+          if md['type'] == 'class':
+            raise ValueError, "Cannot merge due to different versions of %s" % str(md)
+          elif md['type'] == 'feature':
+            logger.debug('  Attempting to merge %s', str(md))
+            # Reconcile the spaces. 
+            ## First we need to compute the new features to add
+            new_feats = sorted(set(src_space) - set(dst_space))
+            logger.debug('    Identified %d new features', len(new_feats))
+            reconciled_space = dst_space + new_feats
+            if len(new_feats) != 0:
+              # Only need to extend if new features are found.
+              self.extend_Space(space_name, reconciled_space)
+            ## Now we need to build the mapping from the external space to ours
+            space_index = dict( (k,v) for v,k in enumerate(reconciled_space))
+            space_feature_mapping[space_name] = dict( (i,space_index[s]) for i,s in enumerate(src_space))
+          else:
+            raise ValueError, "Unknown type of space"
+      else:
+        self.fileh.copyNode(space_node, newparent=self.spaces)
+        space_direct_copy.append(space_name)
+        
+    for src_ds in ProgressIter(list(other.datasets), label='Copying datasets'):
+      dsname = src_ds._v_name
+
+      logger.debug("Considering dataset '%s'", dsname)
+      if hasattr(self.datasets, dsname):
+        logger.warning("already had dataset '%s'", dsname)
+        dst_ds = getattr(self.datasets, dsname)
+        # Failure to match instance_id is an immediate reject
+        if (dst_ds.instance_id.read() != src_ds.instance_id.read()).any():
+          raise ValueError, "Instance identifiers don't match for dataset %s" % dsname
+        # The hardest to handle is the feature data, since we may need to rearrange feature maps
+      else:
+        instance_space = other.get_DatasetMetadata(dsname)['instance_space']
+        self.add_Dataset(dsname, instance_space, other.get_Space(dsname))
+        dst_ds = getattr(self.datasets, dsname)
+
+      node_names = ['class_data', 'sequence', 'tokenstream']
+      for name in node_names:
+        logger.debug('Copying %s',name)
+        if hasattr(src_ds, name):
+          src_parent = getattr(src_ds, name)
+          #TODO: may need to handle incomplete destination nodes
+          dst_parent = getattr(dst_ds, name)
+          for node in src_parent:
+            if hasattr(dst_parent, node._v_name):
+              logger.warning("already had '%s' in '%s'", node._v_name, name)
+            else:
+              self.fileh.copyNode(node, newparent=dst_parent, recursive=True)
+        else:
+          logger.warning("Source does not have '%s'", name)
+
+      logger.debug('Copying feature_data')
+      for node in src_ds.feature_data:
+        space_name = node._v_name
+        if hasattr(dst_ds.feature_data, space_name):
+          logger.warning("already had '%s' in 'feature_data'", space_name) 
+        elif space_name in space_direct_copy:
+          # Direct copy the feature data because the destination store did not have this
+          # space or had exactly this space
+          logger.debug("direct copy of '%s' in 'feature_data'", space_name)
+          self.fileh.copyNode(node, newparent=dst_ds.feature_data, recursive=True)
+        else:
+          ax0 = node.feature_map.read(field='ax0')
+          ax1 = node.feature_map.read(field='ax1')
+          value = node.feature_map.read(field='value')
+          feature_mapping = space_feature_mapping[space_name]
+
+          feat_map = [ (i,feature_mapping[j],v) for (i,j,v) in zip(ax0,ax1,value)]
+          self.add_FeatureDict(dsname, space_name, feat_map)
+
+      
+    for datum, check in [('tasksets', self.has_TaskSet), ('results', self.has_TaskSetResult)]:
+      logger.debug("Copying %s", datum)
+      for t in ProgressIter(list(getattr(other,datum)), label='Copying %s' % datum):
+        logger.debug("Considering %s '%s'", datum, t._v_name)
+        md = get_metadata(t)
+        for i in ignored_md: 
+          if i in md: 
+            del md[i]
+        if not allow_duplicate and check(md):
+          logger.warn("Ignoring duplicate in %s: %s", datum, str(md))
+        else:
+          self.fileh.copyNode(t, newparent=getattr(self, datum), recursive=True)
+
 

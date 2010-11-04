@@ -20,14 +20,36 @@ def dense_repr(sparse_data, features):
       matrix[i,j] = fv[f]
   return matrix
 
-def class_matrix(class_map, instance_ids, classlabels):
-  matrix = numpy.zeros( (len(class_map), len(classlabels)),dtype=bool)
-  class_indices = dict( (k,v) for v, k in enumerate(classlabels))
+import numpy
+def map2matrix(mapping, instance_ids=None, labels=None):
+  #TODO: Sanity checks on instance_ids and labels
+  if instance_ids is None:
+    instance_ids = sorted(mapping) # Use the sorted keys, since mappings are unordered
+  if labels is None:
+    labels = reduce(set.union, (set(d) for d in mapping.itervalues()))
+  matrix = numpy.zeros( (len(mapping), len(labels)),dtype=bool)
+  indices = dict( (k,v) for v, k in enumerate(labels))
 
   for i, id in enumerate(instance_ids):
-    for c in class_map[id]:
-      j = class_indices[c]
+    for c in mapping[id]:
+      j = indices[c]
       matrix[i,j] = True
 
   return matrix
 
+def matrix2map(matrix, instance_ids, labels):
+  assert len(instance_ids), len(labels) == matrix.shape
+  labels = numpy.array(labels)
+  mapping = {}
+  for i, id in enumerate(instance_ids):
+    row = matrix[i].nonzero()[0]
+    id_labels = list(labels[row])
+    mapping[id] = id_labels
+  return mapping
+    
+
+# Has been renamed to map2matrix
+from hydrat.common.decorators import deprecated
+@deprecated
+def class_matrix(class_map, instance_ids, classlabels):
+  return map2matrix(class_map, instance_ids, classlabels)

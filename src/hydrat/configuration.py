@@ -8,32 +8,49 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_CONFIG_FILE = '.hydratrc'
 #TODO:
-# Build the default configuration by scanning all the tools and corpora
-#   for their individual configuration requirements by some means of introspection
 # Check each tool for possible installed locations automagically
 #   - Implemented, set up for svms. Still needs work.
-#   - Will not work for the 'external' package, for libs and svm, since they don't inherit
-#     learner. Might want to have a 'configurable' mixin
 # Configure java-based packages better. Can base on java-wrappers from debian
 # Move back to configObj maybe. Problems with ConfigParser:
 #   1) Outputs key-values in any order in a section
 #   2) Does not allow you to inset comments
+# Simplify and unify the file-finding mechanism. which, find_file and find_dir
+# are very similar, and are just a search over a different set of paths with a 
+# different set of constraints. Could look into a 3rd-party library for the job
+# (http://www.richardmurri.com/projects/find/), or maybe DIY. Would be nice
+# to specify things like 'md5sum' in addition to the filename. Could also
+# look into gentoo portage for inspiration.
 
 class DIR(object):
   def __init__(self, dirname):
     self.dirname = dirname
 
-  def value(self):
+  def value(self, paths):
     from hydrat import config
-    search_paths = [ config.getpath('paths','corpora') , '~']
+    search_paths = paths[:]
+    search_paths.append(config.getpath('paths', 'corpora'))
+    search_paths.append('.')
     return find_dir(self.dirname, search_paths)
+
+class FILE(object):
+  def __init__(self, filename, paths = None):
+    self.filename = filename 
+    self.paths = paths if paths is not None else []
+
+  def value(self, paths):
+    from hydrat import config
+    search_paths = paths[:]
+    search_paths.extend(self.paths)
+    search_paths.append(config.getpath('paths', 'corpora'))
+    search_paths.append('.')
+    return find_file(self.filename, search_paths)
 
 class EXE(object):
   def __init__(self, filename):
     self.filename = filename
   
-  def value(self):
-    return which(self.filename)
+  def value(self, paths):
+    return which(self.filename, paths)
 
 class PACKAGE(object):
   """
@@ -76,7 +93,7 @@ def all_subclasses(klass):
 def is_exe(fpath):
   return os.path.exists(fpath) and os.access(fpath, os.X_OK)
 
-def which(program):
+def which(program, paths):
   # from http://stackoverflow.com/questions/377017/test-if-executable-exists-in-python
   logger.debug("which '%s'", program)
   fpath, fname = os.path.split(program)
@@ -84,17 +101,18 @@ def which(program):
     if is_exe(program):
       return program
   else:
-    for path in os.environ["PATH"].split(os.pathsep):
+    all_paths = os.environ["PATH"].split(os.pathsep)
+    all_paths.extend(paths)
+    for path in all_paths:
       exe_file = os.path.join(path, program)
       if is_exe(exe_file):
         return exe_file
 
   return None
 
-
 def find_dir(dirname, search_paths = ['~']):
   """
-  Locate a directoy given its name.
+  Locate a directory given its name.
   """
   logger.debug("find_dir '%s' in '%s'", dirname, str(search_paths))
   result = []
@@ -113,6 +131,27 @@ def find_dir(dirname, search_paths = ['~']):
   else:
     return None
 
+def find_file(filename, search_paths = ['~']):
+  """
+  Locate a file given its name.
+  """
+  logger.debug("find_file '%s' in '%s'", filename, str(search_paths))
+  result = []
+  class Found(Exception): pass
+  def visit(arg, dn, names):
+    if filename in names:
+      arg.append(os.path.join(dn, filename))
+      raise Found
+  try:
+    for path in search_paths:
+      os.path.walk(os.path.expanduser(path), visit, result)
+  except Found:
+    pass
+  if len(result) != 0:
+    return result[0]
+  else:
+    return None
+
 def default_configuration():
   """
   Default configuration options
@@ -120,17 +159,12 @@ def default_configuration():
   default_config = HydratConfigParser()
 
   default_config.add_section('paths')
-  default_config.set('paths', 'work', './work')
   default_config.set('paths', 'scratch', '/tmp')
-  default_config.set('paths', 'models', '%(work)s/models')
-  default_config.set('paths', 'tasks', '%(work)s/tasks')
-  default_config.set('paths', 'results', '%(work)s/results')
-  default_config.set('paths', 'output', '%(work)s/output')
+  default_config.set('paths', 'output', './output')
   default_config.set('paths', 'corpora', '~/data')
 
   default_config.add_section('tools')
   default_config.set('tools', 'rainbow', '/usr/bin/rainbow')
-  default_config.set('tools', 'weka', '/usr/bin/weka.jar')
   default_config.set('tools', 'textcat', '')
   default_config.set('tools', 'libs', '')
   default_config.set('tools', 'genia_data', '')
@@ -142,6 +176,7 @@ def default_configuration():
   #       Should work around this via the Configurable API, so the object looks up its 
   #       local configuration before accessing the global one.
   default_config.set('corpora', 'naacl2010-langid', '')
+  default_config.set('corpora', 'altw2010-langid', '')
 
   default_config.add_section('logging')
   default_config.set('logging', 'console.level', 'info')
@@ -158,6 +193,7 @@ def default_configuration():
   default_config.set('debug', 'pdb_on_classifier_exception', 'False')
   default_config.set('debug', 'pdb_on_unhandled_exception', 'False')
   default_config.set('debug', 'clear_temp_files', 'True')
+  default_config.set('debug', 'allow_str_classset', 'False')
 
   return default_config
 
@@ -183,7 +219,7 @@ def read_configuration(additional_path=[]):
   logger.debug("Read configuration from %s", str(paths))
   return config
 
-def update_configuration(config, rescan=False):
+def update_configuration(config, rescan=False, scan = []):
   """ Receives a config object, then scans hydrat for requirements,
   e.g. installed packages, tries to satisfy the requirements and 
   returns an updated configuration.
@@ -199,7 +235,7 @@ def update_configuration(config, rescan=False):
         # Already have a setting
         existing = config.getpath(section, key)
         if rescan:
-          toolpath = requires[(section,key)].value()
+          toolpath = requires[(section,key)].value(scan)
           if toolpath is not None and toolpath != existing:
             logger.info("%s --> %s (updated)", key, toolpath)
             config.set(section, key, toolpath)
@@ -208,7 +244,7 @@ def update_configuration(config, rescan=False):
         else:
           logger.info("%s --> %s (existing configuration)", key, existing)
       else:
-        toolpath = requires[(section,key)].value()
+        toolpath = requires[(section,key)].value(scan)
         if toolpath is not None:
           logger.info("%s --> %s (resolved)", key, toolpath)
           config.set(section, key, toolpath)

@@ -15,6 +15,12 @@ class Dataset(object):
   """
   def __init__(self):
     self.logger = logging.getLogger('hydrat.preprocessor.Dataset')
+    # Default fallback for datasets that don't declare a separate name
+    if not hasattr(self, '__name__'): 
+      self.__name__ = self.__class__.__name__
+    # Default fallback for datasets that don't declare an instance space
+    if not hasattr(self, 'instance_space'):
+      self.instance_space = self.__name__
 
   def __str__(self):
     ret_strs = []

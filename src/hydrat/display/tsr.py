@@ -11,31 +11,30 @@ from hydrat.display.html import table_str, HTMLWriter, TableSort
 from logging import getLogger
 
 logger = getLogger('hydrat.display.tsr')
+KEY_SEP =':'
 
 def summarize_TaskSetResult(result, interpreter):
   raise NotImplementedError, "Stop using this! Use hydrat.display.summary_fn"
 
-default_relevant = \
-            [ ( {'label':"Dataset", 'searchable':True}       , "dataset"       )
-            , ( {'label':"Class Space",'searchable':True}     , "class_space"     )
-            , ( {'label':"Feature Desc",'searchable':True}   , "feature_desc"     )
-            , ( {'label':"Learner",'searchable':True}    , "learner"    )
-            , ( {'label':"Params",'searchable':True}    , "learner_params"    )
-            , ( "Macro-F"       , "macro_fscore"        )
-            , ( "Macro-P"     , "macro_precision"     )
-            , ( "Macro-R"        , "macro_recall"        )
-            , ( "Micro-F"       , "micro_fscore"        )
-            , ( "Micro-P"     , "micro_precision"     )
-            , ( "Micro-R"        , "micro_recall"        )
-            , ( {'sorter':'digit', 'label':"Learn Time"}    , "avg_learn"     )
-            , ( {'sorter':'digit', 'label':"Classify Time"} , "avg_classify"  )
-            , ( {'sorter': None, 'label':"Details"}      , "link"          )
-            ]
-
 def result_summary_table(summaries, renderer, relevant = None, title = None):
   if relevant is None:
-    relevant = default_relevant
+    relevant = [(k.title(),k) for k in sorted(summaries[0].keys()) if not k.startswith('_')]
+
   headings, cols = zip(*relevant)
+
+  # Process compound keys, which are meant to project from a dict metadata value
+  for col in cols:
+    if KEY_SEP in col:
+      keys = col.split(KEY_SEP)
+      for s in summaries:
+        v = s
+        try:
+          for k in keys:
+            v = v[k]
+        except KeyError:
+          v = None
+        s[col] = v
+      
   renderer.dict_table( summaries 
                      , cols 
                      , col_headings = headings 

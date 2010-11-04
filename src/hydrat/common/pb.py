@@ -26,9 +26,11 @@ class ProgressBar(pb.ProgressBar):
       pb.ProgressBar.update(self, value)
 
 class ProgressIter(object):
-  def __init__(self, sequence, label='Progress'):
+  def __init__(self, sequence, label='Progress', maxval=None):
     self.seq = iter(sequence)
-    self.pb = ProgressBar(widgets=get_widget(label),maxval=len(sequence))
+    maxval = len(sequence) if maxval is None else maxval
+    maxval = maxval if maxval > 0 else 1 #handle empty sequences
+    self.pb = ProgressBar(widgets=get_widget(label),maxval=maxval)
     self.pb.start()
     self.count = 0
 

@@ -8,7 +8,7 @@ from hydrat.preprocessor.model import ImmediateModel
 from hydrat.classifier.common import run_command
 from hydrat.classifier.abstract import Learner, Classifier
 from hydrat import config
-from hydrat.configuration import is_exe, EXE, Configurable
+from hydrat.configuration import is_exe, EXE, Configurable, FILE
 
 """
 Wrapper for WEKA
@@ -26,6 +26,7 @@ class WekaLearner(Configurable, Learner):
   __name__ = 'weka'
   requires=\
     { ('tools','java-bin') : EXE('java')
+    , ('tools','weka')     : FILE('weka.jar', paths=['/usr/share/java'])
     }
 
   def __init__(self, cl_name, options = ""):

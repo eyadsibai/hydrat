@@ -26,6 +26,8 @@ class HydratCmdln(cmdln.Cmdln):
                     help="rescan paths")
   @cmdln.option("-i", "--include", action="append", default=[],
                     help="include additional configuration files")
+  @cmdln.option("-s", "--scan", action="append", default=[],
+                    help="specify additional paths to scan")
   def do_configure(self, subcmd, opts, *args):
     """${cmd_name}: write a configuration file
 
@@ -51,9 +53,25 @@ class HydratCmdln(cmdln.Cmdln):
       # Read in the existing configuration, so we don't lose
       # user customizations.
       config = configuration.read_configuration(opts.include)
-    config = configuration.update_configuration(config, rescan=opts.rescan)
+    config = configuration.update_configuration(config, rescan=opts.rescan, scan=opts.scan)
     configuration.write_configuration(config, path)
     logger.info("Wrote configuration file to '%s'", path)
+
+  def do_merge(self, subcmd, opts, src, dst):
+    """${cmd_name}: merge two or more stores 
+
+    ${cmd_usage} 
+    
+    To merge the contents of storeA.h5 into storeB.h5:
+
+      ${name} ${cmd_name} storeA.h5 storeB.h5
+    """
+    from store import Store
+    src_store = Store(src, 'r')
+    dst_store = Store(dst, 'a')
+    dst_store.merge(src_store)
+    logger.info("Merged %s into %s", src, dst)
+
 
   @cmdln.alias("dsinfo")
   def do_dataset_info(self, subcmd, opts, dsname):
@@ -81,6 +99,75 @@ class HydratCmdln(cmdln.Cmdln):
         logger.debug(e)
         print("%s is not a dataset" % dsname)
 
+  def do_summary(self, subcmd, opts, store_path):
+    """${cmd_name}: create summaries 
+
+    ${cmd_usage} 
+    """
+    from store import Store
+    import sys
+    sys.path.append('.')
+    try:
+      import browser_config
+    except ImportError:
+      import hydrat.browser.browser_config as browser_config
+
+    store = Store(store_path,'a')
+
+    # TODO: Parametrize on summary_function and interpreter
+    summary_fn = browser_config.summary_fn
+    interpreter = browser_config.interpreter
+    int_id = interpreter.__name__
+    for tsr_id in store._resolve_TaskSetResults({}):
+      summary = store.get_Summary(tsr_id, int_id)
+      missing_keys = set(summary_fn.keys) - set(summary)
+      if len(missing_keys) > 0:
+        result = store._get_TaskSetResult(tsr_id)
+        summary_fn.init(result, interpreter)
+        new_values = dict( (key, summary_fn[key]) for key in missing_keys )
+        store.add_Summary(tsr_id, int_id, new_values) 
+      print "Added", missing_keys, "to", tsr_id
+
+  # TODO: Refactor against frameworks.offline and browser.results
+  def do_output(self, subcmd, opts, store_path, output_path):
+    """${cmd_name}: produce and upload summaries in html format
+
+    ${cmd_usage} 
+    """
+    from store import Store
+    from display.store import results2html
+    from hydrat import config
+    import sys
+    import os.path
+    import tempfile
+    import updatedir
+    import shutil
+    sys.path.append('.')
+    try:
+      import browser_config
+    except ImportError:
+      import hydrat.browser.browser_config as browser_config
+
+    store = Store(store_path)
+    scratchP = tempfile.mkdtemp('output', dir=config.getpath('paths','scratch'))
+    with open(os.path.join(scratchP, 'index.html'), 'w') as f:
+      f.write(results2html(store, browser_config))
+
+    updatedir.logger = logger
+    print "Uploading..."
+    updatedir.updatetree(scratchP, output_path, overwrite=True)
+    if config.getboolean('debug','clear_temp_files'):
+      shutil.rmtree(scratchP)
+      
+
+  @cmdln.option("-r", "--remote", action="store_true", default=False,
+                    help="set up remote access to browser webapp")
+  @cmdln.option("-b", "--nobrowse", action="store_true", default=False,
+                    help="do not attempt to launch a webbrowser")
+  @cmdln.option("-m", "--modify", action="store_true", default=False,
+                    help="allow the store to be modified")
+  @cmdln.option("-p", "--port", type='int', default=8080,
+                    help="listen on port number")
   def do_browse(self, subcmd, opts, store_path):
     """${cmd_name}: browse an existing hdf5 store
 
@@ -99,7 +186,7 @@ class HydratCmdln(cmdln.Cmdln):
     import cherrypy
     from hydrat.store import Store
     from hydrat.browser import StoreBrowser
-    store = Store(store_path, 'r')
+    store = Store(store_path, 'a' if opts.modify else 'r')
     import sys
     sys.path.append('.')
     try:
@@ -109,11 +196,18 @@ class HydratCmdln(cmdln.Cmdln):
 
     # Try to determine local IP address
     # from http://stackoverflow.com/questions/166506/finding-local-ip-addresses-in-python
-    # TODO: Deal with possible failure, and/or make this configurable.
     import socket
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.connect(("gmail.com",80))
-    hostname = s.getsockname()[0]
+    if opts.remote:
+      s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+      s.connect(("gmail.com",80))
+      hostname = s.getsockname()[0]
+    else:
+      hostname = socket.gethostbyname(socket.gethostname())
 
-    cherrypy.config.update({'server.socket_host': hostname})
-    cherrypy.quickstart(StoreBrowser(store, browser_config))
+    cherrypy.config.update({'server.socket_host': hostname, 'server.socket_port':opts.port})
+    cherrypy.tree.mount(StoreBrowser(store, browser_config))
+    cherrypy.engine.start()
+    if not opts.nobrowse:
+      import webbrowser
+      webbrowser.open('http://%s:%d'%(hostname, opts.port))
+    cherrypy.engine.block()
