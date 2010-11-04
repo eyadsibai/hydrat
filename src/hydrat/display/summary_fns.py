@@ -144,6 +144,7 @@ def result_metadata(result, interpreter):
     , 'probabilisitc'    : is_probabilistic(result.raw_results[0].classifications)
     }
   entry.update(result.metadata)
+  #TODO: This should go elsewhere
   entry['link'] = "<a href=%s>link</a>" % (str(entry['uuid'])+'.html')
   return entry
 

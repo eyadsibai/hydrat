@@ -19,7 +19,7 @@ import classifier
 import dataset
 import corpora
 import langid
-import common.transform
+import transformer
 
 if __name__ == "__main__":
   main()

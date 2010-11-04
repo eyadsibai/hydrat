@@ -13,6 +13,8 @@ class TaskSet(object):
   def __eq__(self, other):
     raise NotImplementedError
 
+# TODO: Split the metadata management out from the 
+#       core problem of producing new tasks.
 def from_partitions( partitions
                    , feature_map
                    , class_map
@@ -23,7 +25,7 @@ def from_partitions( partitions
   # Check the number of instances match
   assert feature_map.raw.shape[0] == partitions.shape[0]
   # Check the feature map and class map are over the same dataset
-  assert feature_map.metadata['dataset'] == class_map.metadata['dataset']
+  # assert feature_map.metadata['dataset'] == class_map.metadata['dataset']
 
   md = dict(class_map.metadata)
   md.update(feature_map.metadata)

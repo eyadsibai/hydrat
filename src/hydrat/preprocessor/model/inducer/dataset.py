@@ -1,7 +1,8 @@
 import logging
 import numpy
+from hydrat import config
 from hydrat.store import NoData, AlreadyHaveData
-from hydrat.preprocessor.model.inducer import class_matrix 
+from hydrat.preprocessor.model.inducer import map2matrix
 from hydrat.common.pb import ProgressIter
 from hydrat.common import as_set
 from hydrat.common.sequence import sequence2matrix
@@ -27,7 +28,7 @@ class DatasetInducer(object):
       logger.debug("Already had dataset '%s'", dsname)
     else:
       logger.debug("Adding new dataset '%s'", dsname)
-      self.store.add_Dataset(dsname, dataset.instance_ids)
+      self.store.add_Dataset(dsname, dataset.instance_space, dataset.instance_ids)
 
     fms = as_set(fms)
     cms = as_set(cms)
@@ -167,6 +168,10 @@ class DatasetInducer(object):
     self.store.add_FeatureDict(dsname, space_name, feat_map)
 
   def add_Classmap(self, dsname, space_name, docclassmap):
+    if not config.getboolean('debug','allow_str_classset'):
+      if any(isinstance(d, str) or isinstance(d, unicode) for d in docclassmap.values()):
+        raise ValueError, "str detected as classset - did you forget to wrap classmap values in a list?"
+      
     classlabels = reduce(set.union, (set(d) for d in docclassmap.values()))
     c_metadata = {'type':'class','name':space_name}
     try:
@@ -184,6 +189,6 @@ class DatasetInducer(object):
       raise ValueError, "Already have data for dataset '%s' in space '%s'"% (dsname, space_name)
 
     instance_ids = self.store.get_InstanceIds(dsname)
-    class_map = class_matrix(docclassmap, instance_ids, classlabels)
+    class_map = map2matrix(docclassmap, instance_ids, classlabels)
     self.store.add_ClassMap(dsname, space_name, class_map)
 

@@ -63,26 +63,28 @@ class dm_cosine(distance_metric):
     # Handle not having any features in common
     if i.sum() == 0: return numpy.zeros((v1.shape[0],v2.shape[0]), dtype='float')
 
+    self.logger.debug('Calculating normals')
+    n_v1 = [ norm(v.data) for v in v1 ]
+    n_v2 = [ norm(v.data) for v in v2 ]
+
     # Select only shared features from both matrices
     v1 = v1.transpose()[i].transpose().toarray()
     v2 = v2.transpose()[i].transpose().toarray()
     self.logger.debug('Reduced matrices from %d to %d features', orig_feats, v1.shape[1] )
 
-    self.logger.debug('Calculating normals')
-    n_v1 = [ (v, norm(v)) for v in v1 ]
-    n_v2 = [ (v, norm(v)) for v in v2 ]
-
-    self.logger.debug('Computing Distances')
     results = numpy.empty((v1.shape[0],v2.shape[0]), dtype='float')
     self.logger.debug('Output shape: %s', str(results.shape))
  
     def report(i, t): self.logger.debug('Processing entry %d', i+1 )
 
+    self.logger.debug('Computing Distances')
     piter = ProgressIter(n_v1, label = "Cosine")
-    for i,(p,np) in enumerate(timed_report(piter,10,report)):
-      for j,(q,nq) in enumerate(n_v2):
+    for i,np in enumerate(timed_report(piter,10,report)):
+      p = v1[i]
+      for j,nq in enumerate(n_v2):
+        q = v2[j]
         n = np * nq
-        results[i,j] = numpy.dot(p,q) / n if n != 0 else 1.0
+        results[i,j] = numpy.dot(p,q) / n if n != 0 else 0.0
 
     self.logger.debug('Returning Results')
     return 1 - results

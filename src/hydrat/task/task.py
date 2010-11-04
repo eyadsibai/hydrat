@@ -23,6 +23,7 @@ class Task(object):
               , 'metadata'
               , 'train_indices'
               , 'test_indices'
+              , 'weights'
               ]
 
 class InMemoryTask(Task):
@@ -49,6 +50,7 @@ class InMemoryTask(Task):
     #       that span train & test
     self.sequence = sequence
     self.metadata = dict(metadata)
+    self.weights = {}
 
     
   @property

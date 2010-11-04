@@ -30,6 +30,7 @@ class KNNLearner(Learner):
 class KNNClassifier(Classifier):
   __name__ = 'knn'
   def __init__(self, feature_map, class_map, distance_metric, NN_strategy):
+    assert feature_map.shape[0] == class_map.shape[0]
     Classifier.__init__(self)
     self.fm = feature_map
     self.cm = class_map

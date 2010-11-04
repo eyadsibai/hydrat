@@ -1,5 +1,5 @@
 from hydrat.wrapper.GibbsLDA import GibbsLDA
-from hydrat.common.transform import Transformer
+from hydrat.transformer import Transformer
 from hydrat import config as config
 from hydrat.configuration import Configurable, EXE
 
@@ -28,6 +28,7 @@ class GibbsLDATransformer(Configurable, Transformer):
       + 't'+str(self.lda.ntopics)\
       + 'e'+str(self.lda.niters)\
       + 'i'+str(self.lda.infiters)
+    Transformer.__init__(self)
     
   def learn(self, feature_map, class_map):
     with pb.ProgressBar(widgets=pb.get_widget('GibbsLDA learn'), maxval=self.lda.niters) as pbar:
