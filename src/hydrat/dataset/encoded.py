@@ -1,6 +1,7 @@
 from collections import defaultdict
 from hydrat.dataset.text import TextDataset
 from hydrat.common.pb import ProgressIter
+import hydrat.common.extractors as ext
 
 class EncodedTextDataset(TextDataset):
   def __init__(self):
