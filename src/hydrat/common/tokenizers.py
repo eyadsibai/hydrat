@@ -101,11 +101,27 @@ class Tokenizer(object):
   def __call__(self, sequence):
     raise NotImplementedError
 
+import itertools
+def ngram(n, seq):
+  tee = itertools.tee(seq, n)
+  for i in xrange(n):
+    for j in xrange(i):
+      # advance iterators, ignoring result
+      tee[i].next()
+  while True:
+    token = tuple(t.next() for t in tee)
+    if len(token) < n: break
+    yield token
+
+
 class NGram(Tokenizer):
   def __init__(self, n):
     self.n = n
     self.__name__ = '%d-gram' % n
 
   def __call__(self, seq):
-    return [ seq[pos:pos+self.n] for pos in xrange(len(seq) - self.n + 1) ]
-
+    try:
+      return [ seq[pos:pos+self.n] for pos in xrange(len(seq) - self.n + 1) ]
+    except TypeError:
+      # Handle generators
+      return ngram(self.n, seq)
