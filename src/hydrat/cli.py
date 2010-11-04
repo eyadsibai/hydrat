@@ -128,6 +128,38 @@ class HydratCmdln(cmdln.Cmdln):
         store.add_Summary(tsr_id, int_id, new_values) 
       print "Added", missing_keys, "to", tsr_id
 
+  # TODO: Refactor against frameworks.offline and browser.results
+  def do_output(self, subcmd, opts, store_path, output_path):
+    """${cmd_name}: produce and upload summaries in html format
+
+    ${cmd_usage} 
+    """
+    from store import Store
+    from display.store import results2html
+    from hydrat import config
+    import sys
+    import os.path
+    import tempfile
+    import updatedir
+    import shutil
+    sys.path.append('.')
+    try:
+      import browser_config
+    except ImportError:
+      import hydrat.browser.browser_config as browser_config
+
+    store = Store(store_path)
+    scratchP = tempfile.mkdtemp('output', dir=config.getpath('paths','scratch'))
+    with open(os.path.join(scratchP, 'index.html'), 'w') as f:
+      f.write(results2html(store, browser_config))
+
+    updatedir.logger = logger
+    print "Uploading..."
+    updatedir.updatetree(scratchP, output_path, overwrite=True)
+    if config.getboolean('debug','clear_temp_files'):
+      shutil.rmtree(scratchP)
+      
+
   @cmdln.option("-r", "--remote", action="store_true", default=False,
                     help="set up remote access to browser webapp")
   @cmdln.option("-b", "--nobrowse", action="store_true", default=False,
