@@ -180,27 +180,41 @@ class OfflineFramework(Framework):
     """
     Generate HTML output
     """
+    import sys
+    sys.path.append('.')
+    try:
+      import browser_config
+    except ImportError:
+      import hydrat.browser.browser_config as browser_config
+
     if path is None: 
       path = hydrat.config.getpath('paths', 'output')
     if not os.path.exists(path): 
       os.mkdir(path)
-    self.notify("Generating output")
-    summaries = process_results\
-      ( self.store 
-      , self.store
-      , self.interpreter
-      , summary_fn = summary_fn
-      , output_path = path
-      ) 
 
-    # render a HTML version of the summaries
-    relevant = list(fields)
-    for f_name in self.store.list_FeatureSpaces():
-      relevant.append( ({'label':f_name, 'searchable':True}, 'feat_' + f_name) )
+    self.notify("Generating output")
+    # TODO: should this come from self or from browser_config?
+    int_id = browser_config.interpreter.__name__
+    summary_fn = browser_config.summary_fn
+    #TODO: Parametrize
+    summaries = []
+    for uuid in self.store._resolve_TaskSetResults({}):
+      summary = self.store.get_Summary(uuid, int_id)
+
+      # TODO: refactor this against summary in frameworks.offline
+      missing_keys = set(summary_fn.keys) - set(summary)
+      if len(missing_keys) > 0:
+        result = self.store._get_TaskSetResult(uuid)
+        summary_fn.init(result, self.interpreter)
+        new_values = dict( (key, summary_fn[key]) for key in missing_keys )
+        summary.update(new_values)
+
+      summaries.append(summary)
+    # TODO: Produce the per-result details page
 
     indexpath = os.path.join(path, 'index.html')
     with TableSort(open(indexpath, "w")) as renderer:
-      result_summary_table(summaries, renderer, relevant = relevant)
+      result_summary_table(summaries, renderer, relevant = browser_config.relevant)
     self.outputP = path
 
   def upload_output(self, target):
