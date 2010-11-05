@@ -31,7 +31,7 @@ def result_summary_table(summaries, renderer, relevant = None, title = None):
         try:
           for k in keys:
             v = v[k]
-        except KeyError:
+        except (KeyError,TypeError):
           v = None
         s[col] = v
       
