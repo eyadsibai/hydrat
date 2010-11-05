@@ -130,12 +130,12 @@ class OfflineFramework(Framework):
   def has_run(self):
     return self.store.has_TaskSetResult(self.result_desc)
 
-  def run(self, force=False):
+  def run(self, add_args = None, force = False):
     # Check if we already have this result
     if force or not self.has_run():
       exp = Experiment(self.taskset, self.learner)
       try:
-        tsr = exp.run()
+        tsr = exp.run(add_args=add_args)
         self.store.add_TaskSetResult(tsr)
         self.summary # forces the summary to be generated
       except Exception, e:
@@ -146,13 +146,13 @@ class OfflineFramework(Framework):
         else:
           logger.debug(e)
 
-  def transform_taskset(self, transformer):
+  def transform_taskset(self, transformer, add_args=None):
     metadata = tx.update_metadata(self.taskset_desc, transformer)
     if not self.store.has_TaskSet(metadata):
       self.notify('Applying %s to taskset\n\t%s' % (str(transformer), str(self.taskset_desc)))
       self.weights = transformer.weights.keys()
       taskset = self.taskset
-      new_taskset = tx.transform_taskset(taskset, transformer)
+      new_taskset = tx.transform_taskset(taskset, transformer, add_args=add_args)
       self.store.extend_Weights(taskset)
       self.store.new_TaskSet(new_taskset)
     # Only copy over the new feature_desc
