@@ -2,19 +2,29 @@ from hydrat.task.taskset import TaskSet
 from hydrat.task.task import Task
 import time
 
-def transform_task(task, transformer):
+# TODO: Merge this into the transformer interface???
+def transform_task(task, transformer, add_args):
+  transformer.weights = task.weights
+  add_args['sequence']  = task.train_sequence
+  add_args['indices'] = task.train_indices
+
+  # TODO: create a timing context manager?
   start = time.time()
-  transformer.weights.update(task.weights)
-  transformer.learn(task.train_vectors, task.train_classes)
-  task.weights.update(transformer.weights)
+  transformer._learn(task.train_vectors, task.train_classes, add_args)
   learn_time = time.time() - start
 
   t = Task()
-  affected = ['train_vectors', 'test_vectors']
+
   start = time.time()
   for slot in Task.__slots__:
-    if slot in affected:
-      setattr(t, slot, transformer.apply(getattr(task, slot)))
+    if slot.endswith('vectors'):
+      if slot.startswith('train'):
+        add_args['sequence'] = task.train_sequence
+        add_args['indices'] = task.train_indices
+      elif slot.startswith('test'):
+        add_args['sequence'] = task.test_sequence
+        add_args['indices'] = task.test_indices
+      setattr(t, slot, transformer._apply(getattr(task, slot), add_args))
     else:
       setattr(t, slot, getattr(task, slot))
   apply_time = time.time() - start
@@ -30,9 +40,10 @@ def transform_task(task, transformer):
   t.metadata['transform_apply_time'][transformer.__name__] = apply_time
   return t
   
-def transform_taskset(taskset, transformer):
+def transform_taskset(taskset, transformer, add_args=None):
+  # TODO: How to handle add_args in terms of metadata??
   metadata = update_metadata(taskset.metadata, transformer)
-  tasklist = [ transform_task(t, transformer) for t in taskset.tasks ]
+  tasklist = [ transform_task(t, transformer, add_args) for t in taskset.tasks ]
   return TaskSet(tasklist, metadata)
 
 def update_metadata(metadata, transformer):
