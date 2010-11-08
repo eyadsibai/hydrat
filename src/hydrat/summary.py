@@ -1,4 +1,5 @@
 import numpy
+from hydrat.result import PRF, CombinedMacroAverage, CombinedMicroAverage
 
 class Summary(object):
   def __init__(self):
@@ -63,7 +64,6 @@ class Summary(object):
       raise TypeError, "cannot extend summary with %s" % str(function)
 
 
-from hydrat.result import CombinedMacroAverage, CombinedMicroAverage
 class MicroPRF(Summary):
   def init(self, result, interpreter):
     if result != self.result or interpreter != self.interpreter:
@@ -100,6 +100,26 @@ class Metadata(Summary):
 
   def __getitem__(self, key):
     return self.result.metadata.get(key, None)
+
+class ClassPRF(Summary):
+  def __init__(self, klass):
+    self.klass = klass
+    Summary.__init__(self)
+    self.prf = None
+
+  def init(self, result, interpreter):
+    index = result.class_space.index(self.klass)
+    cm = result.overall_confusion_matrix(interpreter).sum(axis=0)[index]
+    prf = PRF()(cm)
+    self.prf = {'precision':prf[0], 'recall':prf[1], 'fscore':prf[2]}
+
+  @property
+  def keys(self): return iter(['PRF_' + self.klass])
+
+  def __getitem__(self, key):
+    if key != 'PRF_' + self.klass:
+      raise KeyError
+    return self.prf
 
 def classification_summary():
   sf = Summary()
