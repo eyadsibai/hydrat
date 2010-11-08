@@ -744,13 +744,13 @@ class Store(object):
 
     self._add_sparse_node( task_entry
                          , 'train_vectors'
-                         , IntFeature if issubclass(tr.dtype.type,numpy.int) else RealFeature 
+                         , IntFeature if issubclass(tr.dtype.type,numpy.integer) else RealFeature 
                          , tr
                          , filters = tables.Filters(complevel=5, complib='zlib') 
                          )
     self._add_sparse_node( task_entry
                          , 'test_vectors'
-                         , IntFeature if issubclass(te.dtype.type,numpy.int) else RealFeature 
+                         , IntFeature if issubclass(te.dtype.type,numpy.integer) else RealFeature 
                          , te 
                          , filters = tables.Filters(complevel=5, complib='zlib') 
                          )
@@ -922,18 +922,30 @@ class Store(object):
     except KeyError:
       logger.warning("Tasks do not have index- returning in unspecified order")
       
-    return TaskSetResult(results, metadata)
+    tsr = TaskSetResult(results, metadata)
+    if 'instance_space' in metadata:
+      try:
+        tsr.instance_space = self.get_Space(metadata['instance_space'])
+      except NoData:
+        pass
+    if 'class_space' in metadata:
+      try:
+        tsr.class_space = self.get_Space(metadata['class_space'])
+      except NoData:
+        pass
+    return tsr
 
   def _get_Result(self, result_entry):
     metadata = get_metadata(result_entry)
     goldstandard     = result_entry.goldstandard.read()
     classifications  = result_entry.classifications.read()
     instance_indices = result_entry.instance_indices.read()
-    return Result( goldstandard
-                 , classifications
-                 , instance_indices
-                 , metadata
-                 )
+    r = Result( goldstandard
+              , classifications
+              , instance_indices
+              , metadata
+              )
+    return r
 
   def _resolve_TaskSetResults(self, desired_metadata):
     """Returns all tags whose entries match the supplied metadata"""
