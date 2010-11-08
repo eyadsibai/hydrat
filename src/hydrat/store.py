@@ -865,6 +865,8 @@ class Store(object):
       for key in weights:
         if key in task_entry.weights:
           t.weights[key] = getattr(task_entry.weights, key).read()
+        else:
+          t.weights[key] = None
     return t
 
   def _resolve_TaskSet(self, desired_metadata):
