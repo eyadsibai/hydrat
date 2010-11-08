@@ -3,7 +3,9 @@ from hydrat.task.task import Task
 import time
 
 # TODO: Merge this into the transformer interface???
-def transform_task(task, transformer, add_args):
+def transform_task(task, transformer, add_args=None):
+  if add_args is None:
+    add_args = {}
   transformer.weights = task.weights
   add_args['sequence']  = task.train_sequence
   add_args['indices'] = task.train_indices
