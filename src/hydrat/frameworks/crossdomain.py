@@ -9,7 +9,6 @@ from hydrat.common.decorators import replace_with_result
 import os
 from hydrat.display.html import TableSort 
 from hydrat.display.summary_fns import sf_featuresets
-from hydrat.frameworks.offline import process_results, result_summary_table
 from hydrat.result.interpreter import SingleHighestValue, NonZero, SingleLowestValue
 from hydrat.task.taskset import TaskSet
 from hydrat.task.task import Task
@@ -102,6 +101,7 @@ class CrossDomainFramework(OfflineFramework):
       task.test_indices   = other.train_indices
 
       task.metadata = task_md
+      task.weights = {}
 
       taskset = TaskSet([task], md)
       self.store.new_TaskSet(taskset)
