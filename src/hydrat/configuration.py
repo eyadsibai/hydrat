@@ -7,6 +7,8 @@ import numpy
 logger = logging.getLogger(__name__)
 
 DEFAULT_CONFIG_FILE = '.hydratrc'
+
+class HydratConfigError(Exception): pass
 #TODO:
 # Check each tool for possible installed locations automagically
 #   - Implemented, set up for svms. Still needs work.
@@ -20,6 +22,7 @@ DEFAULT_CONFIG_FILE = '.hydratrc'
 # (http://www.richardmurri.com/projects/find/), or maybe DIY. Would be nice
 # to specify things like 'md5sum' in addition to the filename. Could also
 # look into gentoo portage for inspiration.
+
 
 class DIR(object):
   def __init__(self, dirname):
@@ -319,5 +322,10 @@ def load_configuration(config):
   original_hook = sys.excepthook
   if config.getboolean('debug','pdb_on_unhandled_exception'):
     sys.excepthook = info
+
+  scratchpath = config.getpath('paths', 'scratch')
+  if not os.path.exists(scratchpath):
+    # TODO: Test writable?
+    raise HydratConfigError, "Scratch path '%s' does not exist" % scratchpath
    
 
