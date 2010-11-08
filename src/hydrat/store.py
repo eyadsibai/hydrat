@@ -212,13 +212,8 @@ class Store(object):
     setattr(attrs, 'dtype', data.dtype)
     setattr(attrs, 'shape', data.shape)
     # Add the features to the table
-    feature = node.row
-    for i,row in enumerate(ProgressIter(data, label='writing sparse node', maxval=data.shape[0])):
-      for j,v in numpy.vstack((row.indices, row.data)).transpose():
-        feature['ax0'] = i
-        feature['ax1'] = j
-        feature['value'] = v
-        feature.append()
+    inst, feat = data.nonzero()
+    node.append(numpy.rec.fromarrays((inst.astype('uint64'), feat.astype('uint64'), data.data)))
     self.fileh.flush()
   
   ###
@@ -1150,7 +1145,7 @@ class Store(object):
         logger.warning("already had dataset '%s'", dsname)
         dst_ds = getattr(self.datasets, dsname)
         # Failure to match instance_id is an immediate reject
-        if (dst_ds.instance_id.read() != src_ds.instance_id.read()).any():
+        if dst_ds._v_attrs.instance_space != src_ds._v_attrs.instance_space:
           raise ValueError, "Instance identifiers don't match for dataset %s" % dsname
         # The hardest to handle is the feature data, since we may need to rearrange feature maps
       else:
@@ -1158,7 +1153,7 @@ class Store(object):
         self.add_Dataset(dsname, instance_space, other.get_Space(dsname))
         dst_ds = getattr(self.datasets, dsname)
 
-      node_names = ['class_data', 'sequence', 'tokenstream']
+      node_names = ['class_data', 'sequence', 'tokenstreams']
       for name in node_names:
         logger.debug('Copying %s',name)
         if hasattr(src_ds, name):
