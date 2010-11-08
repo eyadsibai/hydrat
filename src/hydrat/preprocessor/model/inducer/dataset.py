@@ -99,7 +99,7 @@ class DatasetInducer(object):
     # the matrix is a square boolean matrix, axis 0 represents the child and axis 
     # 1 represents the parent. A True value indicates a directed edge from parent to
     # child.
-    instance_ids = self.store.get_InstanceIds(dsname)
+    instance_ids = self.store.get_Space(dsname)
     index = dict((k,i) for i,k in enumerate(instance_ids))
     sqlist = [ [index[id] for id in s] for s in sequence ]
     sqmatrix = sequence2matrix(sqlist) 
@@ -109,7 +109,7 @@ class DatasetInducer(object):
 
   def add_TokenStreams(self, dsname, stream_name, tokenstreams):
     metadata = dict()
-    instance_ids = self.store.get_InstanceIds(dsname)
+    instance_ids = self.store.get_Space(dsname)
 
     tslist = [tokenstreams[i] for i in instance_ids]
     logger.debug("Adding Token Stream '%s' to Dataset '%s'", stream_name, dsname)
@@ -148,7 +148,7 @@ class DatasetInducer(object):
       logger.debug("Creating a new space")
       self.store.add_Space(feat_labels, metadata)
 
-    instance_ids = self.store.get_InstanceIds(dsname)
+    instance_ids = self.store.get_Space(dsname)
     assert set(instance_ids) == set(feat_dict.keys())
 
     n_inst = len(feat_dict)
@@ -188,7 +188,7 @@ class DatasetInducer(object):
     if self.store.has_Data(dsname, space_name):
       raise ValueError, "Already have data for dataset '%s' in space '%s'"% (dsname, space_name)
 
-    instance_ids = self.store.get_InstanceIds(dsname)
+    instance_ids = self.store.get_Space(dsname)
     class_map = map2matrix(docclassmap, instance_ids, classlabels)
     self.store.add_ClassMap(dsname, space_name, class_map)
 
