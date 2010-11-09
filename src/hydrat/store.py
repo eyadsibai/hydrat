@@ -1104,7 +1104,7 @@ class Store(object):
   ###
   # Merge
   ###
-  def merge(self, other, allow_duplicate=False):
+  def merge(self, other, allow_duplicate=False, datasets_only=False):
     """
     Merge the other store's contents into self.
     We can copy tasksets and results verbatim, but spaces and datasets need to 
@@ -1202,17 +1202,19 @@ class Store(object):
           self.add_FeatureDict(dsname, space_name, feat_map)
 
       
-    for datum, check in [('tasksets', self.has_TaskSet), ('results', self.has_TaskSetResult)]:
-      logger.debug("Copying %s", datum)
-      for t in ProgressIter(list(getattr(other,datum)), label='Copying %s' % datum):
-        logger.debug("Considering %s '%s'", datum, t._v_name)
-        md = get_metadata(t)
-        for i in ignored_md: 
-          if i in md: 
-            del md[i]
-        if not allow_duplicate and check(md):
-          logger.warn("Ignoring duplicate in %s: %s", datum, str(md))
-        else:
-          self.fileh.copyNode(t, newparent=getattr(self, datum), recursive=True)
+    # TASKS & RESULTS
+    if not datasets_only:
+      for datum, check in [('tasksets', self.has_TaskSet), ('results', self.has_TaskSetResult)]:
+        logger.debug("Copying %s", datum)
+        for t in ProgressIter(list(getattr(other,datum)), label='Copying %s' % datum):
+          logger.debug("Considering %s '%s'", datum, t._v_name)
+          md = get_metadata(t)
+          for i in ignored_md: 
+            if i in md: 
+              del md[i]
+          if not allow_duplicate and check(md):
+            logger.warn("Ignoring duplicate in %s: %s", datum, str(md))
+          else:
+            self.fileh.copyNode(t, newparent=getattr(self, datum), recursive=True)
 
 

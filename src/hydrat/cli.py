@@ -57,6 +57,8 @@ class HydratCmdln(cmdln.Cmdln):
     configuration.write_configuration(config, path)
     logger.info("Wrote configuration file to '%s'", path)
 
+  @cmdln.option("-d", "--datasets_only", action="store_true", default=False,
+                    help="only merge datasets (skip tasks and results)")
   def do_merge(self, subcmd, opts, src, dst):
     """${cmd_name}: merge two or more stores 
 
@@ -69,7 +71,7 @@ class HydratCmdln(cmdln.Cmdln):
     from store import Store
     src_store = Store(src, 'r')
     dst_store = Store(dst, 'a')
-    dst_store.merge(src_store)
+    dst_store.merge(src_store, datasets_only=opts.datasets_only)
     logger.info("Merged %s into %s", src, dst)
 
 
