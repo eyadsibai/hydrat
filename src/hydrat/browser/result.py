@@ -10,16 +10,17 @@ from hydrat.common import as_set
 from collections import defaultdict
 from hydrat.display.tsr import result_summary_table
 from hydrat.result import classification_matrix
+from hydrat.common.counter import Counter
 
 
 def results_metadata_map(store, params, max_uniq = 10):
-  mapping = defaultdict(set)
+  mapping = defaultdict(Counter)
   uuids = store._resolve_TaskSetResults(params)
   for uuid in uuids:
     metadata = store._get_TaskSetResultMetadata(uuid)
     for key, value in metadata.iteritems():
       if isinstance(value, str):
-        mapping[key].add(value)
+        mapping[key].update((value,))
   for key in mapping.keys():
     if len(mapping[key]) > max_uniq or len(mapping[key]) <= 1:
       del mapping[key]
@@ -137,12 +138,13 @@ class Results(object):
     for key, values in mapping.iteritems():
       links = []
       new_params = dict(params)
-      for value in values:
-        if isinstance(value,str):
-          new_params[key] = value
-          links.append( markup.oneliner.a(value, href='list?'+urllib.urlencode(new_params, True)))
+      for v in values:
+        label = '%s(%d)' % (v, values[v])
+        if isinstance(v, str):
+          new_params[key] = v
+          links.append( markup.oneliner.a(label, href='list?'+urllib.urlencode(new_params, True)))
         else:
-          links.append( value )
+          links.append( label )
       param_links[key] = links
       
     page.add(dict_as_html(param_links))
