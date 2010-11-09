@@ -105,7 +105,7 @@ class CrossDomainFramework(OfflineFramework):
 
       taskset = TaskSet([task], md)
       self.store.new_TaskSet(taskset)
-    return self.store.get_TaskSet(md)
+    return self.store.get_TaskSet(md, self.weights)
 
   @deprecated
   def evaluate(self, dataset):
