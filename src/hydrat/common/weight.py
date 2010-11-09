@@ -67,6 +67,7 @@ class CavnarTrenkle94(WeightingFunction):
     for cl_i in ProgressIter(range(class_map.shape[1]), 'CavnarTrenkle94'):
       # Get the instance indices which correspond to this class
       class_indices = numpy.flatnonzero(class_map[:,cl_i])
+      if len(class_indices) == 0: continue # Skip this class: no instances
       # Sum features over all instances in the class
       class_profile = feature_map[class_indices].sum(axis=0)
       # Select the top 'count' indices to keep
