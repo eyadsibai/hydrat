@@ -6,6 +6,7 @@ import time
 def transform_task(task, transformer, add_args=None):
   if add_args is None:
     add_args = {}
+  assert set(transformer.weights) == set(task.weights)
   transformer.weights = task.weights
   add_args['sequence']  = task.train_sequence
   add_args['indices'] = task.train_indices
