@@ -64,7 +64,7 @@ class CavnarTrenkle94(WeightingFunction):
     class labels
     """
     feature_weights = numpy.zeros(feature_map.shape[1], dtype=bool)
-    for cl_i in range(class_map.shape[1]):
+    for cl_i in ProgressIter(range(class_map.shape[1]), 'CavnarTrenkle94'):
       # Get the instance indices which correspond to this class
       class_indices = numpy.flatnonzero(class_map[:,cl_i])
       # Sum features over all instances in the class
@@ -90,7 +90,7 @@ class InfoGain(WeightingFunction):
     self.logger.debug("Overall entropy: %.2f", H_P)
       
     feature_weights = numpy.zeros(feature_map.shape[1], dtype=float)
-    for i in ProgressIter(range(len(feature_weights)), 'Calculating InfoGain'):
+    for i in ProgressIter(range(len(feature_weights)), 'InfoGain'):
       H_i = 0.0
       for f_mask in self.feature_discretizer(feature_map[:,i]):
         f_count = len(f_mask) 
