@@ -1,5 +1,7 @@
 import numpy
-from hydrat.result import PRF, CombinedMacroAverage, CombinedMicroAverage
+import hydrat
+from hydrat.result import CombinedMacroAverage, CombinedMicroAverage
+from hydrat.result import Microaverage, Macroaverage, PRF
 
 class Summary(object):
   def __init__(self):
@@ -39,6 +41,11 @@ class Summary(object):
         return getattr(self, 'key_'+key)()
       except KeyError:
         return None
+      except Exception:
+        if hydrat.config.getboolean('debug', 'pdb_on_summaryfn_exception'):
+          import pdb;pdb.post_mortem()
+        else:
+          return 'FAILED'
     else: 
       handler = self.handlers[key]
       handler.init(self.result, self.interpreter)
@@ -120,6 +127,47 @@ class ClassPRF(Summary):
     if key != 'PRF_' + self.klass:
       raise KeyError
     return self.prf
+
+#####
+# Perfold summaries
+#####
+
+class PerfoldConfusionMetric(Summary):
+  """
+  Calculate a confusion matrix metric on a per-fold basis
+  """
+  def __init__(self):
+    Summary.__init__(self)
+    self.aggregator = None
+    self.metric = None
+    self.foldscores = None
+
+  def init(self, result, interpreter):
+    fold_results = {}
+    for r in result.raw_results:
+      index = r.metadata['index']
+      cm = r.confusion_matrix(interpreter)
+      prf = self.aggregator(cm, self.metric)
+      fold_results['fold%d' % index] = {'precision':prf[0], 'recall':prf[1], 'fscore':prf[2]}
+    self.foldscores = fold_results
+
+class PerfoldMacroPRF(PerfoldConfusionMetric):
+  def __init__(self):
+    PerfoldConfusionMetric.__init__(self)
+    self.aggregator = Macroaverage()
+    self.metric = PRF()
+
+  def key_perfold_macroprf(self):
+    return self.foldscores
+
+class PerfoldMicroPRF(PerfoldConfusionMetric):
+  def __init__(self):
+    PerfoldConfusionMetric.__init__(self)
+    self.aggregator = Microaverage()
+    self.metric = PRF()
+
+  def key_perfold_microprf(self):
+    return self.foldscores
 
 def classification_summary():
   sf = Summary()
