@@ -57,8 +57,10 @@ class HydratCmdln(cmdln.Cmdln):
     configuration.write_configuration(config, path)
     logger.info("Wrote configuration file to '%s'", path)
 
-  @cmdln.option("-d", "--datasets_only", action="store_true", default=False,
-                    help="only merge datasets (skip tasks and results)")
+  @cmdln.option("-s", "--spaces",   action="store_true", default=False, help="merge spaces")
+  @cmdln.option("-d", "--datasets", action="store_true", default=False, help="merge datasets")
+  @cmdln.option("-t", "--tasksets", action="store_true", default=False, help="merge tasksets")
+  @cmdln.option("-r", "--results",  action="store_true", default=False, help="merge results")
   def do_merge(self, subcmd, opts, src, dst):
     """${cmd_name}: merge two or more stores 
 
@@ -71,7 +73,16 @@ class HydratCmdln(cmdln.Cmdln):
     from store import Store
     src_store = Store(src, 'r')
     dst_store = Store(dst, 'a')
-    dst_store.merge(src_store, datasets_only=opts.datasets_only)
+    if not any((opts.spaces, opts.datasets, opts.tasksets, opts.results)):
+      args = dict( do_spaces=True, do_datasets=True, do_tasksets=True, do_results=True )
+    else:
+      args = dict(\
+               do_spaces   = opts.spaces, 
+               do_datasets = opts.datasets,
+               do_tasksets = opts.tasksets, 
+               do_results  = opts.results,
+               )
+    dst_store.merge(src_store, **args)
     logger.info("Merged %s into %s", src, dst)
 
 
@@ -148,6 +159,7 @@ class HydratCmdln(cmdln.Cmdln):
     try:
       import browser_config
     except ImportError:
+      # TODO: This has the side effect of failing if your browser_config fails with an importerror.
       import hydrat.browser.browser_config as browser_config
 
     store = Store(store_path)
