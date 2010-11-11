@@ -1,5 +1,4 @@
-from textcat import TextCat
-from googleapi import GoogleAPI
+from textcat import TextCatConfig
 
 from hydrat.dataset.iso639 import ISO639_1_CODES
 
