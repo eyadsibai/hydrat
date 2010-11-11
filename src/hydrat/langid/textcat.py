@@ -12,7 +12,6 @@ from subprocess import Popen, PIPE, STDOUT
 
 from hydrat import config
 from hydrat.configuration import Configurable, EXE
-from hydrat.common.pb import ProgressIter
 
 
 class TextCat(Configurable):
