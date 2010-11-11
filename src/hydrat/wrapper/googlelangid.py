@@ -26,11 +26,12 @@ class GoogleLangid(object):
       data = urllib.urlencode({'v':1.0,'ie': 'UTF8', 'q': text})
       search_results = urllib.urlopen(self.base_url+data)
       response = json.loads(search_results.read())
+    retry = self.retry
     while response['responseData'] is None:
       logger.warning(response)
       logger.warning("Got a None response, retrying in %d seconds", self.retry)
-      time.sleep(self.retry)
-      self.retry *= 2
+      time.sleep(retry)
+      retry *= 2
       search_results = urllib.urlopen(self.base_url+data)
       try:
         response = json.loads(search_results.read())
