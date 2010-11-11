@@ -13,7 +13,7 @@ from subprocess import Popen, PIPE, STDOUT
 class TextCat(object):
   def __init__(self, toolpath, scratch):
     self.model_path = None
-    self.toolpath = 
+    self.toolpath = toolpath
     self.scratch = scratch
 
   def __del__(self):
