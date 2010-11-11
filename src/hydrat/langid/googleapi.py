@@ -3,6 +3,7 @@
 Wrapper for google's langid API
 based on code from http://stackoverflow.com/questions/1136604/how-do-i-use-the-json-google-translate-api
 """
+#TODO: Move the body of this functionality into hydrat.wrapper?
 import urllib
 import json
 import time
@@ -28,9 +29,10 @@ class GoogleAPI(object):
       response = json.loads(search_results.read())
     while response['responseData'] is None:
       logger.warning(response)
-      logger.warning("Got a None response, retrying in %d seconds", retry)
+      logger.warning("Got a None response, retrying in %d seconds", self.retry)
       time.sleep(self.retry)
       self.retry *= 2
+      search_results = urllib.urlopen(self.base_url+data)
       try:
         response = json.loads(search_results.read())
       except ValueError:
