@@ -22,7 +22,7 @@ class TextCat(object):
 
   def train(self, pairs):
     # Create a temporary directory to store models
-    self.model_path = tempfile.mkdtemp(prefix='textcat', dir=config.getpath('paths','scratch'))
+    self.model_path = tempfile.mkdtemp(prefix='textcat', dir=self.scratch)
 
     key = operator.itemgetter(1)
     for klass, group in itertools.groupby(sorted(pairs,key=key),key):

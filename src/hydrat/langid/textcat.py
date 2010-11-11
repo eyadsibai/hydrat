@@ -24,7 +24,7 @@ def do_textcat(train_ds, test_ds, tokenstream, class_space, classlabels):
     learner_params = dict(tokenstream=tokenstream),
     )
 
-  cat = TextCat(config.getpath('tools','textcat'), )
+  cat = TextCat(config.getpath('tools','textcat'), config.getpath('paths','scratch'))
   train_ts = train_ds.tokenstream(tokenstream)
   train_cm = train_ds.classmap(class_space)
   pairs = [ (train_ts[i], train_cm[i][0]) for i in train_ds.instance_ids ]
