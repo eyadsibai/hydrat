@@ -3,7 +3,6 @@
 Wrapper for google's langid API
 based on code from http://stackoverflow.com/questions/1136604/how-do-i-use-the-json-google-translate-api
 """
-#TODO: Move the body of this functionality into hydrat.wrapper?
 import urllib
 import json
 import time
@@ -11,7 +10,7 @@ import random
 import logging
 logger = logging.getLogger(__name__)
 
-class GoogleAPI(object):
+class GoogleLangid(object):
   base_url='http://ajax.googleapis.com/ajax/services/language/detect?'
 
   def __init__( self, sleep=5, simulate=False, retry = 60 ):
