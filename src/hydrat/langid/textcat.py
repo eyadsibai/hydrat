@@ -1,5 +1,4 @@
 import time
-from hydrat.langid.textcat import TextCat
 from hydrat.result.tasksetresult import TaskSetResult
 from hydrat.result.result import Result
 from hydrat.store import Store
