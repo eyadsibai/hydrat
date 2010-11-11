@@ -10,18 +10,11 @@ import operator
 
 from subprocess import Popen, PIPE, STDOUT
 
-from hydrat import config
-from hydrat.configuration import Configurable, EXE
-
-
-class TextCat(Configurable):
-  requires =\
-    { ('tools', 'textcat')    : EXE('text_cat')
-    }
-
-  def __init__(self):
+class TextCat(object):
+  def __init__(self, toolpath, scratch):
     self.model_path = None
-    self.toolpath = config.getpath('tools','textcat')
+    self.toolpath = 
+    self.scratch = scratch
 
   def __del__(self):
     if self.model_path is not None:
