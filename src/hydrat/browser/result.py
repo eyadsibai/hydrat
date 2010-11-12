@@ -12,15 +12,16 @@ from hydrat.display.tsr import result_summary_table
 from hydrat.result import classification_matrix
 from hydrat.common.counter import Counter
 
+def metamap(metadatas):
+  mapping = defaultdict(Counter)
+  for md in metadatas:
+    for k,v in md.iteritems():
+      if isinstance(v, str):
+        mapping[k].update((v,))
+  return mapping
 
 def results_metadata_map(store, params, max_uniq = 10):
-  mapping = defaultdict(Counter)
-  uuids = store._resolve_TaskSetResults(params)
-  for uuid in uuids:
-    metadata = store._get_TaskSetResultMetadata(uuid)
-    for key, value in metadata.iteritems():
-      if isinstance(value, str):
-        mapping[key].update((value,))
+  mapping = metamap( store._get_TaskSetResultMetadata(uuid) for uuid in store._resolve_TaskSetResults(params) )
   for key in mapping.keys():
     if len(mapping[key]) > max_uniq or len(mapping[key]) <= 1:
       del mapping[key]
@@ -112,6 +113,7 @@ class Results(object):
 
       page.form(action='receive', method='post')
       page.input(type='submit', name='action', value='compare')
+      page.input(type='submit', name='action', value='metamap')
       if self.store.mode == 'a':
         page.input(type='submit', name='action', value='delete')
       page.br()
@@ -348,6 +350,19 @@ class Results(object):
             page.li('(Success) '+id)
           except KeyError:
             page.li('(Failure) '+id)
+    return str(page)
+
+  @cherrypy.expose
+  def metamap(self, uuid):
+    import cgi
+    import pprint
+    uuids = as_set(uuid)
+    int_id = self.interpreter.__name__
+    map = metamap(self.store.get_Summary(uuid, int_id) for uuid in uuids)
+    page = markup.page()
+    page.init(**page_config)
+    page.pre(cgi.escape(pprint.pformat(list(uuids))))
+    page.add(dict_as_html(map))
     return str(page)
       
 
