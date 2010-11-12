@@ -2,6 +2,7 @@ from hydrat.classifier.abstract import Learner, Classifier
 from itertools import izip
 from hydrat import config
 from hydrat.configuration import Configurable, EXE
+from hydrat.common.sequence import matrix2sequence
 
 import tempfile
 import os
@@ -10,6 +11,8 @@ import time
 import numpy
 import sys
 
+def parse_crfsgd_output(data):
+  return [ line[-1] for line in data.split('\n') if len(line) > 0 ]
 
 class CRFFileWriter(object):
 
@@ -30,29 +33,18 @@ class CRFFileWriter(object):
 
   @staticmethod
   def writefile(file, fvs, sequence, cvs = None):
-    # Identify all the nodes without parents - these are the starts of sequences
-    first_post = numpy.nonzero(sequence.sum(0)==0)[0]
-    first_post_index = first_post.tolist()[0]
+    """ Write a CRFSGD compatible file. Note that sequence is 
+    expected to be in list-of-lists format.
+    """
     if cvs is not None: assert fvs.shape[0] == cvs.shape[0]
-    # For each of the start nodes
-    for i in first_post_index:
-      # Follow the chain of nodes, writing features as we go
-      while(len(sequence[i].nonzero()[1])>0):
+    for thread in sequence:
+      for i in thread:
         if cvs is not None:
           one_line = CRFFileWriter.instance(fvs[i], cvs[i])
         else:
           one_line = CRFFileWriter.instance(fvs[i])
-        i = sequence[i].nonzero()[1][0]
         file.write(one_line)
-      # Write out the final instance
-      if cvs is not None:
-        one_line = CRFFileWriter.instance(fvs[i], cvs[i])
-      else:
-        one_line = CRFFileWriter.instance(fvs[i])
-      file.write(one_line)
-      file.write("\n")
-
-
+      file.write('\n')
 
 class crfsgdL(Configurable, Learner):
   __name__ = 'crfsgd'
@@ -77,8 +69,7 @@ class crfsgdL(Configurable, Learner):
     return dict(capacity=self.capacity)
     
   def _learn(self, feature_map, class_map, sequence):
-    writer = CRFFileWriter
-    
+    seq = matrix2sequence(sequence)
     #build the template for CRF learner
     #TODO: note that I did not put *identifiers* at the moment 
     template_len = feature_map.shape[1]
@@ -92,7 +83,7 @@ class crfsgdL(Configurable, Learner):
      #Create and write the training file
     train = tempfile.NamedTemporaryFile(delete=self.clear_temp)
     self.logger.debug("writing training file: %s", train.name)
-    writer.writefile(train, feature_map, sequence, class_map)
+    CRFFileWriter.writefile(train, feature_map, seq, class_map)
     train.flush()
 
     #Create a temporary file for the model
@@ -128,19 +119,25 @@ class crfsgdC(Classifier):
 
   def __init__(self, model_path, toolpath, num_classes):
     Classifier.__init__(self)
-    self.sequence = None
     self.model_path  = model_path
     self.toolpath  = toolpath 
     self.num_classes = num_classes
     self.clear_temp  = config.getboolean('debug','clear_temp_files')
 
-  def __invoke_classifier(self, test_path):
-    #Create a temporary file for the results
+  def _classify(self, feature_map, sequence):
+    seq = matrix2sequence(sequence)
+    #Create and write the test file
+    test  = tempfile.NamedTemporaryFile(delete=self.clear_temp)
+    self.logger.debug("writing test file: %s", test.name)
+    CRFFileWriter.writefile(test, feature_map, seq)
+    test.flush()
+
+    # Do the classification
     result_file, result_path = tempfile.mkstemp()
     os.close(result_file)
     classif_command = "%s -t %s %s %s" % ( self.toolpath 
                                       , self.model_path
-                                      , test_path
+                                      , test.name
                                       , ">"+result_path
                                       )
     self.logger.debug("Classifying CRF: %s", classif_command)
@@ -150,58 +147,22 @@ class crfsgdC(Classifier):
     if return_value:
       self.logger.critical("Classifying 'crfsgd' failed with output:\n"+output)
       raise ValueError, "Classif 'crfsgd' returned %s"%(str(return_value))
-    return result_path
 
-  def __parse_result(self, result_path, num_test_docs):
-    first_post = numpy.nonzero(self.sequence.sum(0)==0)[0]
-    first_post_index = first_post.tolist()[0]
-    child_sequence = self.sequence
+    # Parse CRFSGD output
+    with open(result_path) as f:
+      classifications = parse_crfsgd_output(f.read())
 
-    result_file = open(result_path)
-    result_lines = result_file.readlines()
-    classifications = numpy.zeros((num_test_docs, self.num_classes), dtype='bool')
+    num_test_docs = feature_map.shape[0]
+    cm = numpy.zeros((feature_map.shape[0], self.num_classes), dtype='bool')
 
-    j = 0
-    checksum = 0
-    for i in first_post_index:
-      while(len(child_sequence[i].nonzero()[1])>0):
-        class_index = int(result_lines[j].split()[-1])
-        classifications[i, class_index] = True
-        checksum += 1
-        j += 1
-        i = child_sequence[i].nonzero()[1][0]
-      class_index = int(result_lines[j].split()[-1])
-      classifications[i, class_index] = True
-      checksum += 1
-      assert result_lines[j+1] == "\n"
-      j += 2
-    assert checksum == num_test_docs
-    # Dispose of the unneeded output file
-    result_file.close()
+    post_order = numpy.hstack(seq)
+    assert len(post_order) == len(classifications)
+    for instance, cl in zip(post_order, classifications):
+      cm[instance,cl] = True
+
+    # Cleanup
     if self.clear_temp:
       os.remove(result_path)
-
-    return classifications
-
-  def write_testfile(self, test, feature_map):
-    writer = CRFFileWriter
-
-     #Create and write the test file
-    self.logger.debug("writing test file: %s", test.name)
-    writer.writefile(test, feature_map, self.sequence)
-    test.flush()
-
-  def _classify(self, feature_map, sequence):
-    self.sequence = sequence
-    test  = tempfile.NamedTemporaryFile(delete=self.clear_temp)
-    self.write_testfile(test, feature_map)
-    num_test_docs = feature_map.shape[0]
-
-    return self.classify_from_file(test.name, num_test_docs)
-
-  def classify_from_file(self, test_path, num_test_docs):
-    result_path = self.__invoke_classifier(test_path)
-    classifications = self.__parse_result(result_path, num_test_docs)
-    return classifications
+    return cm 
 
 
