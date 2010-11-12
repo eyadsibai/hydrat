@@ -30,18 +30,21 @@ class CRFFileWriter(object):
 
   @staticmethod
   def writefile(file, fvs, sequence, cvs = None):
-    first_post = numpy.nonzero(sequence.sum(1)==0)[0]
+    # Identify all the nodes without parents - these are the starts of sequences
+    first_post = numpy.nonzero(sequence.sum(0)==0)[0]
     first_post_index = first_post.tolist()[0]
-    child_sequence = sequence.transpose()
     if cvs is not None: assert fvs.shape[0] == cvs.shape[0]
+    # For each of the start nodes
     for i in first_post_index:
-      while(len(child_sequence[i].nonzero()[1])>0):
+      # Follow the chain of nodes, writing features as we go
+      while(len(sequence[i].nonzero()[1])>0):
         if cvs is not None:
           one_line = CRFFileWriter.instance(fvs[i], cvs[i])
         else:
           one_line = CRFFileWriter.instance(fvs[i])
-        i = child_sequence[i].nonzero()[1][0]
+        i = sequence[i].nonzero()[1][0]
         file.write(one_line)
+      # Write out the final instance
       if cvs is not None:
         one_line = CRFFileWriter.instance(fvs[i], cvs[i])
       else:
@@ -150,9 +153,9 @@ class crfsgdC(Classifier):
     return result_path
 
   def __parse_result(self, result_path, num_test_docs):
-    first_post = numpy.nonzero(self.sequence.sum(1)==0)[0]
+    first_post = numpy.nonzero(self.sequence.sum(0)==0)[0]
     first_post_index = first_post.tolist()[0]
-    child_sequence = self.sequence.transpose()
+    child_sequence = self.sequence
 
     result_file = open(result_path)
     result_lines = result_file.readlines()
