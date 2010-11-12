@@ -95,10 +95,9 @@ class DatasetInducer(object):
 
   def add_Sequence(self, dsname, seq_name, sequence):
     # This involves converting the sequence representation from lists of identifers 
-    # in-dataset identifiers to a matrix. We use a follow-matrix representation, where
-    # the matrix is a square boolean matrix, axis 0 represents the child and axis 
-    # 1 represents the parent. A True value indicates a directed edge from parent to
-    # child.
+    # in-dataset identifiers to a matrix. 
+    # Axis 0 represents the parent and axis 1 represents the child.
+    # A True value indicates a directed edge from parent to child.
     instance_ids = self.store.get_Space(dsname)
     index = dict((k,i) for i,k in enumerate(instance_ids))
     sqlist = [ [index[id] for id in s] for s in sequence ]
