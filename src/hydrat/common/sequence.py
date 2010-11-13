@@ -20,7 +20,28 @@ def sequence2matrix(sequence, size=None):
     
   return scipy.sparse.csr_matrix(matrix, dtype=matrix.dtype)
   
+
+# TODO: Test this implementation. If satisfied, replace matrix2sequence with this.
+def matrix2seq(matrix):
+  # Identify all the first instance in sequences
+  first_instance = numpy.nonzero(matrix.sum(0)==0)[1].tolist()[0]
+  seq = []
+  for i in first_instance:
+    subseq = [ i ]
+    children = matrix[i].nonzero()[1]
+    while(len(children) > 0):
+      if len(children) > 1:
+        raise ValueError, "Mutliple children- Not a sequence!"
+      i = children[0]
+      subseq.append(i)
+      children = matrix[i].nonzero()[1]
+    seq.append(subseq)
+  return seq
+
 def matrix2sequence(matrix):
+  # NOTE: This assumes that the child index is always greater than
+  # the parent index
+  # TODO: FIX THIS. Use a first-post-follow approach.
   matrix = scipy.sparse.dok_matrix(matrix, dtype=matrix.dtype)
   pairs = sorted(link for link,b in matrix.items())
   seq = []
