@@ -1,4 +1,6 @@
 # Common operations on metadata stored in pytables nodes
+from collections import defaultdict
+from hydrat.common.counter import Counter
 
 def value_matches(v1, v2):
   """ Define equality over all sorts of values that could end up in
@@ -43,3 +45,15 @@ def get_metadata(node):
                     in   node._v_attrs._f_list()
                     )
   return metadata
+
+def metamap(metadatas):
+  """
+
+  """
+  mapping = defaultdict(Counter)
+  for md in metadatas:
+    for k,v in md.iteritems():
+      if isinstance(v, str):
+        mapping[k].update((v,))
+  return mapping
+

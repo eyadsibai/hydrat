@@ -10,15 +10,7 @@ from hydrat.common import as_set
 from collections import defaultdict
 from hydrat.display.tsr import result_summary_table
 from hydrat.result import classification_matrix
-from hydrat.common.counter import Counter
-
-def metamap(metadatas):
-  mapping = defaultdict(Counter)
-  for md in metadatas:
-    for k,v in md.iteritems():
-      if isinstance(v, str):
-        mapping[k].update((v,))
-  return mapping
+from hydrat.common.metadata import metamap
 
 def results_metadata_map(store, params, max_uniq = 10):
   mapping = metamap( store._get_TaskSetResultMetadata(uuid) for uuid in store._resolve_TaskSetResults(params) )
