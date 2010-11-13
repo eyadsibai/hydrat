@@ -1217,7 +1217,10 @@ class Store(object):
         if not allow_duplicate and check(md):
           logger.warn("Ignoring duplicate in %s: %s", datum, str(md))
         else:
-          self.fileh.copyNode(t, newparent=getattr(self, datum), recursive=True)
+          try:
+            self.fileh.copyNode(t, newparent=getattr(self, datum), recursive=True)
+          except tables.NoSuchNodeError:
+            logger.critical("Damaged node skipped")
 
     if do_tasksets:
       __merge('tasksets', self.has_TaskSet)
