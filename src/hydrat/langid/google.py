@@ -12,8 +12,8 @@ from hydrat.store import Store
 from hydrat.result.result import Result
 from hydrat.result.tasksetresult import TaskSetResult
 
-def goog_langid(ds, tokenstream):
-  cat = GoogleLangid()
+def goog_langid(ds, tokenstream, key=None):
+  cat = GoogleLangid(retry=300, apikey=key)
   ts = ds.tokenstream(tokenstream)
   filename = 'google-%s-%s' % (tokenstream, ds.__name__)
   path = os.path.join(hydrat.config.getpath('paths','scratch'), filename)
@@ -29,7 +29,7 @@ def goog_langid(ds, tokenstream):
     for key in ProgressIter(ts, label='Google-Langid'):
       if key in obtained: continue
       text = ts[key]
-      sleep_len = random.uniform(0,5)
+      sleep_len = random.uniform(0,10)
       now = datetime.datetime.now().isoformat()
       pred_lang = cat.classify(text)
       print sleep_len, pred_lang, now, text,
@@ -38,7 +38,7 @@ def goog_langid(ds, tokenstream):
       f.flush()
   return obtained
 
-def do_google(test_ds, tokenstream, class_space, classlabels, spacemap):
+def do_google(test_ds, tokenstream, class_space, classlabels, spacemap, key=None):
   md = dict(\
     class_space  = class_space,
     dataset      = 'GoogleLangid',
@@ -49,7 +49,7 @@ def do_google(test_ds, tokenstream, class_space, classlabels, spacemap):
     learner_params = dict(tokenstream=tokenstream, spacemap=spacemap.__name__)
     )
 
-  preds = goog_langid(test_ds, tokenstream)
+  preds = goog_langid(test_ds, tokenstream, key=key)
   for key in preds:
     preds[key] = [spacemap(preds[key])]
 
