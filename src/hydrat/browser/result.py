@@ -13,6 +13,7 @@ from hydrat.result import classification_matrix
 from hydrat.common.counter import Counter
 
 
+
 def results_metadata_map(store, params, max_uniq = 10):
   mapping = defaultdict(Counter)
   uuids = store._resolve_TaskSetResults(params)
@@ -111,6 +112,7 @@ class Results(object):
       page.p('Displaying %d results' % len(uuids))
 
       page.form(action='receive', method='post')
+      page.input(type='submit', name='action', value='csv')
       page.input(type='submit', name='action', value='compare')
       if self.store.mode == 'a':
         page.input(type='submit', name='action', value='delete')
@@ -349,6 +351,25 @@ class Results(object):
           except KeyError:
             page.li('(Failure) '+id)
     return str(page)
+
+  @cherrypy.expose
+  def csv(self, uuid, columns=None):
+    # TODO: Let user select columns
+    uuid = as_set(uuid)
+    int_id = self.interpreter.__name__
+    rows = [ self.store.get_Summary(u, int_id) for u in uuid ]
+    fieldnames = zip(*self.relevant)[1]
+
+    import csv
+    from cStringIO import StringIO
+    out = StringIO()
+    writer = csv.DictWriter(out, fieldnames, extrasaction='ignore')
+    writer.writerows(rows)
+    text = out.getvalue()
+    cherrypy.response.headers["Content-Type"] = "text/csv"
+    cherrypy.response.headers["Content-Length"] = len(text)
+    cherrypy.response.headers["Content-Disposition"] = "attachment; filename=hydrat_browser.csv"
+    return text
       
 
     
