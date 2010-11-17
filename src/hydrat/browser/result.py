@@ -350,6 +350,8 @@ class Results(object):
   @cherrypy.expose
   def csv(self, uuid, columns=None):
     # TODO: Let user select columns
+    # TODO: Apply the summary function. The summaries we get are straight from the store, and don't
+    #       have the modifications resulting from browser-config
     uuid = as_set(uuid)
     int_id = self.interpreter.__name__
     rows = [ self.store.get_Summary(u, int_id) for u in uuid ]
