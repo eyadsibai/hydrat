@@ -64,7 +64,7 @@ class Results(object):
     if ext_summary_fn is not None:
       summary_fn.extend(ext_summary_fn)
 
-    summaries = self.get_full_summary(uuids)
+    summaries = self.get_full_summary(uuids, summary_fn)
 
     page.h3('Parameters')
     page.add(dict_as_html(params))
@@ -334,19 +334,21 @@ class Results(object):
             page.li('(Failure) '+id)
     return str(page)
 
-  def get_full_summary(self, uuids):
+  def get_full_summary(self, uuids, summary_fn = None):
     # Build the display summaries as we go, based on the stored summaries and any additional
     # summary function supplied.
     int_id = self.interpreter.__name__
+    if summary_fn is None:
+      summary_fn = self.summary_fn
     summaries = []
 
     for uuid in uuids:
       summary = self.store.get_Summary(uuid, int_id)
-      missing_keys = set(self.summary_fn.keys) - set(summary)
+      missing_keys = set(summary_fn.keys) - set(summary)
       if len(missing_keys) > 0:
         result = self.store._get_TaskSetResult(uuid)
-        self.summary_fn.init(result, self.interpreter)
-        new_values = dict( (key, self.summary_fn[key]) for key in missing_keys )
+        summary_fn.init(result, self.interpreter)
+        new_values = dict( (key, summary_fn[key]) for key in missing_keys )
         summary.update(new_values)
       summaries.append(summary)
     return summaries
