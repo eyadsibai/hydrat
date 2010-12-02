@@ -12,6 +12,8 @@ from hydrat.display.tsr import result_summary_table
 from hydrat.result import classification_matrix
 from hydrat.common.metadata import metamap
 
+
+
 def results_metadata_map(store, params, max_uniq = 10):
   mapping = metamap( store._get_TaskSetResultMetadata(uuid) for uuid in store._resolve_TaskSetResults(params) )
   for key in mapping.keys():
@@ -104,6 +106,7 @@ class Results(object):
       page.p('Displaying %d results' % len(uuids))
 
       page.form(action='receive', method='post')
+      page.input(type='submit', name='action', value='csv')
       page.input(type='submit', name='action', value='compare')
       page.input(type='submit', name='action', value='metamap')
       if self.store.mode == 'a':
@@ -345,6 +348,28 @@ class Results(object):
     return str(page)
 
   @cherrypy.expose
+  def csv(self, uuid, columns=None):
+    # TODO: Let user select columns
+    # TODO: Apply the summary function. The summaries we get are straight from the store, and don't
+    #       have the modifications resulting from browser-config
+    uuid = as_set(uuid)
+    int_id = self.interpreter.__name__
+    rows = [ self.store.get_Summary(u, int_id) for u in uuid ]
+    fieldnames = zip(*self.relevant)[1]
+
+    import csv
+    from cStringIO import StringIO
+    out = StringIO()
+    writer = csv.DictWriter(out, fieldnames, extrasaction='ignore')
+    writer.writerows(rows)
+    text = out.getvalue()
+    cherrypy.response.headers["Content-Type"] = "text/csv"
+    cherrypy.response.headers["Content-Length"] = len(text)
+    cherrypy.response.headers["Content-Disposition"] = "attachment; filename=hydrat_browser.csv"
+    return text
+      
+
+  @cherrypy.expose
   def metamap(self, uuid):
     import cgi
     import pprint
@@ -357,8 +382,6 @@ class Results(object):
     page.add(dict_as_html(map))
     return str(page)
       
-
-    
   @cherrypy.expose
   def view(self, uuid):
     from hydrat.display.tsr import render_TaskSetResult
