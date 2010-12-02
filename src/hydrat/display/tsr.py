@@ -13,15 +13,7 @@ from logging import getLogger
 logger = getLogger('hydrat.display.tsr')
 KEY_SEP =':'
 
-def summarize_TaskSetResult(result, interpreter):
-  raise NotImplementedError, "Stop using this! Use hydrat.display.summary_fn"
-
-def result_summary_table(summaries, renderer, relevant = None, title = None):
-  if relevant is None:
-    relevant = [(k.title(),k) for k in sorted(summaries[0].keys()) if not k.startswith('_')]
-
-  headings, cols = zip(*relevant)
-
+def project_compound(summaries, cols):
   # Process compound keys, which are meant to project from a dict metadata value
   for col in cols:
     if KEY_SEP in col:
@@ -34,6 +26,17 @@ def result_summary_table(summaries, renderer, relevant = None, title = None):
         except (KeyError,TypeError):
           v = None
         s[col] = v
+  return summaries
+
+def summarize_TaskSetResult(result, interpreter):
+  raise NotImplementedError, "Stop using this! Use hydrat.display.summary_fn"
+
+def result_summary_table(summaries, renderer, relevant = None, title = None):
+  if relevant is None:
+    relevant = [(k.title(),k) for k in sorted(summaries[0].keys()) if not k.startswith('_')]
+
+  headings, cols = zip(*relevant)
+  summaries = project_compound(summaries, cols)
       
   renderer.dict_table( summaries 
                      , cols 
