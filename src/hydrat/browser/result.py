@@ -8,11 +8,12 @@ from common import page_config
 from display import list_as_html, dict_as_html, list_of_links
 from hydrat.common import as_set
 from collections import defaultdict
-from hydrat.display.tsr import result_summary_table
+from hydrat.display.tsr import result_summary_table, project_compound
 from hydrat.result import classification_matrix
 from hydrat.common.metadata import metamap
 
 
+KEY_SEP =':'
 
 def results_metadata_map(store, params, max_uniq = 10):
   mapping = metamap( store._get_TaskSetResultMetadata(uuid) for uuid in store._resolve_TaskSetResults(params) )
@@ -56,7 +57,6 @@ class Results(object):
     raise cherrypy.HTTPRedirect('list')
 
   def result_summary_page(self, params, page, ext_summary_fn = None, relevant = None):
-    summaries = []
     uuids = self.store._resolve_TaskSetResults(params)
     int_id = self.interpreter.__name__
 
@@ -64,20 +64,7 @@ class Results(object):
     if ext_summary_fn is not None:
       summary_fn.extend(ext_summary_fn)
 
-    # Build the display summaries as we go, based on the stored summaries and any additional
-    # summary function supplied.
-    for uuid in uuids:
-      summary = self.store.get_Summary(uuid, int_id)
-
-      # TODO: refactor this against summary in frameworks.offline
-      missing_keys = set(summary_fn.keys) - set(summary)
-      if len(missing_keys) > 0:
-        result = self.store._get_TaskSetResult(uuid)
-        summary_fn.init(result, self.interpreter)
-        new_values = dict( (key, summary_fn[key]) for key in missing_keys )
-        summary.update(new_values)
-
-      summaries.append(summary)
+    summaries = self.get_full_summary(uuids)
 
     page.h3('Parameters')
     page.add(dict_as_html(params))
@@ -347,6 +334,24 @@ class Results(object):
             page.li('(Failure) '+id)
     return str(page)
 
+  def get_full_summary(self, uuids):
+    # Build the display summaries as we go, based on the stored summaries and any additional
+    # summary function supplied.
+    int_id = self.interpreter.__name__
+    summaries = []
+
+    for uuid in uuids:
+      summary = self.store.get_Summary(uuid, int_id)
+      missing_keys = set(self.summary_fn.keys) - set(summary)
+      if len(missing_keys) > 0:
+        result = self.store._get_TaskSetResult(uuid)
+        self.summary_fn.init(result, self.interpreter)
+        new_values = dict( (key, self.summary_fn[key]) for key in missing_keys )
+        summary.update(new_values)
+      summaries.append(summary)
+    return summaries
+
+
   @cherrypy.expose
   def csv(self, uuid, columns=None):
     # TODO: Let user select columns
@@ -354,9 +359,10 @@ class Results(object):
     #       have the modifications resulting from browser-config
     uuid = as_set(uuid)
     int_id = self.interpreter.__name__
-    rows = [ self.store.get_Summary(u, int_id) for u in uuid ]
     fieldnames = zip(*self.relevant)[1]
-
+    rows = self.get_full_summary(uuid)
+    rows = project_compound(rows, fieldnames)
+    
     import csv
     from cStringIO import StringIO
     out = StringIO()
