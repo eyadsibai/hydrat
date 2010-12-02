@@ -115,10 +115,13 @@ class ClassPRF(Summary):
     self.prf = None
 
   def init(self, result, interpreter):
-    index = result.class_space.index(self.klass)
-    cm = result.overall_confusion_matrix(interpreter).sum(axis=0)[index]
-    prf = PRF()(cm)
-    self.prf = {'precision':prf[0], 'recall':prf[1], 'fscore':prf[2]}
+    try:
+      index = result.class_space.index(self.klass)
+      cm = result.overall_confusion_matrix(interpreter).sum(axis=0)[index]
+      prf = PRF()(cm)
+      self.prf = {'precision':prf[0], 'recall':prf[1], 'fscore':prf[2]}
+    except ValueError:
+      self.prf = {'precision':None, 'recall':None, 'fscore':None}
 
   @property
   def keys(self): return iter(['PRF_' + self.klass])
