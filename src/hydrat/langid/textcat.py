@@ -7,13 +7,14 @@ from hydrat.wrapper.textcat import TextCat
 
 from hydrat import config
 from hydrat.configuration import Configurable, EXE
+from hydrat.task.sampler import membership_vector
 
 class TextCatConfig(Configurable):
   requires =\
     { ('tools', 'textcat')    : EXE('text_cat')
     }
 
-def do_textcat(train_ds, test_ds, tokenstream, class_space, classlabels):
+def do_textcat(train_ds, test_ds, tokenstream, class_space, classlabels, instance_labels):
   md = dict(\
     class_space  = class_space,
     dataset      = train_ds.__name__,
@@ -48,6 +49,7 @@ def do_textcat(train_ds, test_ds, tokenstream, class_space, classlabels):
   result_md = dict(md)
   result_md['learn_time'] = train_time
   result_md['classify_time'] = test_time
-  result = Result(gs, cl, test_ds.instance_ids, result_md )
+  instance_indices = membership_vector(instance_labels, test_ds.instance_ids)
+  result = Result(gs, cl, instance_indices, result_md )
   tsr = TaskSetResult( [result], md )
   return tsr
