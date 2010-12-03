@@ -77,6 +77,9 @@ class DatasetInducer(object):
         logger.warning(e)
         # TODO: Why are we calling pdb for this?
         import pdb;pdb.post_mortem()
+      except AttributeError,e :
+        logger.warning(e)
+        # TODO: Make ignoring this error configurable
 
     # Handle all the token streams
     for key in tss - present_ts:
