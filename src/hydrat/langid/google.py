@@ -3,6 +3,7 @@ import csv
 import time
 import datetime
 import os.path
+import numpy
 import hydrat
 from hydrat.common.pb import ProgressIter
 from hydrat.langid import goog2iso639_1
@@ -59,7 +60,10 @@ def do_google(test_ds, tokenstream, class_space, classlabels, spacemap, key=None
   result_md = dict(md)
   result_md['learn_time'] = None
   result_md['classify_time'] = None
-  result = Result(gs, cl, test_ds.instance_ids, result_md )
+
+  # We always use all instances
+  instance_indices = numpy.ones(len(test_ds.instance_ids), dtype='bool')
+  result = Result(gs, cl, instance_indices, result_md )
   tsr = TaskSetResult( [result], md )
   return tsr
 
