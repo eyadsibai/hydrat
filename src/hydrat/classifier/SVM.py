@@ -37,6 +37,8 @@ class SVMFileWriter(object):
     
     if cv is not None:
       classids = numpy.arange(cv.shape[0])[cv]
+      if len(classids) == 0:
+        classids = [-1] 
     else:
       classids = [-1] #If classes not known just write negative 
     classlabelblock = ",".join(str(id) for id in classids)
