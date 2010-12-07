@@ -6,6 +6,13 @@ import numpy
 from hydrat.classifier.abstract import Learner, Classifier
 from hydrat.common.pb import ProgressIter
 
+def negative_classifier(feature_map, **kwargs):
+  retval = numpy.hstack([
+    numpy.ones((feature_map.shape[0], 1), dtype='bool'),
+    numpy.zeros((feature_map.shape[0], 1), dtype='bool'),
+    ])
+  return retval
+
 class BinaryLearner(Learner):
   def __init__(self, learner):
     self.__name__ = learner.__name__
@@ -22,10 +29,15 @@ class BinaryLearner(Learner):
     classifiers = []
     for cl in ProgressIter(range(num_classes),label='Binary Learn'):
       mask = class_map[:,cl]
-      # Build a two-class task
-      # The second class is the "True" class
-      submap = numpy.vstack((numpy.invert(mask),mask)).transpose()
-      classifiers.append(self.learner(feature_map, submap, **kwargs))
+      if mask.sum() == 0:
+        # There are no exemplars for this class, so we can just slot in a dummy classifier
+        # that always returns negative
+        classifiers.append(negative_classifier)
+      else:
+        # Build a two-class task
+        # The second class is the "True" class
+        submap = numpy.vstack((numpy.invert(mask),mask)).transpose()
+        classifiers.append(self.learner(feature_map, submap, **kwargs))
     return BinaryClassifier(classifiers, self.learner.__name__)
 
 class BinaryClassifier(Classifier):
