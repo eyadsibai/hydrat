@@ -376,6 +376,9 @@ class Store(object):
 
     # Initialize space to store instance sizes.
     n_inst = len(self.get_Space(dsname))
+    # TODO: instance sizes makes no sense in the context of float features!
+    #       the whole notion of instance size should disappear, as it only makes sense for count features
+
     instance_sizes = numpy.zeros(n_inst, dtype='uint64')
     
     attrs = fm_node._v_attrs
@@ -389,7 +392,8 @@ class Store(object):
       feature['ax1'] = j
       feature['value'] = v
       feature.append()
-      instance_sizes[i] += v # Keep tally of instance size
+      if group._v_attrs.type == 'int':
+        instance_sizes[i] += v # Keep tally of instance size
 
     # Store the instance sizes
     fm_sizes = self.fileh.createArray( group
@@ -1100,6 +1104,21 @@ class Store(object):
       return dict( (k,attr_node[k]) for k in attr_node._v_attrnamesuser )
     except tables.NoSuchNodeError:
       return {}
+
+  def del_Summary(self, tsr_id, interpreter_id):
+    """
+    Delete the summary for a given tsr/interpreter combo.
+    """
+    tsr_node = getattr(self.results, str(tsr_id))
+    if not hasattr(tsr_node, 'summary'):
+      return False
+    group_node = tsr_node.summary
+    if hasattr(group_node, interpreter_id):
+      summary_node = getattr(group_node, interpreter_id)
+      self.fileh.removeNode(summary_node)
+      return True
+    else:
+      return False
 
   ###
   # Merge
