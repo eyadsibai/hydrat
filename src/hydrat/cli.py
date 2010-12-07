@@ -112,6 +112,8 @@ class HydratCmdln(cmdln.Cmdln):
         logger.debug(e)
         print("%s is not a dataset" % dsname)
 
+  @cmdln.option("-f", "--force",   action="store_true", default=False, help="force generation of all summaries")
+  @cmdln.option("-d", "--delete",  action="store_true", default=False, help="delete summary nodes")
   def do_summary(self, subcmd, opts, store_path):
     """${cmd_name}: create summaries 
 
@@ -127,19 +129,28 @@ class HydratCmdln(cmdln.Cmdln):
 
     store = Store(store_path,'a')
 
-    # TODO: Parametrize on summary_function and interpreter
     summary_fn = browser_config.summary_fn
     interpreter = browser_config.interpreter
     int_id = interpreter.__name__
     for tsr_id in store._resolve_TaskSetResults({}):
-      summary = store.get_Summary(tsr_id, int_id)
-      missing_keys = set(summary_fn.keys) - set(summary)
-      if len(missing_keys) > 0:
-        result = store._get_TaskSetResult(tsr_id)
-        summary_fn.init(result, interpreter)
-        new_values = dict( (key, summary_fn[key]) for key in missing_keys )
-        store.add_Summary(tsr_id, int_id, new_values) 
-      print "Added", missing_keys, "to", tsr_id
+      if opts.delete:
+        res = store.del_Summary(tsr_id, int_id)
+        if res:
+          print "Deleted summary", int_id, "from", tsr_id
+        else:
+          print "Failed to delete", int_id, "from", tsr_id
+      else:
+        if opts.force:
+          missing_keys = set(summary_fn.keys)
+        else:
+          summary = store.get_Summary(tsr_id, int_id)
+          missing_keys = set(summary_fn.keys) - set(summary)
+        if len(missing_keys) > 0:
+          result = store._get_TaskSetResult(tsr_id)
+          summary_fn.init(result, interpreter)
+          new_values = dict( (key, summary_fn[key]) for key in missing_keys )
+          store.add_Summary(tsr_id, int_id, new_values, overwrite=opts.force) 
+        print "Added", missing_keys, "to", tsr_id
 
   # TODO: Refactor against frameworks.offline and browser.results
   def do_output(self, subcmd, opts, store_path, output_path):
