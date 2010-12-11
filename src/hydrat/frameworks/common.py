@@ -70,7 +70,7 @@ class Framework(object):
   def train_indices(self):
     if self.split_name is None:
       # TODO: Find a faster way of computing this if necessary.
-      return numpy.ones(len(self.dataset.instance_ids), dtype='bool')
+      return numpy.ones(len(self.store.get_Space(self.dataset.instance_space)), dtype='bool')
     else:
       return self.split[:,0,0]
 
