@@ -56,6 +56,7 @@ class OnlineFramework(Framework):
         #       This is also where we should handle tokenstream transforms
         exs[feature_space] = getattr(ext, feature_space.split('_')[1])
 
+      # TODO: May be able to refactor this against the inducer
       def vectorize(text):
         batch_size = len(text)
         fms = []
@@ -64,7 +65,7 @@ class OnlineFramework(Framework):
           feat_index = fis[feature_space] 
           extractor  = exs[feature_space]
 
-          feat_map = scipy.sparse.dok_matrix((batch_size, len(feat_names)))
+          feat_map = scipy.sparse.dok_matrix((batch_size, len(feat_names)), dtype='uint64')
           for i, t in enumerate(text):
             inv_text = extractor(t)
             for feat in inv_text:
@@ -90,22 +91,18 @@ class OnlineFramework(Framework):
     elif isinstance(text, unicode):
       raise ValueError, "Can only handle byte streams for now"
     feat_map = self.vectorize(text)
-    result = self.interpreter(self.__classifier(feat_map))
+    cl = self.__classifier(feat_map)
+    result = self.interpreter(cl)
     classlabels = numpy.array(self.classlabels)
     if solo:
       return classlabels[result[0]]
     else:
       return [classlabels[r] for r in result]
 
-  def serve_xmlrpc(self, host='localhost', port=9000):
-    # TODO: Allow configuration of classify server via XMLRPC.
-    from SimpleXMLRPCServer import SimpleXMLRPCServer
-    import json
-    server = SimpleXMLRPCServer((host, port), logRequests=True)
-    server.register_introspection_functions()
-
+  @property
+  def metadata(self):
     # TODO: Note hydrat version?
-    server_metadata = dict\
+    retval = dict\
       ( feature_spaces = sorted(self.feature_spaces)
       , class_spaces   = self.class_space
       , learner        = {'name':self.learner.__name__, 'params':self.learner._params()}
@@ -114,10 +111,18 @@ class OnlineFramework(Framework):
       , dataset        = self.dataset.__name__
       , instance_space = self.dataset.instance_space
       )
+    return retval
+
+  def serve_xmlrpc(self, host='localhost', port=9000):
+    # TODO: Allow configuration of classify server via XMLRPC.
+    from SimpleXMLRPCServer import SimpleXMLRPCServer
+    import json
+    server = SimpleXMLRPCServer((host, port), logRequests=True, encoding='ascii')
+    server.register_introspection_functions()
 
     def configuration():
       self.logger.info('Serving configuration')
-      return json.dumps(server_metadata)
+      return json.dumps(self.metadata)
       
     def classify(text):
       if isinstance(text, str):
@@ -127,10 +132,11 @@ class OnlineFramework(Framework):
       response = {}
 
       start = time.time()
+      text = [ t.encode('utf8') for t in text ]
       outcome = self.classify(text)
       
       response['timeTaken'] = time.time() - start
-      response['prediction'] = [ str(x) for x in outcome ]
+      response['prediction'] = [ list(x) for x in outcome ]
       # TODO: Add confidence?
       return json.dumps(response)
 
