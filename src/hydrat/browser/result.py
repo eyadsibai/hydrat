@@ -201,6 +201,8 @@ class Results(object):
       boring_inst = numpy.logical_or(boring_inst_allright, boring_inst_allwrong)
     int_inst = numpy.logical_not(boring_inst)
 
+
+    # Keep only interesting instances and interesting classes
     clabels = numpy.array(class_space)[int_cl]
     instlabels = numpy.array(instance_ids)[int_inst]
     classifs = classifs[:,int_cl,:]
@@ -273,6 +275,9 @@ class Results(object):
 
       # Display classification pairs
       for pair in pairs_by_size:
+        if sum(pairs[pair]) == 0:
+          # Can stop display, all the rest are zero
+          break
         fr = clabels[pair[0]]  
         to = clabels[pair[1]] 
         if goldstandard is None or goldstandard == fr:
