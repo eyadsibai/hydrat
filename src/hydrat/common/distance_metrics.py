@@ -103,6 +103,11 @@ class dm_skew(distance_metric):
     return p
 
   def vector_distances(self, v1, v2):
+    # TODO: There is a problem in this implementation.
+    #       Vector distance calculation outcomes are different if we do
+    #       v1xv2 versus one member of v2 at a time against v1.
+    #       The issue is probably in the feature collapse step, we are possibly collapsing too many
+    #       features, or normalizing wrongly as was the case with cosine.
     self.logger.debug('Creating dense representation')
     orig_feats = v1.shape[1]
     # Determine shared features
