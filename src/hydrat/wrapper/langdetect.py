@@ -13,7 +13,7 @@ from subprocess import Popen, PIPE, STDOUT
 
 # /tmp/LangDetect-_PbHSq:[en:0.9999970955345286]
 # /tmp/LangDetect-4QdM8R:[de:0.5714246034071901, af:0.4285733847851334]
-RE_LANGDETECT_OUTPUT = re.compile(r'(?P<file>[/\w-]+):\[(?P<class>\w+):\d\.\d+(, \w+:\d\.\d+|)+\]')
+RE_LANGDETECT_OUTPUT = re.compile(r'(?P<file>[/\.\w-]+):\[(?P<class>[-\w]+):\d\.\d+(, [-\w]+:\d\.\d+|)+\]')
 
 class LangDetect(object):
   def __init__(self, javapath, toolpath, profilespath, scratch, batchsize = 100):
