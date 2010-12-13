@@ -23,7 +23,11 @@ class FLANNL(Learner):
     index = pyflann.FLANN()
     # Must supply a dense feature map.
     # May want to warn against overly-learge feature maps
-    flann_params = index.build_index(feature_map.todense(), **self.kwargs)
+    # TODO: flann will not accept numpy.uint64.
+    # allowed types:
+    # [<type 'numpy.float32'>, <type 'numpy.float64'>, <type 'numpy.uint8'>, <type 'numpy.int32'>]
+    target_type = 'int32' if issubclass(feature_map.dtype.type, numpy.integer) else 'float64'
+    flann_params = index.build_index(feature_map.todense().astype(target_type), **self.kwargs)
     return FLANNC(index, self.kwargs, flann_params, class_map)
     
 
@@ -42,7 +46,8 @@ class FLANNC(Classifier):
   def _classify(self, feature_map):
     if 'distance_type' in self.kwargs:
       pyflann.set_distance_type(self.kwargs['distance_type'], order = self.kwargs.get('order',0))
-    result, dists = self.index.nn_index(feature_map.todense(), checks = self.flann_params['checks'])
+    target_type = 'int32' if issubclass(feature_map.dtype.type, numpy.integer) else 'float64'
+    result, dists = self.index.nn_index(feature_map.todense().astype(target_type), checks = self.flann_params['checks'])
     classif = numpy.vstack([self.class_map[r] for r in result])
     return classif
 
