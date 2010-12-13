@@ -16,7 +16,9 @@ class LangDetectConfig(Configurable):
     ('tools','langdetect-profiles')  : DIR('profiles'),
     }
 
-def do_langdetect(test_ds, tokenstream, class_space, classlabels, instance_labels, spacemap, batchsize=100):
+def do_langdetect(store, test_ds, tokenstream, class_space, spacemap, batchsize=100):
+  instance_labels = store.get_Space(test_ds.instance_space)
+  classlabels = store.get_Space(class_space)
   md = dict(\
     class_space  = class_space,
     dataset      = 'LangDetect',
@@ -27,32 +29,36 @@ def do_langdetect(test_ds, tokenstream, class_space, classlabels, instance_label
     learner_params = dict(tokenstream=tokenstream, spacemap=spacemap.__name__, batchsize=batchsize),
     )
 
-  cat = LangDetect(
-    config.getpath('tools','java-bin'), 
-    config.getpath('tools','langdetect'), 
-    config.getpath('tools','langdetect-profiles'), 
-    config.getpath('paths','scratch'),
-    batchsize = batchsize,
-    )
+  if store.has_TaskSetResult(md):
+    print "Already done!"
 
-  test_ts = test_ds.tokenstream(tokenstream)
-  class_map = {}
-  start = time.time()
+  else:
+    cat = LangDetect(
+      config.getpath('tools','java-bin'), 
+      config.getpath('tools','langdetect'), 
+      config.getpath('tools','langdetect-profiles'), 
+      config.getpath('paths','scratch'),
+      batchsize = batchsize,
+      )
 
-  with ProgressBar(widgets=get_widget('LangDetect'),maxval=len(test_ts)) as pb:
-    klass = cat.batch_classify(test_ts.values(), callback=pb.update)
+    test_ts = test_ds.tokenstream(tokenstream)
+    class_map = {}
+    start = time.time()
 
-  for id, cl in zip(test_ts, klass):
-    class_map[id] = [ spacemap(cl) ]
-  test_time = time.time() - start
-  
-  cl = map2matrix( class_map, test_ds.instance_ids, classlabels )
-  gs = map2matrix( test_ds.classmap(class_space), test_ds.instance_ids, classlabels )
+    with ProgressBar(widgets=get_widget('LangDetect'),maxval=len(test_ts)) as pb:
+      klass = cat.batch_classify(test_ts.values(), callback=pb.update)
 
-  result_md = dict(md)
-  result_md['learn_time'] = None
-  result_md['classify_time'] = test_time
-  instance_indices = membership_vector(instance_labels, test_ds.instance_ids)
-  result = Result(gs, cl, instance_indices, result_md )
-  tsr = TaskSetResult( [result], md )
-  return tsr
+    for id, cl in zip(test_ts, klass):
+      class_map[id] = [ spacemap(cl) ]
+    test_time = time.time() - start
+    
+    cl = map2matrix( class_map, test_ds.instance_ids, classlabels )
+    gs = map2matrix( test_ds.classmap(class_space), test_ds.instance_ids, classlabels )
+
+    result_md = dict(md)
+    result_md['learn_time'] = None
+    result_md['classify_time'] = test_time
+    instance_indices = membership_vector(instance_labels, test_ds.instance_ids)
+    result = Result(gs, cl, instance_indices, result_md )
+    tsr = TaskSetResult( [result], md )
+    store.new_TaskSetResult(tsr)
