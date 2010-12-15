@@ -16,7 +16,7 @@ class LangDetectConfig(Configurable):
     ('tools','langdetect-profiles')  : DIR('profiles'),
     }
 
-def do_langdetect(store, test_ds, tokenstream, class_space, spacemap, batchsize=100):
+def do_langdetect(store, test_ds, tokenstream, class_space, spacemap, batchsize=100, store_result = True):
   instance_labels = store.get_Space(test_ds.instance_space)
   classlabels = store.get_Space(class_space)
   md = dict(\
@@ -30,8 +30,7 @@ def do_langdetect(store, test_ds, tokenstream, class_space, spacemap, batchsize=
     )
 
   if store.has_TaskSetResult(md):
-    print "Already done!"
-
+    return store.get_TaskSetResult(md)
   else:
     cat = LangDetect(
       config.getpath('tools','java-bin'), 
@@ -61,4 +60,6 @@ def do_langdetect(store, test_ds, tokenstream, class_space, spacemap, batchsize=
     instance_indices = membership_vector(instance_labels, test_ds.instance_ids)
     result = Result(gs, cl, instance_indices, result_md )
     tsr = TaskSetResult( [result], md )
-    store.new_TaskSetResult(tsr)
+    if store_result:
+      store.new_TaskSetResult(tsr)
+    return tsr
