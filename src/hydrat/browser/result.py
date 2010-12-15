@@ -2,15 +2,18 @@ import cherrypy
 import urllib
 import numpy
 import StringIO
+from collections import defaultdict
+
 import hydrat.common.markup as markup
 from hydrat.display.html import TableSort
-from common import page_config
-from display import list_as_html, dict_as_html, list_of_links
 from hydrat.common import as_set
-from collections import defaultdict
 from hydrat.display.tsr import result_summary_table, project_compound
 from hydrat.result import classification_matrix
 from hydrat.common.metadata import metamap
+
+import stats
+from display import list_as_html, dict_as_html, list_of_links
+from common import page_config
 
 
 KEY_SEP =':'
@@ -251,14 +254,34 @@ class Results(object):
     page = markup.page()
     page.init(**page_config)
 
+    # Show summary
     page.h2('Summary')
     page.add(dict_as_html(info))
+
+    # Statistical Tests
+    page.h2('Statistical Significance')
+    if len(uuid) == 1:
+      page.p("No test for single result")
+    elif len(uuid) == 2:
+      #page.p("McNemar's test")
+      mcnemar_result = stats.mcnemar(self.interpreter, results[0], results[1])
+      page.add(dict_as_html(dict(mcnemar=mcnemar_result)))
+    else:
+      page.p("ANOVA")
+
+
+
+    # Show common metadata
     page.h2('Common Metadata')
     page.add(dict_as_html(common_values))
+
+    # Give the option to show/hide instances that are entirely wrong
     if show_wrong != '0':
       page.a('Hide Wrong', href='compare?' + urllib.urlencode({'uuid':uuid, 'show_wrong':0}, True))
     else:
       page.a('Show Wrong', href='compare?' + urllib.urlencode({'uuid':uuid, 'show_wrong':1}, True))
+
+    # Confusion pairs tabulation
     with page.table:
       for key in values_set:
         # Display keys which differ
@@ -300,6 +323,10 @@ class Results(object):
       for i, instance_id in enumerate(instlabels):
         inst_gs = gs[i]
         label = clabels[inst_gs]
+
+        # Handle instance with no goldstandard labels
+        if len(label) == 0: label = ''
+
         if goldstandard is None or goldstandard == label:
           with page.tr:
             with page.th:
