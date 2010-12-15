@@ -150,14 +150,16 @@ class Result(RichComparisonMixin):
     classifications = interpreter(self.classifications)
     return confusion_matrix(self.goldstandard, classifications)
 
-  def exactly_correct(self, interpreter):
+  def correct(self, interpreter):
     """
     @param interpreter: How to interpret the classifier output
                         for purposes of constructing the matrix
     @type interpreter: ResultInterpreter instance
-    @return: Whether each instance was classified exactly correctly
-    @rtype: 1d boolean ndarray
+    @return: Whether each instance was classified correctly in each class
+      axis 0: instance
+      axis 1: class
+    @rtype: 2d boolean ndarray
     """
     cl = interpreter(self.classifications)
     gs = self.goldstandard
-    return (gs == cl).all(axis=1)
+    return gs == cl 
