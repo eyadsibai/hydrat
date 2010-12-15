@@ -11,7 +11,7 @@ from hydrat.display.tsr import result_summary_table, project_compound
 from hydrat.result import classification_matrix
 from hydrat.common.metadata import metamap
 
-import stats
+import hydrat.result.stats as stats
 from display import list_as_html, dict_as_html, list_of_links
 from common import page_config
 
