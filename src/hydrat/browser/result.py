@@ -259,6 +259,7 @@ class Results(object):
     page.add(dict_as_html(info))
 
     # Statistical Tests
+    # TODO: Add measures of correlation as well
     page.h2('Statistical Significance')
     if len(uuid) == 1:
       page.p("No test for single result")
@@ -266,6 +267,12 @@ class Results(object):
       #page.p("McNemar's test")
       mcnemar_result = stats.mcnemar(self.interpreter, results[0], results[1])
       page.add(dict_as_html(dict(mcnemar=mcnemar_result)))
+      mcnemar_pc = stats.mcnemar(self.interpreter, results[0], results[1], perclass=True)[int_cl]
+      if goldstandard is not None:
+        gs_i = list(clabels).index(goldstandard)
+        page.add(dict_as_html({goldstandard:mcnemar_pc[gs_i]}))
+      else:
+        page.add(dict_as_html(dict(zip(clabels, mcnemar_pc))))
     else:
       page.p("ANOVA")
 
