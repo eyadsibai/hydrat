@@ -34,12 +34,18 @@ class TaskSetResult(RichComparisonMixin):
     except AttributeError:
       return False
 
+  @property
+  def all_indices(self):
+    indices = reduce(set.union, (set(r.instance_indices) for r in self.raw_results))
+    return numpy.array(sorted(indices))
+
   ###
   # Should work on providing access to taskset-level
   # confusion and classification matrices.
   ###
-  def overall_classification(self, indices): 
-    # TODO: Default value for indices, which results in iteration over all indices available.
+  def overall_classification(self, indices=None): 
+    if indices is None:
+      indices = self.all_indices
     r = self.raw_results[0]
     num_inst = len(indices)
     num_class = r.goldstandard.shape[1]
@@ -53,10 +59,6 @@ class TaskSetResult(RichComparisonMixin):
           result[i,:,r_i] = r.classifications[r_map[i]]
     return result
       
-
-      
-    
-
   def overall_classpairs(self, interpreter):
     """
     Return a mapping (from, to) -> [indices] extended over all folds
@@ -86,4 +88,21 @@ class TaskSetResult(RichComparisonMixin):
     @rtype: 3-d array
     """
     return numpy.array([ r.confusion_matrix(interpreter) for r in self.raw_results ])
+
+  def overall_exactly_correct(self, interpreter):
+    """
+    Stacks the exactly_correct computation over all results.
+    Sets correct to 1.0, wrong to 0.0 and not-in-fold to numpy.nan, so that nansum can
+    be used to compute the number of times an instance is correctly classified
+    overall.
+    """
+    r = self.raw_results[0]
+    num_inst = len(self.all_indices)
+    num_res = len(self.raw_results)
+
+    retval = numpy.empty((num_inst, num_res)) * numpy.nan
+    for r_i, r in enumerate(self.raw_results):
+      ec = r.exactly_correct(interpreter)
+      retval[r.instance_indices,r_i] = ec
+    return retval
     
