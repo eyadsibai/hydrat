@@ -117,7 +117,7 @@ class dm_skew(distance_metric):
     
     if len(i) == 0:
       # No overlapping features.
-      return numpy.empty((v2.shape[0],v2.shape[0]), dtype='float')
+      return numpy.empty((v1.shape[0],v2.shape[0]), dtype='float')
 
     # Select only shared features from both matrices
     v1 = v1.transpose()[i].transpose().toarray()
