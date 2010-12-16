@@ -182,7 +182,7 @@ def default_configuration():
   default_config.set('corpora', 'altw2010-langid', '')
 
   default_config.add_section('logging')
-  default_config.set('logging', 'console.level', 'info')
+  default_config.set('logging', 'console.level', 'critical')
   default_config.set('logging', 'console.format', '%(name)s : %(message)s')
   default_config.set('logging', 'logfile', '')
   default_config.set('logging', 'logfile.level', 'debug')
