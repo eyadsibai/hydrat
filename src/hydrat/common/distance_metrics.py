@@ -111,18 +111,20 @@ class dm_skew(distance_metric):
     self.logger.debug('Creating dense representation')
     orig_feats = v1.shape[1]
     # Determine shared features
-    f1 = numpy.asarray( v1.sum(0) ) [0] > 0
-    f2 = numpy.asarray( v2.sum(0) ) [0] > 0
-    i  = numpy.flatnonzero(numpy.logical_and(f1, f2))
+    #f1 = numpy.asarray( v1.sum(0) ) [0] > 0
+    #f2 = numpy.asarray( v2.sum(0) ) [0] > 0
+    #i  = numpy.flatnonzero(numpy.logical_and(f1, f2))
     
-    if len(i) == 0:
-      # No overlapping features.
-      return numpy.empty((v1.shape[0],v2.shape[0]), dtype='float')
+    #if len(i) == 0:
+    #  # No overlapping features.
+    #  return numpy.empty((v1.shape[0],v2.shape[0]), dtype='float')
 
     # Select only shared features from both matrices
-    v1 = v1.transpose()[i].transpose().toarray()
-    v2 = v2.transpose()[i].transpose().toarray()
-    self.logger.debug('Reduced matrices from %d to %d features', orig_feats, v1.shape[1] )
+    #v1 = v1.transpose()[i].transpose().toarray()
+    #v2 = v2.transpose()[i].transpose().toarray()
+    #self.logger.debug('Reduced matrices from %d to %d features', orig_feats, v1.shape[1] )
+    v1 = v1.toarray()
+    v2 = v2.toarray()
 
     self.logger.debug('Calculating distributions')
     s1 = [ float(v.sum()) for v in v1 ]
