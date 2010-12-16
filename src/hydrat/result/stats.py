@@ -18,7 +18,11 @@ def mcnemar_test(ec_a, ec_b):
   n10 = np.logical_and(ec_a, nc_b).sum(axis=0)
   n11 = np.logical_and(ec_a, ec_b).sum(axis=0)
 
+  # Ignore division by zero on the computation of the statistic, it is the result of unused classes
+  prev_set = np.seterr(divide='ignore')
   stat = np.square(np.abs(n01 - n10) - 1 ) / np.array(n01+n10, dtype=float)
+  np.seterr(**prev_set)
+
   rv = chi2(1)
   p = rv.sf(stat)
   return p
