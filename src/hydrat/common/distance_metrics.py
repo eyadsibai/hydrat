@@ -102,29 +102,35 @@ class dm_skew(distance_metric):
     p['alpha'] = self.alpha
     return p
 
-  def vector_distances(self, v1, v2):
+  def vector_distances(self, v1, v2, thresh=10):
     # TODO: There is a problem in this implementation.
     #       Vector distance calculation outcomes are different if we do
     #       v1xv2 versus one member of v2 at a time against v1.
     #       The issue is probably in the feature collapse step, we are possibly collapsing too many
     #       features, or normalizing wrongly as was the case with cosine.
+    #       This problem becomes evident when either v1 or v2 is very short, and so we keep very few features.
+    #       As a temporary workaround, we skip the feature collapse if v1 or v2 are below a threshold
     self.logger.debug('Creating dense representation')
     orig_feats = v1.shape[1]
-    # Determine shared features
-    #f1 = numpy.asarray( v1.sum(0) ) [0] > 0
-    #f2 = numpy.asarray( v2.sum(0) ) [0] > 0
-    #i  = numpy.flatnonzero(numpy.logical_and(f1, f2))
-    
-    #if len(i) == 0:
-    #  # No overlapping features.
-    #  return numpy.empty((v1.shape[0],v2.shape[0]), dtype='float')
 
-    # Select only shared features from both matrices
-    #v1 = v1.transpose()[i].transpose().toarray()
-    #v2 = v2.transpose()[i].transpose().toarray()
-    #self.logger.debug('Reduced matrices from %d to %d features', orig_feats, v1.shape[1] )
-    v1 = v1.toarray()
-    v2 = v2.toarray()
+    # Determine shared features
+    if v1.shape[0] > thresh and v2.shape[0] > thresh:
+      f1 = numpy.asarray( v1.sum(0) ) [0] > 0
+      f2 = numpy.asarray( v2.sum(0) ) [0] > 0
+      i  = numpy.flatnonzero(numpy.logical_and(f1, f2))
+      
+      if len(i) == 0:
+        # No overlapping features.
+        return numpy.empty((v1.shape[0],v2.shape[0]), dtype='float')
+
+      # Select only shared features from both matrices
+      v1 = v1.transpose()[i].transpose().toarray()
+      v2 = v2.transpose()[i].transpose().toarray()
+      self.logger.debug('Reduced matrices from %d to %d features', orig_feats, v1.shape[1] )
+    else:
+      v1 = v1.toarray()
+      v2 = v2.toarray()
+      self.logger.debug('Maintaining full set of %d features', orig_feats )
 
     self.logger.debug('Calculating distributions')
     s1 = [ float(v.sum()) for v in v1 ]
