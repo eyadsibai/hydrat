@@ -1,6 +1,26 @@
 """
 Twitter Language Identifier based on hydrat
 by Marco Lui December 2010
+
+This software provides a command-line interface if invoked without 
+options, and an xmlrpc interface if started with the '-x' option.
+
+Here is an example use of the xmlrpc interface via a python program:
+
+
+import xmlrpclib
+import json
+
+proxy = xmlrpclib.ServerProxy('http://localhost:9008')
+config = json.loads(proxy.configuration())
+print config
+print proxy.classify('We can classify one string at a time')
+print proxy.classify('Si puo anche classificare testo in italiano')
+print proxy.classify([
+  'Alternatively, a list of strings can be provided',
+  'and a list of classifications will be returned as a result',
+])
+
 """
 
 ###
@@ -23,7 +43,8 @@ import sys
 try:
   import hydrat
 except ImportError:
-  print "This tool requires hydrat to be installed. Please see http://code.google.com/p/hydrat/wiki/Installation"
+  print "This tool requires hydrat to be installed.",
+  print "Please see http://code.google.com/p/hydrat/wiki/Installation"
   sys.exit(-1)
 
 import os
@@ -59,7 +80,7 @@ def fetch_model(url=DEFAULT_MODEL_URL):
 if __name__ == "__main__":
   parser = optparse.OptionParser()
   parser.add_option('-x','--xmlrpc',action='store_true', default=False, dest='xmlrpc')
-  parser.add_option('--host', default=HOST, dest='host', help='hosti/ip to bind to')
+  parser.add_option('--host', default=HOST, dest='host', help='host/ip to bind to')
   parser.add_option('--port', default=PORT, dest='port', help='port to listen on')
   parser.add_option('-v', action='count', dest='verbosity', help='increase verbosity (repeat for greater effect)')
   options, args = parser.parse_args()
@@ -79,7 +100,6 @@ if __name__ == "__main__":
   fw.set_feature_spaces(['byte_bigram'])
   fw.set_class_space('iso639_1')
   fw.set_learner(mean_prototypeL(skew_1nnL()))
-  import hydrat.classifier.nearest_prototype as np
   fw.set_interpreter(SingleHighestValue())
 
   # Silence progressbar
