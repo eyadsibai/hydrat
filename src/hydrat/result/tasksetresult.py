@@ -101,7 +101,7 @@ class TaskSetResult(RichComparisonMixin):
     num_class = r.goldstandard.shape[1]
     num_res = len(self.raw_results)
 
-    retval = numpy.empty((num_inst, num_class, num_res)) * numpy.nan
+    retval = numpy.ones((num_inst, num_class, num_res)) * numpy.nan
     for r_i, r in enumerate(self.raw_results):
       correct = r.correct(interpreter)
       retval[r.instance_indices,:,r_i] = correct
