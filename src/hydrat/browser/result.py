@@ -449,6 +449,7 @@ class Results(object):
   def matrix(self, uuid, threshold=0):
     threshold = int(threshold)
     result = self.store._get_TaskSetResult(uuid)
+    summary = self.summary_fn(result, self.interpreter)
     class_space = self.store.get_Space(result.metadata['class_space'])
     matrix = result.overall_classification_matrix(self.interpreter)
     matrix_sans_diag = numpy.logical_not(numpy.diag(numpy.ones(len(class_space), dtype=bool))) * matrix
@@ -459,6 +460,7 @@ class Results(object):
 
     page = markup.page()
     page.init(**page_config)
+    page.add(dict_as_html(summary))
     with page.table:
       with page.tr:
         page.th()
