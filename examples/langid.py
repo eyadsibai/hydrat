@@ -68,6 +68,10 @@ TMP = '.langid'
 
 # URL to download pre-trained models from
 DEFAULT_MODEL_URL = 'http://hum.csse.unimelb.edu.au/~mlui/langid/resources/hydrat/langidtool.tgz'
+#DEFAULT_MODEL_URL = 'anonymized for submission - please find langidtool.tgz included in submission'
+
+MODEL_FILENAME = 'langidtool.h5'
+PACKAGE_FILENAME = 'langidtool.tgz'
 
 
 import sys
@@ -94,20 +98,31 @@ import hydrat.common.pb as pb
 logger = logging.getLogger(__name__)
 
 def fetch_model(url=DEFAULT_MODEL_URL):
-  import tarfile
-  tarpath = os.path.join(TMP, 'langidtool.tgz')
-  if not os.path.exists(tarpath):
-    import urllib
+  if not os.path.exists(TMP):    
+    os.mkdir(TMP)
+  modelpath = os.path.join(TMP, MODEL_FILENAME)
+  if not os.path.exists(modelpath):
+    import tarfile
+    tarpath = os.path.join(TMP, PACKAGE_FILENAME)
     try:
-      urllib.urlretrieve(url, tarpath)
-    except Exception:
-      #TODO: catch more specific exceptions
+      if os.path.exists(PACKAGE_FILENAME):
+        import shutil
+        shutil.copy(PACKAGE_FILENAME, tarpath)
+      else:
+        import urllib
+        urllib.urlretrieve(url, tarpath)
+      f = tarfile.open(tarpath)
+      f.extractall(TMP)
+    except Exception,e:
+      logger.debug('failed to download due to: %s: %s', type(e), str(e))
       print "Unable to automatically download language models"
       print "Please download: %s" % DEFAULT_MODEL_URL
       print " and save it to: %s" % os.path.abspath(TMP)
       sys.exit(-1)
-  f = tarfile.open(tarpath)
-  f.extractall(TMP)
+    finally:
+      if os.path.exists(tarpath):
+        os.remove(tarpath)
+  return modelpath
 
 if __name__ == "__main__":
   parser = optparse.OptionParser()
@@ -120,11 +135,7 @@ if __name__ == "__main__":
   if options.verbosity:
     logging.basicConfig(level=max((5-options.verbosity)*10, 0))
 
-  if not os.path.exists(TMP): 
-    os.mkdir(TMP)
-  modelpath = os.path.join(TMP, 'langidtool.h5')
-  if not os.path.exists(modelpath):
-    fetch_model()
+  modelpath = fetch_model()
 
   ds = naacl2010.Wikipedia()
   fw = OnlineFramework(ds, store=modelpath)
