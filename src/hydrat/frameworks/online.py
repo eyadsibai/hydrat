@@ -120,6 +120,10 @@ class OnlineFramework(Framework):
     server = SimpleXMLRPCServer((host, port), logRequests=True, encoding='ascii')
     server.register_introspection_functions()
 
+    def list_classlabels():
+      self.logger.info('Serving classlabels')
+      return json.dumps(self.classlabels)
+
     def configuration():
       self.logger.info('Serving configuration')
       return json.dumps(self.metadata)
@@ -142,6 +146,7 @@ class OnlineFramework(Framework):
 
     server.register_function(configuration)
     server.register_function(classify)
+    server.register_function(list_classlabels)
 
     try:
       print 'Use Crtl+C to exit'
