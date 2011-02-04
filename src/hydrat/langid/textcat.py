@@ -239,4 +239,5 @@ def textcat_crossvalidate(fw):
     results.append(Result(gs, cl, instance_indices, result_md))
 
   tsr = TaskSetResult(results, md)
+  #TODO: There is something wrong with the TSR being generated! It breaks browser's compare.
   return tsr
