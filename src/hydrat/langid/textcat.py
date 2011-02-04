@@ -1,14 +1,18 @@
 import time
 import logging
+import numpy
+
+import hydrat.wrapper.textcat as textcat
 from hydrat.result.tasksetresult import TaskSetResult
 from hydrat.result.result import Result
 from hydrat.store import Store
 from hydrat.preprocessor.model.inducer import map2matrix 
-from hydrat.wrapper.textcat import TextCat
 
 from hydrat import config
 from hydrat.configuration import Configurable, EXE, DIR
 from hydrat.task.sampler import membership_vector
+from hydrat.common.decorators import timed
+from hydrat.common.pb import ProgressIter
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +109,7 @@ def textcat2iso639_1(klass):
 
 def train_textcat(ds, tokenstream, class_space):
   logger.info('train textcat')
-  cat = TextCat(
+  cat = textcat.TextCat(
     config.getpath('tools','textcat'), 
     scratch=config.getpath('paths','scratch'),
     modelpath=None,
@@ -129,7 +133,7 @@ def train_textcat(ds, tokenstream, class_space):
   return cat
 
 def default_textcat():
-  cat = TextCat(
+  cat = textcat.TextCat(
     config.getpath('tools','textcat'), 
     scratch=config.getpath('paths','scratch'),
     modelpath=config.getpath('tools','textcat-models'),
@@ -181,4 +185,58 @@ def do_textcat(cat, ds, classlabels, instance_labels):
   instance_indices = membership_vector(instance_labels, ds.instance_ids)
   result = Result(gs, cl, instance_indices, result_md )
   tsr = TaskSetResult( [result], md )
+  return tsr
+
+class TextCat(textcat.TextCat):
+  @timed
+  def train(self, pairs): return textcat.TextCat.train(self, pairs)
+
+  @timed
+  def classify(self, texts): return [ [cl] for cl in textcat.TextCat.batch_classify(self, texts) ]
+
+def textcat_crossvalidate(fw):
+  cat = TextCat(
+    config.getpath('tools','textcat'), 
+    scratch=config.getpath('paths','scratch'),
+    modelpath=None,
+  )
+  ds = fw.dataset
+  ts = ds.tokenstream('byte')
+  cm = ds.classmap(fw.class_space)
+  split = fw.split
+  classlabels = fw.classlabels
+
+  num_fold = split.shape[1]
+  instance_ids = numpy.array(ds.instance_ids)
+
+  md = dict(\
+    class_space  = fw.class_space,
+    dataset      = ds.__name__,
+    instance_space = ds.instance_space,
+    learner      = 'textcat',
+    learner_params = dict(tokenstream='byte'),
+    )
+
+  results = []
+  for i in ProgressIter(range(num_fold), label="TextCat Crossvalidation"):
+    # train a textcat instance
+    train_ids = instance_ids[split[:,i,0]]
+    pairs = [ (ts[id], cm[id][0]) for id in train_ids ]
+    cat.train(pairs)
+
+    # run the test data against it
+    test_ids = instance_ids[split[:,i,1]]
+
+    class_map = dict(zip(test_ids, cat.classify([ts[id] for id in test_ids])))
+
+    result_md = dict(md)
+    result_md['learn_time'] = cat.__timing_data__['train']
+    result_md['classify_time'] = cat.__timing_data__['classify']
+
+    instance_indices = membership_vector(test_ids, ds.instance_ids)
+    cl = map2matrix( class_map, test_ids, classlabels )
+    gs = map2matrix( cm, test_ids, classlabels )
+    results.append(Result(gs, cl, instance_indices, result_md))
+
+  tsr = TaskSetResult(results, md)
   return tsr
