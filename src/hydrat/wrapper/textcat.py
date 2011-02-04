@@ -7,6 +7,7 @@ import os
 import shutil
 import itertools
 import operator
+import time
 
 from subprocess import Popen, PIPE, STDOUT
 
@@ -41,7 +42,7 @@ class TextCat(object):
     self.trained = True
     
 
-  def classify(self, text):
+  def classify_single(self, text):
     p = Popen\
           ( [self.toolpath, '-u1', '-d%s'%self.model_path]
           , stdout=PIPE
@@ -52,5 +53,5 @@ class TextCat(object):
     return out.strip()
 
   def batch_classify(self, texts):
-    return map(self.classify, texts)
+    return map(self.classify_single, texts)
 
