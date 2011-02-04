@@ -27,7 +27,7 @@ def map2matrix(mapping, instance_ids=None, labels=None):
     instance_ids = sorted(mapping) # Use the sorted keys, since mappings are unordered
   if labels is None:
     labels = reduce(set.union, (set(d) for d in mapping.itervalues()))
-  matrix = numpy.zeros( (len(mapping), len(labels)),dtype=bool)
+  matrix = numpy.zeros( (len(instance_ids), len(labels)),dtype=bool)
   indices = dict( (k,v) for v, k in enumerate(labels))
 
   for i, id in enumerate(instance_ids):
