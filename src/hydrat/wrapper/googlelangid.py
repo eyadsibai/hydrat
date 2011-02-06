@@ -32,20 +32,25 @@ class GoogleLangid(object):
       data = urllib.urlencode(query)
       req = urllib2.Request(self.base_url+'?'+data)
       if self.referer is not None: req.add_header('Referer',self.referer)
-      search_results = urllib2.urlopen(req)
+      try:
+        search_results = urllib2.urlopen(req)
+        response = json.loads(search_results.read())
+      except urllib2.URLError:
+        response = {'responseData':None}
+        
 
       #search_results = urllib.urlopen(self.base_url+data)
-      response = json.loads(search_results.read())
     retry = self.retry
     while response['responseData'] is None:
       logger.warning(response)
-      logger.warning("Got a None response, retrying in %d seconds", retry)
+      logger.warning("retrying in %d seconds", retry)
       time.sleep(retry)
       retry *= 2
       search_results = urllib2.urlopen(req)
       try:
         response = json.loads(search_results.read())
-      except ValueError:
+      except (ValueError, urllib2.URLError),e:
+        logger.warning(response,e)
         response = {'responseData': None}
     result = response['responseData']['language']
     confidence = float(response['responseData']['confidence'])
