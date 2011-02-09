@@ -27,6 +27,7 @@ class NullVector(MetricError):
     self.vector_num = vector_num
     self.index = index
 
+# TODO: Rename to DistanceMetric for consistency
 class distance_metric(object):
   """Abstract parent for distance metric classes"""
   __name__ = "distance_metric"
