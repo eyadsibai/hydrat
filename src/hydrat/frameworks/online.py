@@ -14,7 +14,6 @@ from hydrat.store import Store, StoreError, NoData, AlreadyHaveData
 from hydrat.preprocessor.model.inducer.dataset import DatasetInducer
 from hydrat.common import as_set
 from hydrat.preprocessor.features.transform import union
-from hydrat.preprocessor.model.inducer import invert_text
 from hydrat.common.pb import ProgressIter
 from hydrat.frameworks.common import Framework
 
