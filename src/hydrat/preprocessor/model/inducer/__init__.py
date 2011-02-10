@@ -1,5 +1,9 @@
 import numpy
 def map2matrix(mapping, instance_ids=None, labels=None):
+  """
+  Convert a sparse mapping (dictionary) into a dense representation (numpy boolean array).
+  Instances are on axis 0 and labels are on axis 1
+  """
   #TODO: Sanity checks on instance_ids and labels
   if instance_ids is None:
     instance_ids = sorted(mapping) # Use the sorted keys, since mappings are unordered
@@ -16,6 +20,10 @@ def map2matrix(mapping, instance_ids=None, labels=None):
   return matrix
 
 def matrix2map(matrix, instance_ids, labels):
+  """
+  Convert a dense representation (numpy boolean array) into a sparse mapping (dictionary).
+  Instances are on axis 0 and labels are on axis 1
+  """
   assert len(instance_ids), len(labels) == matrix.shape
   labels = numpy.array(labels)
   mapping = {}
