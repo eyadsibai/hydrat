@@ -5,7 +5,7 @@ import numpy
 import hydrat
 from hydrat.common.pb import ProgressIter
 from hydrat.store import Store, StoreError, NoData, AlreadyHaveData
-from hydrat.preprocessor.model.inducer.dataset import DatasetInducer
+from hydrat.inducer import DatasetInducer
 from hydrat.preprocessor.features.transform import union
 from hydrat.task.sampler import membership_vector
 from hydrat.common import as_set
