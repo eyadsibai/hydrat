@@ -21,7 +21,7 @@ class DatasetInducer(object):
     logger.debug('  cms: %s', cms)
     logger.debug('  tss: %s', tss)
     logger.debug('  sqs: %s', sqs)
-    logged.debug('  sps: %s', sps)
+    logger.debug('  sps: %s', sps)
 
     dsname = dataset.__name__
 
@@ -104,33 +104,32 @@ class DatasetInducer(object):
     # Handle all the splits
     for key in sps - present_sp:
       logger.debug("Processing split '%s'", key)
-      self.add_Split(dsname, key, dataset.split(key))
+      self.add_Split(dsname, key, dataset.split(key), dataset.instance_ids)
 
 
-  def add_Split(self, dsname, split_name, split):
+  def add_Split(self, dsname, split_name, split, instance_ids):
     if 'train' in split and 'test' in split:
       # Train/test type split.
-      all_ids = self.dataset.instance_ids
-      train_ids = membership_vector(all_ids, split['train'])
-      test_ids = membership_vector(all_ids, split['test'])
+      instance_ids = self.dataset.instance_ids
+      train_ids = membership_vector(instance_ids, split['train'])
+      test_ids = membership_vector(instance_ids, split['test'])
       spmatrix = numpy.dstack((train_ids, test_ids)).swapaxes(0,1)
 
     elif any(key.startswith('fold') for key in split):
       # Cross-validation folds
-      all_ids = self.dataset.instance_ids
       folds_present = sorted(key for key in split if key.startswith('fold'))
       partitions = []
       for fold in folds_present:
-        test_ids = membership_vector(all_ids, split[fold])
+        test_ids = membership_vector(instance_ids, split[fold])
         train_docids = sum((split[f] for f in folds_present if f is not fold), [])
-        train_ids = membership_vector(all_ids, train_docids)
+        train_ids = membership_vector(instance_ids, train_docids)
         partitions.append( numpy.dstack((train_ids, test_ids)).swapaxes(0,1) )
       spmatrix = numpy.hstack(partitions)
 
     else:
       raise ValueError, "Unknown type of split" 
 
-    self.store.add_Split(dsname, seq_name, sqmatrix)
+    self.store.add_Split(dsname, split_name, spmatrix)
 
 
   def add_Sequence(self, dsname, seq_name, sequence):
