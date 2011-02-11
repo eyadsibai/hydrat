@@ -8,7 +8,7 @@ import hydrat
 from hydrat.common.pb import ProgressIter
 from hydrat.langid import goog2iso639_1
 from hydrat.wrapper.googlelangid import GoogleLangid
-from hydrat.preprocessor.model.inducer import map2matrix 
+from hydrat.common.mapmatrix import map2matrix 
 from hydrat.store import Store
 from hydrat.result.result import Result
 from hydrat.result.tasksetresult import TaskSetResult

@@ -1,7 +1,7 @@
 import time
 from hydrat.result.tasksetresult import TaskSetResult
 from hydrat.result.result import Result
-from hydrat.preprocessor.model.inducer import map2matrix 
+from hydrat.common.mapmatrix import map2matrix 
 from hydrat.wrapper.langdetect import LangDetect
 from hydrat.common.pb import ProgressBar, get_widget
 
