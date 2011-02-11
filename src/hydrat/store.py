@@ -53,7 +53,7 @@ class BoolFeature(tables.IsDescription):
 # TODO: Declare a configurable compression filter
 #         tables.Filters(complevel=5, complib='zlib') 
 
-STORE_VERSION = 3
+STORE_VERSION = 4
 
 def update_h5store(fileh):
   """
@@ -126,6 +126,12 @@ def update_h5store(fileh):
     for tsnode in root.tasksets:
       for t in tsnode:
         fileh.createGroup(t, 'weights')
+  if version < 4:
+    # In version 4, we introduced a node to store splits in datasets
+    for dsnode in root.datasets:
+      if not hasattr(dsnode, 'split'):
+        logger.debug('Node %s did not have split node; adding.', dsnode._v_name)
+        fileh.createGroup( dsnode, "split" )
         
 
   logger.debug("updated store from version %d to %d", version, STORE_VERSION)
@@ -1070,13 +1076,29 @@ class Store(object):
   ###
   def list_Split(self, dsname):
     dsnode = getattr(self.datasets, dsname)
-    raise NotImplementedError
+    return set(node._v_name for node in dsnode.split)
 
   def add_Split(self, dsname, split_name, split):
-    raise NotImplementedError
+    # TODO: Sanity checks
+    self._check_writeable()
+    dsnode = getattr(self.datasets, dsname)
+    sp_node = self.fileh.createCArray( dsnode.split
+                                     , split_name
+                                     , tables.BoolAtom()
+                                     , split.shape
+                                     , title = split_name
+                                     , filters = tables.Filters(complevel=5, complib='zlib') 
+                                     )
+    sp_node[:] = split
+    sp_node.flush()
 
   def get_Split(self, dsname, split_name):
-    raise NotImplementedError
+    dsnode = getattr(self.datasets, dsname)
+    try:
+      data = getattr(dsnode.split, split_name)
+    except AttributeError:
+      raise NoData
+    return data.read()
 
   ###
   # Summary
