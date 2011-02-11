@@ -110,7 +110,6 @@ class DatasetInducer(object):
   def add_Split(self, dsname, split_name, split, instance_ids):
     if 'train' in split and 'test' in split:
       # Train/test type split.
-      instance_ids = self.dataset.instance_ids
       train_ids = membership_vector(instance_ids, split['train'])
       test_ids = membership_vector(instance_ids, split['test'])
       spmatrix = numpy.dstack((train_ids, test_ids)).swapaxes(0,1)
