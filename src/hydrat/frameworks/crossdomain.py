@@ -80,8 +80,8 @@ class CrossDomainFramework(OfflineFramework):
       # This is to avoid a synchronization issue resulting from the 'other'
       # dataset extending the space after the 'self' dataset has already read
       # its feature map.
-      self.inducer.process_Dataset(self.dataset, fms=self.feature_spaces)
-      self.inducer.process_Dataset(self.eval_dataset, fms=self.feature_spaces)
+      self.inducer.process(self.dataset, fms=self.feature_spaces)
+      self.inducer.process(self.eval_dataset, fms=self.feature_spaces)
 
       other = OfflineFramework(self.eval_dataset, store = self.store) 
       other.set_feature_spaces(self.feature_spaces)

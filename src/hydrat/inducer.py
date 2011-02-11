@@ -14,7 +14,7 @@ class DatasetInducer(object):
   def __init__(self, store):
     self.store = store
 
-  def process_Dataset(self, dataset, fms=None, cms=None, tss=None, sqs=None):
+  def process(self, dataset, fms=None, cms=None, tss=None, sqs=None):
     logger.debug('Processing %s', dataset.__name__)
     logger.debug('  fms: %s', fms)
     logger.debug('  cms: %s', cms)
