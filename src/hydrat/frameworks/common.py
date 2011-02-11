@@ -76,7 +76,7 @@ class Framework(object):
 
   @property
   def featuremap(self):
-    self.inducer.process_Dataset(self.dataset, fms=self.feature_spaces)
+    self.inducer.process(self.dataset, fms=self.feature_spaces)
     ds_name = self.dataset.__name__
     featuremaps = []
     for feature_space in sorted(self.feature_spaces):
@@ -97,7 +97,7 @@ class Framework(object):
 
   @property
   def classmap(self):
-    self.inducer.process_Dataset(self.dataset, cms=self.class_space)
+    self.inducer.process(self.dataset, cms=self.class_space)
     ds_name = self.dataset.__name__
     cm = self.store.get_ClassMap(ds_name, self.class_space)
     return cm[self.train_indices]
@@ -155,14 +155,14 @@ class Framework(object):
     self.logger.info(str)
 
   def set_feature_spaces(self, feature_spaces):
-    self.inducer.process_Dataset( self.dataset, fms = feature_spaces)
+    self.inducer.process( self.dataset, fms = feature_spaces)
     self.feature_spaces = as_set(feature_spaces)
     self.feature_desc = tuple(sorted(self.feature_spaces))
     self.notify("Set feature_spaces to '%s'" % str(feature_spaces))
     self.configure()
 
   def set_class_space(self, class_space):
-    self.inducer.process_Dataset( self.dataset, cms = class_space)
+    self.inducer.process( self.dataset, cms = class_space)
     self.class_space = class_space
     self.notify("Set class_space to '%s'" % class_space)
     self.configure()
@@ -188,13 +188,13 @@ class Framework(object):
     self.configure()
 
   def set_sequence(self, sequence):
-    self.inducer.process_Dataset( self.dataset, sqs = sequence)
+    self.inducer.process( self.dataset, sqs = sequence)
     self.sequence_name = sequence
     self.notify("Set sequence to '%s'" % sequence)
     self.configure()
 
   def configure(self): 
-    self.inducer.process_Dataset(self.dataset, fms=self.feature_spaces, cms=self.class_space)
+    self.inducer.process(self.dataset, fms=self.feature_spaces, cms=self.class_space)
 
   def process_tokenstream(self, tsname, extractor):
     dsname = self.dataset.__name__
@@ -204,7 +204,7 @@ class Framework(object):
       self.notify("Inducing TokenStream '%s'" % tsname)
       # We always call this as if the ts has already been processed it is a fairly 
       # cheap no-op
-      self.inducer.process_Dataset(self.dataset, tss=tsname)
+      self.inducer.process(self.dataset, tss=tsname)
 
       self.notify("Reading TokenStream '%s'" % tsname)
       tss = self.store.get_TokenStreams(dsname, tsname)
