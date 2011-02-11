@@ -1066,6 +1066,19 @@ class Store(object):
     return set(node._v_name for node in dsnode.sequence)
 
   ###
+  # Splits
+  ###
+  def list_Split(self, dsname):
+    dsnode = getattr(self.datasets, dsname)
+    raise NotImplementedError
+
+  def add_Split(self, dsname, split_name, split):
+    raise NotImplementedError
+
+  def get_Split(self, dsname, split_name):
+    raise NotImplementedError
+
+  ###
   # Summary
   ###
 
