@@ -2,7 +2,7 @@ import logging
 import numpy
 from hydrat import config
 from hydrat.store import NoData, AlreadyHaveData
-from hydrat.preprocessor.model.inducer import map2matrix
+from hydrat.common.mapmatrix import map2matrix
 from hydrat.common.pb import ProgressIter
 from hydrat.common import as_set
 from hydrat.common.sequence import sequence2matrix

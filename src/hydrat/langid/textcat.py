@@ -6,7 +6,7 @@ import hydrat.wrapper.textcat as textcat
 from hydrat.result.tasksetresult import TaskSetResult
 from hydrat.result.result import Result
 from hydrat.store import Store
-from hydrat.preprocessor.model.inducer import map2matrix 
+from hydrat.common.mapmatrix import map2matrix 
 
 from hydrat import config
 from hydrat.configuration import Configurable, EXE, DIR

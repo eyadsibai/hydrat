@@ -5,7 +5,7 @@ import datetime
 import os.path
 import hydrat
 from hydrat.common.pb import ProgressIter
-from hydrat.preprocessor.model.inducer import map2matrix 
+from hydrat.common.mapmatrix import map2matrix 
 from hydrat.store import Store
 from hydrat.result.result import Result
 from hydrat.result.tasksetresult import TaskSetResult
