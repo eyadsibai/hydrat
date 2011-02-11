@@ -336,34 +336,19 @@ class Store(object):
       self.add_Space(instance_ids, {'type':'instance', 'name':instance_space})
 
     # Create a group for Feature Data 
-    self.fileh.createGroup( ds
-                          , "feature_data"
-                          , "Feature Data"
-                          )
+    self.fileh.createGroup(ds, "feature_data")
 
     # Create a group for Class Data 
-    self.fileh.createGroup( ds
-                          , "class_data"
-                          , "Class Data"
-                          )
+    self.fileh.createGroup(ds, "class_data")
 
     # Create a group for Token Streams
-    self.fileh.createGroup( ds
-                          , "tokenstreams"
-                          , "Token Streams"
-                          )
+    self.fileh.createGroup(ds, "tokenstreams")
 
     # Create a group for Token Streams
-    self.fileh.createGroup( ds
-                          , "sequence"
-                          , "Instance sequencing information"
-                          )
+    self.fileh.createGroup(ds, "sequence")
 
     # Create a group for Splits
-    self.fileh.createGroup( ds
-                          , "split"
-                          , "Dataset partitioning information"
-                          )
+    self.fileh.createGroup(ds, "split")
 
   def add_FeatureDict(self, dsname, space_name, feat_map):
     self._check_writeable()
