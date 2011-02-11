@@ -359,6 +359,12 @@ class Store(object):
                           , "Instance sequencing information"
                           )
 
+    # Create a group for Splits
+    self.fileh.createGroup( ds
+                          , "split"
+                          , "Dataset partitioning information"
+                          )
+
   def add_FeatureDict(self, dsname, space_name, feat_map):
     self._check_writeable()
     logger.debug("Adding feature map to dataset '%s' in space '%s'", dsname, space_name)
