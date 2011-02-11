@@ -144,7 +144,6 @@ class DatasetInducer(object):
     sqmatrix = sequence2matrix(sqlist) 
     logger.debug("Adding Sequence'%s' to Dataset '%s'", seq_name, dsname)
     self.store.add_Sequence(dsname, seq_name, sqmatrix)
-    #TODO: Attach metadata to the sequence node - is there any we actually want?
 
   def add_TokenStreams(self, dsname, stream_name, tokenstreams):
     metadata = dict()
@@ -154,10 +153,6 @@ class DatasetInducer(object):
     logger.debug("Adding Token Stream '%s' to Dataset '%s'", stream_name, dsname)
     self.store.add_TokenStreams(dsname, stream_name, tslist)
 
-    #TODO: Attach metadata to the tokenstream node
-      
-
-  
   def add_Featuremap(self, dsname, space_name, feat_dict):
     metadata = {'type':'feature','name':space_name}
 
