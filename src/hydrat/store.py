@@ -701,21 +701,16 @@ class Store(object):
     return data 
 
 
-  def new_TaskSet(self, taskset):
-    """Convenience method which checks no previous taskset has matching 
-    metadata. Useful for situations where we build up the tasksets incrementally
+  def new_TaskSet(self, source):
+    """Method which checks if a TaskSet described by a TaskSetSource object is
+    already in the store. If not, it uses the TaskSetSource object to generate the
+    TaskSet and adds it to the Store.
     """
-    if self.has_TaskSet(taskset.metadata):
-      raise AlreadyHaveData, "Already have taskset %s" % str(taskset.metadata)
-    if 'uuid' in taskset.metadata:
-      logger.warning('new taskset should not have uuid!')
+    if self.has_TaskSet(source.desc): return # Already have - do nothing
+    taskset = source.taskset
     taskset_uuid = uuid.uuid4()
     taskset.metadata['uuid'] = taskset_uuid
-    try:
-      self.add_TaskSet(taskset)
-    except tables.exceptions.NodeError:
-      raise AlreadyHaveData, "Node already exists in store!"
-      
+    self.add_TaskSet(taskset)
 
   def _add_Task(self, task, ts_entry): 
     self._check_writeable()
