@@ -172,7 +172,8 @@ class DataProxy(object):
 
   @property
   def feature_desc(self):
-    raise NotImplementedError
+    #TODO: Construct the complete feature_desc based on feature_spaces and any transforms applied.
+    return self.feature_spaces
 
   @property
   def class_space(self):
@@ -313,6 +314,7 @@ class DataProxy(object):
       fm = self.featuremap
       cm = self.classmap
       sq = self.sequence
-      taskset = from_partitions(split, fm[:], cm[:], sq[:], self.desc) 
+      from hydrat.task.taskset import from_partitions
+      taskset = from_partitions(self.split, fm, cm, sq, self.desc) 
       self.store.new_TaskSet(taskset)
-    return self.store.get_TaskSet(self.taskset_desc, self.weights)
+    return self.store.get_TaskSet(self.desc, None)
