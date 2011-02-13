@@ -313,11 +313,21 @@ class DataProxy(object):
     self.store.new_TaskSet(FromProxy(self))
     return self.store.get_TaskSet(self.desc, None)
 
-from hydrat.task import InMemoryTask, TaskSetSource
-class FromProxy(TaskSetSource):
+class TaskSet(object):
+  """
+  This base class represents the TaskSet interface. It consists of two
+  attributes, desc and tasklist, which can be implemented as properties
+  if lazy behaviour is desired.
+  """
+  desc = {}
+  tasklist = []
+  
+# TODO: New-style Tasks
+from hydrat.task import InMemoryTask
+class DataProxyTaskSet(TaskSet):
   def __init__(self, proxy):
     self.proxy = proxy
-    self._desc = self.proxy.desc
+    self.desc = self.proxy.desc
 
   @property
   def tasklist(self):
@@ -331,7 +341,7 @@ class FromProxy(TaskSetSource):
     return tasklist
 
 import hydrat.task.transform as tx
-class Transform(TaskSetSource):
+class Transform(TaskSet):
   def __init__(self, tasksetsource, transformer):
     self.tasksetsource = tasksetsource
     self.transformer = transformer
