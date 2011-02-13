@@ -1,10 +1,6 @@
 # proxy.py
 # Marco Lui February 2011
 #
-# This class is meant to act as a go-between between the user and the dataset/store
-# classes. It is initialized on a dataset (and an optional store), and provides
-# convenience methods for accesing portions of that store that are directly
-# impacted by the dataset API.
 
 # TODO: Integrate the new SplitArray based FeatureMap and ClassMap back into store,
 # and wherever else the old FeatureMap and ClassMap were used.
@@ -23,6 +19,12 @@ from hydrat.inducer import DatasetInducer
 from hydrat.datamodel import FeatureMap, ClassMap
 
 class DataProxy(object):
+  """
+  This class is meant to act as a go-between between the user and the dataset/store
+  classes. It is initialized on a dataset (and an optional store), and provides
+  convenience methods for accesing portions of that store that are directly
+  impacted by the dataset API.
+  """
   def __init__( self, dataset, store=None,
         feature_spaces=None, class_space=None, split_name=None, sequence_name=None ):
     self.logger = logging.getLogger(__name__+'.'+self.__class__.__name__)
@@ -247,32 +249,7 @@ class DataProxy(object):
     self.store.new_TaskSet(FromProxy(self))
     return self.store.get_TaskSet(self.desc, None)
 
-class TaskSet(object):
-  """
-  This base class represents the TaskSet interface. It consists of two
-  attributes, desc and tasklist, which can be implemented as properties
-  if lazy behaviour is desired.
-  """
-  desc = {}
-  tasklist = []
   
-# TODO: New-style Tasks
-from hydrat.task import InMemoryTask
-class DataProxyTaskSet(TaskSet):
-  def __init__(self, proxy):
-    self.proxy = proxy
-    self.desc = self.proxy.desc
-
-  @property
-  def tasklist(self):
-    fm = self.proxy.featuremap
-    cm = self.proxy.classmap
-    sq = self.proxy.sequence
-
-    tasklist = []
-    for i,fold in enumerate(fm.folds):
-      tasklist.append(InMemoryTask(fm.raw, cm.raw, fold.train_ids, fold.test_ids, {'index':i}, sequence=sq))
-    return tasklist
 
 import hydrat.task.transform as tx
 class Transform(TaskSet):
