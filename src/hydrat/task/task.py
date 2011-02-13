@@ -12,8 +12,6 @@ well as a method for reconciling the data.
 import numpy
 
 class Task(object):
-  # TODO: Why is task carrying around train_indices and test_indices? 
-  #       This should have been abstracted away.
   __slots__ = [ 'train_vectors'
               , 'train_classes'
               , 'train_sequence'
