@@ -313,7 +313,7 @@ class DataProxy(object):
     self.store.new_TaskSet(FromProxy(self))
     return self.store.get_TaskSet(self.desc, None)
 
-from hydrat.task import InMemoryTask
+from hydrat.task import InMemoryTask, TaskSetSource
 class FromProxy(TaskSetSource):
   def __init__(self, proxy):
     self.proxy = proxy
