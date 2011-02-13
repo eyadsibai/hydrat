@@ -8,6 +8,8 @@
 
 # TODO: Integrate the new SplitArray based FeatureMap and ClassMap back into store,
 # and wherever else the old FeatureMap and ClassMap were used.
+# TODO: strdoc
+# TODO: __str__/__repr__
 
 import logging
 import os
@@ -24,6 +26,10 @@ class Fold(object):
     self.fm = fm
     self.train_ids = train_ids
     self.test_ids = test_ids
+
+  def __repr__(self):
+    return '<Fold of %s (%d train, %d test)>' %\
+      (str(self.fm), len(self.train_ids), len(self.test_ids))
 
   @property
   def train(self):
@@ -43,6 +49,9 @@ class SplitArray(object):
 
   def __getitem__(self, key):
     return self.raw[key]
+
+  def __repr__(self):
+    return '<%s %s>' % (self.__class__.__name__, str(self.raw.shape))
 
   @property
   def split(self):
