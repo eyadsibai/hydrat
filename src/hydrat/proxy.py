@@ -90,7 +90,7 @@ class ClassMap(SplitArray): pass
 
 class DataProxy(object):
   def __init__( self, dataset, store=None,
-        feature_spaces=None, class_space=None, split_name=None ):
+        feature_spaces=None, class_space=None, split_name=None, sequence_name=None ):
     self.logger = logging.getLogger(__name__+'.'+self.__class__.__name__)
     self.dataset = dataset
 
@@ -111,10 +111,24 @@ class DataProxy(object):
 
     self.feature_spaces = feature_spaces
     self.class_space = class_space
+    self.split_name = split_name
+    self.sequence_name = sequence_name
 
     # Hack to deal with bad interaction between pytables and h5py
     import atexit; atexit.register(lambda: self.store.__del__())
 
+  @property
+  def desc(self):
+    md = dict()
+    md['dataset'] = self.dsname
+    md['instance_space'] = self.instance_space
+    md['split'] = self.split_name
+    md['sequence'] = self.sequence_name
+    md['feature_desc'] = self.feature_desc
+    md['class_space'] = self.class_space
+    return md
+
+    
   @property
   def dsname(self):
     return self.dataset.__name__
@@ -157,6 +171,10 @@ class DataProxy(object):
     return labels
 
   @property
+  def feature_desc(self):
+    raise NotImplementedError
+
+  @property
   def class_space(self):
     """
     String representing the class space to operate over.
@@ -188,11 +206,11 @@ class DataProxy(object):
   @split_name.setter
   def split_name(self, value):
     if value is None:
-      self._split_name= None
+      self._split_name=None
     else:
       if not isinstance(value, str):
         raise TypeError, "Invalid split identifier: %s" % str(value)
-      present_splits= set(self.dataset.split_names)
+      present_splits=set(self.dataset.split_names)
       if value not in present_splits:
         raise ValueError, "Unknown split: %s" % value
 
@@ -200,11 +218,35 @@ class DataProxy(object):
 
   @property
   def split(self):
-    self.inducer.process(self.dataset, sps=self.split_name)
     if self.split_name is None:
       return None
+    self.inducer.process(self.dataset, sps=self.split_name)
+    return self.store.get_Split(self.dsname, self.split_name)
+
+  @property
+  def sequence_name(self):
+    return self._sequence_name
+
+  @sequence_name.setter
+  def sequence_name(self,value):
+    if value is None:
+      self._sequence_name=None
     else:
-      return self.store.get_Split(self.dsname, self.split_name)
+      if not isinstance(value, str):
+        raise TypeError, "Invalid sequence identifier: %s" % str(value)
+      present_sequences=set(self.dataset.sequence_names)
+      if value not in present_sequences:
+        raise ValueError, "Unknown sequence: %s" % value
+
+      self._sequence_name = value
+
+  @property
+  def sequence(self):
+    # TODO: Does this need to be in a SplitArray?
+    if self.sequence_name is None:
+      return None
+    self.inducer.process(self.dataset, sqs=self.sequence_name)
+    return self.store.get_Sequence(self.dsname, self.sequence_name)
 
   @property
   def instance_space(self):
@@ -265,3 +307,12 @@ class DataProxy(object):
 
     self.feature_spaces = space_name
 
+  @property
+  def taskset(self):
+    if not self.store.has_TaskSet(self.desc):
+      fm = self.featuremap
+      cm = self.classmap
+      sq = self.sequence
+      taskset = from_partitions(split, fm[:], cm[:], sq[:], self.desc) 
+      self.store.new_TaskSet(taskset)
+    return self.store.get_TaskSet(self.taskset_desc, self.weights)
