@@ -281,7 +281,7 @@ class DataProxy(object):
     fm.split = self.split
     return fm
 
-  def process_tokenstream(self, tsname, extractor):
+  def tokenize(self, tsname, extractor):
     """
     Map a feature extractor onto a tokenstream and save the corresponding
     output into the backing store.
@@ -310,11 +310,39 @@ class DataProxy(object):
 
   @property
   def taskset(self):
-    if not self.store.has_TaskSet(self.desc):
-      fm = self.featuremap
-      cm = self.classmap
-      sq = self.sequence
-      from hydrat.task.taskset import from_partitions
-      taskset = from_partitions(self.split, fm, cm, sq, self.desc) 
-      self.store.new_TaskSet(taskset)
+    self.store.new_TaskSet(FromProxy(self))
     return self.store.get_TaskSet(self.desc, None)
+
+from hydrat.task.taskset import TaskSet
+from hydrat.task.task import InMemoryTask
+class TaskSetSource(object):
+  """
+  Represents an object that can, on demand, generate a taskset with the given
+  description. Should always be subclassed. Subclasses should implement two 
+  properties _desc and tasklist.
+  """
+  @property
+  def desc(self):
+    return self._desc
+
+  @property
+  def taskset(self):
+    return TaskSet(self.tasklist, self.desc)
+
+class FromProxy(TaskSetSource):
+  def __init__(self, proxy):
+    self.proxy = proxy
+    self._desc = self.proxy.desc
+
+  @property
+  def tasklist(self):
+    fm = self.proxy.featuremap
+    cm = self.proxy.classmap
+    sq = self.proxy.sequence
+
+    tasklist = []
+    for i,fold in enumerate(fm.folds):
+      tasklist.append(InMemoryTask(fm.raw, cm.raw, fold.train_ids, fold.test_ids, {'index':i}, sequence=sq))
+    return tasklist
+
+
