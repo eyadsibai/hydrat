@@ -87,6 +87,105 @@ class ClassMap(SplitArray):
   """
   pass
 
+###
+# Task
+###
+class Task(object):
+  __slots__ = [ 'train_vectors'
+              , 'train_classes'
+              , 'train_sequence'
+              , 'test_vectors'
+              , 'test_classes'
+              , 'test_sequence'
+              , 'metadata'
+              , 'train_indices'
+              , 'test_indices'
+              , 'weights'
+              ]
+
+class DataTask(Task):
+  __slots__ = Task.__slots__ + [ 'class_map', 'feature_map', 'sequence']
+  def __init__( self
+              , feature_map
+              , class_map
+              , train_indices
+              , test_indices
+              , metadata
+              , sequence = None
+              ):
+    if not issubclass(train_indices.dtype.type, numpy.int_):
+      raise ValueError, 'Expected integral indices'
+    if not issubclass(test_indices.dtype.type, numpy.int_):
+      raise ValueError, 'Expected integral indices'
+
+    self.class_map = class_map
+    self.feature_map = feature_map
+    self.train_indices = train_indices
+    self.test_indices = test_indices
+    # TODO: Sanity check on the partitioning of the sequence. There shouldn't be sequences
+    #       that span train & test
+    self.sequence = sequence
+    self.metadata = dict(metadata)
+    self.weights = {}
+
+    
+  @property
+  def train_vectors(self):
+    """
+    Get training instances
+    @return: axis 0 is instances, axis 1 is features
+    @rtype: 2-d array
+    """
+    return self.feature_map[self.train_indices]
+
+  @property
+  def test_vectors(self):
+    """
+    Get test instances
+    @return: axis 0 is instances, axis 1 is features
+    @rtype: 2-d array
+    """
+    return self.feature_map[self.test_indices]
+
+  @property
+  def train_classes(self):
+    """
+    Get train classes 
+    @return: axis 0 is instances, axis 1 is classes 
+    @rtype: 2-d array
+    """
+    return self.class_map[self.train_indices]
+
+  @property
+  def test_classes(self):
+    """
+    Get test classes 
+    @return: axis 0 is instances, axis 1 is classes 
+    @rtype: 2-d array
+    """
+    return self.class_map[self.test_indices]
+
+  @property
+  def train_sequence(self):
+    if self.sequence is None:
+      return None
+    else:
+      indices = self.train_indices
+      matrix = self.sequence[indices].transpose()[indices].transpose()
+      return matrix
+
+  @property
+  def test_sequence(self):
+    if self.sequence is None:
+      return None
+    else:
+      indices = self.test_indices
+      matrix = self.sequence[indices].transpose()[indices].transpose()
+      return matrix
+
+###
+# TaskSet
+###
 class TaskSet(object):
   """
   This base class represents the TaskSet interface. It consists of two
@@ -108,6 +207,7 @@ class DataTaskSet(TaskSet):
 
   @classmethod
   def from_proxy(cls, proxy):
+    """ Convenience method to build a DataTaskSet from a DataProxy """
     fm = proxy.featuremap
     cm = proxy.classmap
     sq = proxy.sequence
