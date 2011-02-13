@@ -313,22 +313,7 @@ class DataProxy(object):
     self.store.new_TaskSet(FromProxy(self))
     return self.store.get_TaskSet(self.desc, None)
 
-from hydrat.task.taskset import TaskSet
-from hydrat.task.task import InMemoryTask
-class TaskSetSource(object):
-  """
-  Represents an object that can, on demand, generate a taskset with the given
-  description. Should always be subclassed. Subclasses should implement two 
-  properties _desc and tasklist.
-  """
-  @property
-  def desc(self):
-    return self._desc
-
-  @property
-  def taskset(self):
-    return TaskSet(self.tasklist, self.desc)
-
+from hydrat.task import InMemoryTask
 class FromProxy(TaskSetSource):
   def __init__(self, proxy):
     self.proxy = proxy
