@@ -132,6 +132,8 @@ def update_h5store(fileh):
       if not hasattr(dsnode, 'split'):
         logger.debug('Node %s did not have split node; adding.', dsnode._v_name)
         fileh.createGroup( dsnode, "split" )
+  # TODO:
+  # Replace all boolean maps for tasks with their equivalent flatnonzero indices
         
 
   logger.debug("updated store from version %d to %d", version, STORE_VERSION)
@@ -713,6 +715,7 @@ class Store(object):
     self.add_TaskSet(taskset)
 
   def _add_Task(self, task, ts_entry): 
+    #TODO: Enforce type of train/test indices to be integer sequences
     self._check_writeable()
     task_uuid = uuid.uuid4()
     task.metadata['uuid'] = task_uuid
