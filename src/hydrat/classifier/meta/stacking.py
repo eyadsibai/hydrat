@@ -42,6 +42,8 @@ class StackingL(Learner):
                      , rng=self.rng
                      ) 
     parts = numpy.dstack((numpy.logical_not(parts), parts))
+    # TODO: Update this!!!
+    raise NotImplementedError, "Need to update to new-style FeatureMap and ClassMap"
     taskset = from_partitions( parts, FeatureMap(feature_map), ClassMap(class_map) )
 
     # run each learner over the taskset, and produce a classification for each

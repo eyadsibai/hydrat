@@ -20,73 +20,7 @@ from copy import deepcopy
 from hydrat.common import as_set
 from hydrat.store import Store, StoreError, NoData, AlreadyHaveData
 from hydrat.inducer import DatasetInducer
-
-class Fold(object):
-  def __init__(self, fm, train_ids, test_ids):
-    self.fm = fm
-    self.train_ids = train_ids
-    self.test_ids = test_ids
-
-  def __repr__(self):
-    return '<Fold of %s (%d train, %d test)>' %\
-      (str(self.fm), len(self.train_ids), len(self.test_ids))
-
-  @property
-  def train(self):
-    return self.fm[self.train_ids]
-    
-  @property
-  def test(self):
-    return self.fm[self.test_ids]
-
-class SplitArray(object):
-  def __init__(self, raw, split=None, metadata = {}):
-    self.raw = raw
-    self.split = split
-    self.metadata = deepcopy(metadata)
-    if 'feature_desc' not in metadata:
-      self.metadata['feature_desc'] = tuple()
-
-  def __getitem__(self, key):
-    return self.raw[key]
-
-  def __repr__(self):
-    return '<%s %s>' % (self.__class__.__name__, str(self.raw.shape))
-
-  @property
-  def split(self):
-    return self._split
-
-  @split.setter
-  def split(self, value):
-    self._split = value
-    self.folds = []
-    if value is not None:
-      for i in range(value.shape[1]):
-        train_ids = numpy.flatnonzero(value[:,i,0])
-        test_ids = numpy.flatnonzero(value[:,i,1])
-        self.folds.append(Fold(self, train_ids, test_ids))
-
-import scipy.sparse
-class FeatureMap(SplitArray):
-  @staticmethod
-  def union(*fms):
-    # TODO: Sanity check on metadata
-    if len(fms) == 1: return fms[0]
-
-    fm = scipy.sparse.hstack([f[:] for f in fms])
-
-    metadata = dict()
-    feature_desc = tuple()
-    for f in fms:
-      metadata.update(deepcopy(f.metadata))
-      feature_desc += deepcopy(f.metadata['feature_desc'])
-    metadata['feature_desc'] = feature_desc
-
-    return FeatureMap(fm.tocsr(), split=fms[0].split, metadata=metadata)
-    
-
-class ClassMap(SplitArray): pass
+from hydrat.datamodel import FeatureMap, ClassMap
 
 class DataProxy(object):
   def __init__( self, dataset, store=None,

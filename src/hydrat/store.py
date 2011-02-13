@@ -12,8 +12,7 @@ from scipy.sparse import lil_matrix, coo_matrix
 from hydrat import config
 from hydrat.common import progress
 from hydrat.common.metadata import metadata_matches, get_metadata
-from hydrat.preprocessor.model import ClassMap
-from hydrat.preprocessor.features import FeatureMap
+from hydrat.datamodel import FeatureMap, ClassMap
 from hydrat.result.result import Result
 from hydrat.result.tasksetresult import TaskSetResult
 from hydrat.task.task import Task
@@ -29,7 +28,6 @@ class NoData(StoreError): pass
 class AlreadyHaveData(StoreError): pass
 class InsufficientMetadata(StoreError): pass
 
-# TODO: Provide a facility for saving splits
 # TODO: Avoid leaking uuids out with tasksets and/or results.
 
 # Features are internally stored as sparse arrays, which are serialized at the
@@ -632,7 +630,7 @@ class Store(object):
                  , class_space=space_name
                  , instance_space=ds._v_attrs.instance_space
                  )
-    return ClassMap(data.read(), metadata)
+    return ClassMap(data.read(), metadata=metadata)
 
   def get_FeatureMap(self, dsname, space_name):
     """
@@ -659,7 +657,7 @@ class Store(object):
                  , feature_desc=(space_name,)
                  , instance_space=ds._v_attrs.instance_space
                  )
-    return FeatureMap(m, metadata) 
+    return FeatureMap(m, metadata=metadata) 
 
   @deprecated
   def get_SizeData(self, dsname, space_name):
