@@ -138,6 +138,34 @@ def update_h5store(fileh):
   root._v_attrs['version'] = STORE_VERSION
   fileh.flush()
 
+from hydrat.datamodel import Task, TaskSet
+class StoredTaskSet(TaskSet):
+  def __init__(self, taskset_node):
+    self.node = taskset_node
+
+  @property
+  def metadata(self):
+    return get_metadata(self.node)
+
+  @property
+  def tasks(self):
+    tasks = []
+    for task_node in self.node._v_groups.values():
+      tasks.append(StoredTask(task_node))
+    tasks.sort(key=lambda r:r.metadata['index'])
+    return tasks
+
+class StoredTask(Task):
+  # TODO: Finish implementing this in a lazy fashion. The biggest challenge
+  # right now is handling sparse nodes, which currently require special treatment
+  # because they're not first-class in pytables terms.
+  def __init__(self, task_entry):
+    self.task_entry = task_entry
+
+  @property
+  def metadata(self):
+    return get_metadata(self.task_entry)
+
 class Store(object):
   """
   This is the master store class for hydrat. It manages all of the movement of data

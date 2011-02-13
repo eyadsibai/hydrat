@@ -16,7 +16,7 @@ from copy import deepcopy
 from hydrat.common import as_set
 from hydrat.store import Store, StoreError, NoData, AlreadyHaveData
 from hydrat.inducer import DatasetInducer
-from hydrat.datamodel import FeatureMap, ClassMap
+from hydrat.datamodel import FeatureMap, ClassMap, DataTaskSet
 
 class DataProxy(object):
   """
@@ -246,7 +246,7 @@ class DataProxy(object):
 
   @property
   def taskset(self):
-    self.store.new_TaskSet(FromProxy(self))
+    self.store.new_TaskSet(DataTaskSet.fromproxy(self))
     return self.store.get_TaskSet(self.desc, None)
 
   
