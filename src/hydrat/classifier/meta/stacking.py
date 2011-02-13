@@ -5,8 +5,7 @@ from hydrat.classifier.abstract import Learner, Classifier
 from hydrat.task.sampler import stratify, allocate
 from hydrat.task.taskset import from_partitions
 from hydrat.experiments import Experiment
-from hydrat.preprocessor.features import FeatureMap
-from hydrat.preprocessor.model import ClassMap
+from hydrat.datamodel import FeatureMap, ClassMap, DataTaskSet
 
 # TODO: Make the metaclassifier respect sequence info- right now it ignores it
 # TODO: Make it possible to assemble the stackingclassifier from TaskSetResults directly
@@ -42,9 +41,9 @@ class StackingL(Learner):
                      , rng=self.rng
                      ) 
     parts = numpy.dstack((numpy.logical_not(parts), parts))
-    # TODO: Update this!!!
-    raise NotImplementedError, "Need to update to new-style FeatureMap and ClassMap"
-    taskset = from_partitions( parts, FeatureMap(feature_map), ClassMap(class_map) )
+    fm = FeatureMap(feature_map, parts)
+    cm = ClassMap(class_map, parts)
+    taskset = DataTaskSet(fm, cm)
 
     # run each learner over the taskset, and produce a classification for each
     # instance-learner pair

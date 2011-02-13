@@ -86,3 +86,41 @@ class ClassMap(SplitArray):
   Represents a ClassMap. The underling raw array is a numpy.ndarray with bool dtype by convention
   """
   pass
+
+class TaskSet(object):
+  """
+  This base class represents the TaskSet interface. It consists of two
+  attributes, metadata and tasks, which can be implemented as properties
+  if lazy behaviour is desired.
+  """
+  def __init__( self, tasks, metadata):
+    self.tasks = tasks
+    self.metadata = dict(metadata)
+
+# TODO: New-style Tasks
+from hydrat.task import InMemoryTask
+class DataTaskSet(TaskSet):
+  def __init__(self, featuremap, classmap, sequence=None, metadata):
+    self.featuremap = featuremap
+    self.classmap = classmap
+    self.sequence = sequence
+    self.metadata = metadata
+
+  @classmethod
+  def from_proxy(cls, proxy):
+    fm = proxy.featuremap
+    cm = proxy.classmap
+    sq = proxy.sequence
+    md = proxy.desc
+    return cls(fm, cm, sq, md)
+
+  @property
+  def tasks(self):
+    fm = self.proxy.featuremap
+    cm = self.proxy.classmap
+    sq = self.proxy.sequence
+
+    tasklist = []
+    for i,fold in enumerate(fm.folds):
+      tasklist.append(InMemoryTask(fm.raw, cm.raw, fold.train_ids, fold.test_ids, {'index':i}, sequence=sq))
+    return tasklist
