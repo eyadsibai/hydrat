@@ -142,6 +142,10 @@ class Stored(object):
     self.node = node
 
   @property
+  def uuid(self):
+    return self.node._v_name
+
+  @property
   def metadata(self):
     return get_metadata(self.node)
   
@@ -245,9 +249,9 @@ class StoredTaskSetResult(Stored, TaskSetResult):
   @property
   def results(self):
     results = []
-    for node in tsr_entry._v_groups.values():
+    for node in self.node._v_groups.values():
       if node._v_name != 'summary':
-        results.append(Result(node))
+        results.append(StoredResult(self.store, node))
 
     try:
       results.sort(key=lambda r:r.metadata['index'])
@@ -1004,6 +1008,9 @@ class Store(object):
   def add_TaskSetResult(self, tsr, additional_metadata={}):
     self._check_writeable()
 
+    # Evaluate this to ensure any errors in results generation are caught early
+    results = tsr.results
+
     md = dict(tsr.metadata)
     md.update(additional_metadata)
 
@@ -1016,7 +1023,7 @@ class Store(object):
     for key in md:
       setattr(tsr_entry_attrs, key, md[key])
 
-    for i,result in enumerate(tsr.results):
+    for i,result in enumerate(results):
       self._add_Result(result, tsr_entry, dict(index=i))
     self.fileh.flush()
     return tsr_entry_tag
