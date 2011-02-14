@@ -5,18 +5,15 @@ import os
 import warnings
 import logging
 import numpy
-import datetime as dt
 warnings.simplefilter("ignore", tables.NaturalNameWarning)
 from scipy.sparse import lil_matrix, coo_matrix
 
 from hydrat import config
 from hydrat.common import progress
 from hydrat.common.metadata import metadata_matches, get_metadata
-from hydrat.datamodel import FeatureMap, ClassMap
-from hydrat.result.result import Result
-from hydrat.result.tasksetresult import TaskSetResult
-from hydrat.task.task import Task
-from hydrat.task.taskset import TaskSet
+from hydrat.datamodel import FeatureMap, ClassMap, Result, TaskSetResult
+from hydrat.datamodel import Task, TaskSet
+from hydrat.datamodel import Result, TaskSetResult
 from hydrat.common.pb import ProgressIter
 
 from hydrat.common.decorators import deprecated
@@ -89,7 +86,6 @@ def update_h5store(fileh):
     for dsnode in root.datasets:
       # Move the instance id node to spaces
       id_node = dsnode.instance_id
-      id_node._v_attrs['date']      = dt.datetime.now().isoformat() 
       id_node._v_attrs['size']      = len(dsnode.instance_id)
       id_node._v_attrs['type']      = 'instance'
       id_node._v_attrs['name']      = dsnode._v_name
@@ -132,39 +128,134 @@ def update_h5store(fileh):
         fileh.createGroup( dsnode, "split" )
   # TODO:
   # Replace all boolean maps for tasks with their equivalent flatnonzero indices
+  # Eliminate UUID from taskset and result metadata
+  # Get rid of all date attrs
         
 
   logger.debug("updated store from version %d to %d", version, STORE_VERSION)
   root._v_attrs['version'] = STORE_VERSION
   fileh.flush()
 
-from hydrat.datamodel import Task, TaskSet
-class StoredTaskSet(TaskSet):
-  def __init__(self, taskset_node):
-    self.node = taskset_node
+class Stored(object):
+  def __init__(self, store, node):
+    self.store = store
+    self.node = node
 
   @property
   def metadata(self):
     return get_metadata(self.node)
+  
+  def __repr__(self):
+    return "<%s on '%s'>" % (str(self.__class__.__name__), str(self.node))
 
+
+class StoredTaskSet(Stored, TaskSet):
   @property
   def tasks(self):
     tasks = []
     for task_node in self.node._v_groups.values():
-      tasks.append(StoredTask(task_node))
+      tasks.append(StoredTask(self.store, task_node))
     tasks.sort(key=lambda r:r.metadata['index'])
     return tasks
 
-class StoredTask(Task):
+class StoredTask(Stored, Task):
   # TODO: Finish implementing this in a lazy fashion. The biggest challenge
   # right now is handling sparse nodes, which currently require special treatment
-  # because they're not first-class in pytables terms.
-  def __init__(self, task_entry):
-    self.task_entry = task_entry
+  # because they're not first-class in pytables terms. We should implement a nice 
+  # subclass of Table.Leaf for it
+  @property
+  def train_vectors(self):
+    return Store._read_sparse_node(self.node.train_vectors)
 
   @property
-  def metadata(self):
-    return get_metadata(self.task_entry)
+  def train_classes(self):
+    return self.node.train_classes.read()
+
+  @property
+  def train_indices(self):
+    return self.node.train_indices.read()
+
+  @property
+  def train_sequence(self):
+    if hasattr(self.node, 'train_sequence'):
+      return Store._read_sparse_node(self.node.train_sequence)
+    else:
+      return None
+
+  @property
+  def test_vectors(self):
+    return Store._read_sparse_node(self.node.test_vectors)
+
+  @property
+  def test_classes(self):
+    return self.node.test_classes.read()
+
+  @property
+  def test_indices(self):
+    return self.node.test_indices.read()
+
+  @property
+  def test_sequence(self):
+    if hasattr(self.node, 'test_sequence'):
+      return Store._read_sparse_node(self.node.test_sequence)
+    else:
+      return None
+
+  @property
+  def weights(self):
+    raise NotImplementedError
+    # TODO: Improve this so that we produce a dictionary that loads weights on-demand instead
+    retval = {}
+    if self.weight_keys is not None:
+      for key in self.weight_keys:
+        if key in self.node.weights:
+          retval[key] = getattr(self.node.weights, key).read()
+        else:
+          retval[key] = None
+    return retval
+
+class StoredResult(Stored, Result):
+  @property
+  def goldstandard(self):
+    return self.node.goldstandard.read()
+
+  @property
+  def classifications(self):
+    return self.node.classifications.read()
+
+  @property
+  def instance_indices(self):
+    return self.node.instance_indices.read()
+    
+class StoredTaskSetResult(Stored, TaskSetResult):
+  def get_space(self, name):
+    try:
+      return self.store.get_Space(self.metadata[name])
+    except NoData:
+      return None
+    
+  @property
+  def instance_space(self):
+    return self.get_space('instance_space')
+
+  @property
+  def class_space(self):
+    return self.get_space('class_space')
+
+  @property
+  def results(self):
+    results = []
+    for node in tsr_entry._v_groups.values():
+      if node._v_name != 'summary':
+        results.append(Result(node))
+
+    try:
+      results.sort(key=lambda r:r.metadata['index'])
+    except KeyError:
+      logger.warning("Tasks do not have index- returning in unspecified order")
+    return results
+      
+
 
 class Store(object):
   """
@@ -213,7 +304,8 @@ class Store(object):
     if self.mode not in "wa":
       raise IOError, "Store is not writeable!"
 
-  def _read_sparse_node(self, node, shape=None):
+  @staticmethod
+  def _read_sparse_node(node, shape=None):
     """
     We allow the shape to be overloaded so that we can accomodate
     feature maps where the underlying feature space has grown
@@ -291,7 +383,6 @@ class Store(object):
                                       , metadata['name']
                                       , labels
                                       )
-    new_space.attrs.date = dt.datetime.now().isoformat() 
     new_space.attrs.size = len(labels)
     for key in metadata:
       setattr(new_space.attrs, key, metadata[key])
@@ -331,8 +422,6 @@ class Store(object):
 
     # Update the size
     new_space.attrs.size = len(labels)
-    # Update the date
-    new_space.attrs.date = dt.datetime.now().isoformat() 
     self.fileh.flush()
 
 
@@ -351,7 +440,6 @@ class Store(object):
     # Note down our metadata
     attrs.name              = name
     attrs.instance_space    = instance_space
-    attrs.date              = dt.datetime.now().isoformat()
     attrs.num_instances     = len(instance_ids)
 
     # Create the instance_id array
@@ -388,7 +476,6 @@ class Store(object):
                                   , space._v_name
                                   , "Sparse Feature Map %s" % space._v_name
                                   )
-    group._v_attrs.date  = dt.datetime.now().isoformat()
     group._v_attrs.type  = 'int' if all(isinstance(i[2], int) for i in feat_map) else 'float'
 
     fm_node = self.fileh.createTable( group
@@ -439,7 +526,6 @@ class Store(object):
                                   , space._v_name
                                   , "Sparse Feature Map %s" % space._v_name
                                   )
-    group._v_attrs.date  = dt.datetime.now().isoformat()
     group._v_attrs.type  = int if issubclass(feat_map.dtype.type, numpy.int) else float
 
     # Initialize space to store instance sizes.
@@ -481,8 +567,6 @@ class Store(object):
                                    , space._v_name
                                    , "Data for %s" % space._v_name
                                    )
-    group._v_attrs.date = dt.datetime.now().isoformat()
-    group._v_attrs.uuid = uuid.uuid4() # Not currently used anywhere
 
     cm_node = self.fileh.createCArray( group
                                      , 'class_map'
@@ -497,19 +581,19 @@ class Store(object):
   def add_TaskSet(self, taskset):
     # TODO: Find some way to make this atomic! Otherwise, we can write incomplete tasksets!!
     self._check_writeable()
-    taskset_uuid = taskset.metadata['uuid']
-
-    if 'date' not in taskset.metadata:
-      taskset.metadata['date'] = dt.datetime.now().isoformat()
+    
+    # Copy the metadata as we are not allowed to modify it directly
+    md = dict(taskset.metadata)
+    taskset_uuid = uuid.uuid4()
 
     taskset_entry_tag = str(taskset_uuid)
     taskset_entry = self.fileh.createGroup(self.tasksets, taskset_entry_tag)
     taskset_entry_attrs = taskset_entry._v_attrs
 
-    for key in taskset.metadata:
-      setattr(taskset_entry_attrs, key, taskset.metadata[key])
+    for key in md:
+      setattr(taskset_entry_attrs, key, md[key])
 
-    logger.debug('Adding a taskset %s', str(taskset.metadata))
+    logger.debug('Adding a taskset %s', str(md))
 
     for i,task in enumerate(ProgressIter(taskset.tasks, label="Adding Tasks")):
       self._add_Task(task, taskset_entry)
@@ -729,22 +813,21 @@ class Store(object):
     return data 
 
 
-  def new_TaskSet(self, source):
-    """Method which checks if a TaskSet described by a TaskSetSource object is
-    already in the store. If not, it uses the TaskSetSource object to generate the
-    TaskSet and adds it to the Store.
+  def new_TaskSet(self, taskset):
+    """Method which checks if a TaskSet is already in the Store. It will not
+    access the tasks unless the source metadata is not yet in the Store.
+    This allows for on-demand generation of tasks via property-based tasks.
     """
-    if self.has_TaskSet(source.desc): return # Already have - do nothing
-    taskset = source.taskset
-    taskset_uuid = uuid.uuid4()
-    taskset.metadata['uuid'] = taskset_uuid
-    self.add_TaskSet(taskset)
+    if not self.has_TaskSet(taskset.metadata): 
+      self.add_TaskSet(taskset)
 
   def _add_Task(self, task, ts_entry): 
     #TODO: Enforce type of train/test indices to be integer sequences
     self._check_writeable()
+
+    md = dict(task.metadata)
+
     task_uuid = uuid.uuid4()
-    task.metadata['uuid'] = task_uuid
     task_tag = str(task_uuid)
 
     # Create a group for the task
@@ -752,8 +835,8 @@ class Store(object):
     task_entry_attrs = task_entry._v_attrs
 
     # Add the metadata
-    for key in task.metadata:
-      setattr(task_entry_attrs, key, task.metadata[key])
+    for key in md:
+      setattr(task_entry_attrs, key, md[key])
 
     # Add the class matrices 
     # TODO: Current implementation has the side effect of expanding all tasks,
@@ -805,7 +888,6 @@ class Store(object):
                       , key
                       , task.weights[key]
                       )
-      new_weight.attrs.date = dt.datetime.now().isoformat() 
 
     self.fileh.flush()
 
@@ -823,7 +905,6 @@ class Store(object):
                           , key
                           , task.weights[key]
                           )
-          new_weight.attrs.date = dt.datetime.now().isoformat() 
     self.fileh.flush()
                 
   def has_TaskSet(self, desired_metadata):
@@ -860,39 +941,7 @@ class Store(object):
       taskset_entry  = getattr(self.tasksets, taskset_tag)
     except AttributeError:
       raise KeyError, str(taskset_tag)
-    metadata = get_metadata(taskset_entry)
-    tasks = []
-    for task_entry in taskset_entry._v_groups.values():
-      tasks.append(self._get_Task(task_entry, weights=weights))
-    tasks.sort(key=lambda r:r.metadata['index'])
-    return TaskSet(tasks, metadata)
-
-  def _get_Task(self,task_entry, weights=None): 
-    metadata = get_metadata(task_entry)
-    t = Task()
-    t.metadata = metadata
-    t.train_classes  = task_entry.train_classes.read()
-    t.train_indices  = task_entry.train_indices.read()
-    t.test_classes   = task_entry.test_classes.read()
-    t.test_indices   = task_entry.test_indices.read()
-    t.train_vectors  = self._read_sparse_node(task_entry.train_vectors)
-    t.test_vectors   = self._read_sparse_node(task_entry.test_vectors)
-    if hasattr(task_entry, 'train_sequence'):
-      t.train_sequence = self._read_sparse_node(task_entry.train_sequence)
-    else:
-      t.train_sequence = None
-    if hasattr(task_entry, 'test_sequence'):
-      t.test_sequence = self._read_sparse_node(task_entry.test_sequence)
-    else:
-      t.test_sequence  = None
-    t.weights = {}
-    if weights is not None:
-      for key in weights:
-        if key in task_entry.weights:
-          t.weights[key] = getattr(task_entry.weights, key).read()
-        else:
-          t.weights[key] = None
-    return t
+    return StoredTaskSet(self, taskset_entry)
 
   def _resolve_TaskSet(self, desired_metadata):
     """Returns all tags whose entries match the supplied metadata"""
@@ -904,13 +953,12 @@ class Store(object):
     return desired_keys
 
   def new_TaskSetResult(self, tsr):
-    """Convenience method which checks no previous TaskSetResult has matching metadata"""
-    if self.has_TaskSetResult(tsr.metadata):
-      raise AlreadyHaveData, "Already have tsr %s" % str(tsr.metadata)
-    if 'uuid' in tsr.metadata:
-      logger.warning('new tsr should not have uuid!')
-    tsr.metadata['uuid'] = uuid.uuid4()
-    self.add_TaskSetResult(tsr)
+    """Method which checks if a TaskSetResult is already in the Store. It will not
+    access the results unless the source metadata is not yet in the Store.
+    This allows for on-demand generation of results via property-based results.
+    """
+    if not self.has_TaskSetResult(tsr.metadata): 
+      self.add_TaskSetResult(tsr)
 
   def has_TaskSetResult(self, desired_metadata):
     """ Check if the TaskSetResult already exists """
@@ -923,6 +971,9 @@ class Store(object):
     elif len(tags) > 1: raise InsufficientMetadata
     return self._get_TaskSetResult(tags[0])
 
+  # TODO: Replace uses of this with a direct access to a StoredTaskSetResult, which does not
+  # load results until they are explicitly accessed.
+  @deprecated
   def _get_TaskSetResultMetadata(self, tsr_tag):
     tsr_entry  = getattr(self.results, tsr_tag)
     return get_metadata(tsr_entry)
@@ -938,41 +989,7 @@ class Store(object):
       tsr_entry  = getattr(self.results, tsr_tag)
     except AttributeError:
       raise KeyError, str(tsr_tag)
-    metadata = get_metadata(tsr_entry)
-    results = []
-    for node in tsr_entry._v_groups.values():
-      if node._v_name != 'summary':
-        results.append(self._get_Result(node))
-
-    try:
-      results.sort(key=lambda r:r.metadata['index'])
-    except KeyError:
-      logger.warning("Tasks do not have index- returning in unspecified order")
-      
-    tsr = TaskSetResult(results, metadata)
-    if 'instance_space' in metadata:
-      try:
-        tsr.instance_space = self.get_Space(metadata['instance_space'])
-      except NoData:
-        pass
-    if 'class_space' in metadata:
-      try:
-        tsr.class_space = self.get_Space(metadata['class_space'])
-      except NoData:
-        pass
-    return tsr
-
-  def _get_Result(self, result_entry):
-    metadata = get_metadata(result_entry)
-    goldstandard     = result_entry.goldstandard.read()
-    classifications  = result_entry.classifications.read()
-    instance_indices = result_entry.instance_indices.read()
-    r = Result( goldstandard
-              , classifications
-              , instance_indices
-              , metadata
-              )
-    return r
+    return StoredTaskSetResult(self, tsr_entry)
 
   def _resolve_TaskSetResults(self, desired_metadata):
     """Returns all tags whose entries match the supplied metadata"""
@@ -986,36 +1003,27 @@ class Store(object):
 
   def add_TaskSetResult(self, tsr, additional_metadata={}):
     self._check_writeable()
-    try:
-      tsr_uuid = tsr.metadata['uuid']
-    except KeyError:
-      tsr_uuid = uuid.uuid4()
-      tsr.metadata['uuid'] = tsr_uuid
 
-    if 'date' not in tsr.metadata:
-      tsr.metadata['date'] = dt.datetime.now().isoformat()
+    md = dict(tsr.metadata)
+    md.update(additional_metadata)
+
+    tsr_uuid = uuid.uuid4()
 
     tsr_entry_tag = str(tsr_uuid)
     tsr_entry = self.fileh.createGroup(self.results, tsr_entry_tag)
     tsr_entry_attrs = tsr_entry._v_attrs
 
-    for key in tsr.metadata:
-      setattr(tsr_entry_attrs, key, tsr.metadata[key])
-    for key in additional_metadata:
-      setattr(tsr_entry_attrs, key, additional_metadata[key])
+    for key in md:
+      setattr(tsr_entry_attrs, key, md[key])
 
-    for i,result in enumerate(tsr.raw_results):
+    for i,result in enumerate(tsr.results):
       self._add_Result(result, tsr_entry, dict(index=i))
     self.fileh.flush()
     return tsr_entry_tag
 
   def _add_Result(self, result, tsr_entry, additional_metadata={}):
     self._check_writeable()
-    try:
-      result_uuid = result.metadata['uuid']
-    except KeyError:
-      result_uuid = uuid.uuid4()
-      result.metadata['uuid'] = result_uuid
+    result_uuid = uuid.uuid4()
     result_tag = str(result_uuid)
 
     # Create a group for the result
