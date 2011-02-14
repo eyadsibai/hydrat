@@ -29,7 +29,7 @@ from hydrat.summary import Summary
 class Navigation(Summary):
   def init(self, result, interpreter):
     Summary.init(self, result, interpreter)
-    self.uuid = str(result.metadata['uuid'])
+    self.uuid = str(result.uuid)
 
   def key__link(self):
     link = markup.oneliner.a('link', href='view?'+urllib.urlencode({'uuid':self.uuid}))

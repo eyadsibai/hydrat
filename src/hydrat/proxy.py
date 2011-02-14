@@ -26,7 +26,8 @@ class DataProxy(object):
   impacted by the dataset API.
   """
   def __init__( self, dataset, store=None,
-        feature_spaces=None, class_space=None, split_name=None, sequence_name=None ):
+        feature_spaces=None, class_space=None, split_name=None, sequence_name=None,
+        tokenstream_name=None):
     self.logger = logging.getLogger(__name__+'.'+self.__class__.__name__)
     self.dataset = dataset
 
@@ -186,6 +187,28 @@ class DataProxy(object):
     return self.store.get_Sequence(self.dsname, self.sequence_name)
 
   @property
+  def tokenstream_name(self):
+    return self._tokenstream_name
+
+  @tokenstream_name.setter
+  def tokenstream_name(self, value):
+    if value is None:
+      self._tokenstream_name=None
+    else:
+      if not isinstance(value, str):
+        raise TypeError, "Invalid tokenstream identifier: %s" % str(value)
+      present_tokenstream=set(self.dataset.tokenstream_names)
+      if value not in present_tokenstream:
+        raise ValueError, "Unknown tokenstream: %s" % value
+
+      self._tokenstream_name = value
+
+  @property
+  def tokenstream(self):
+    self.inducer.process(self.dataset, tss=self.tokenstream_name)
+    return self.store.get_TokenStreams(self.dsname, self.tokenstream_name)
+
+  @property
   def instance_space(self):
     # Note that this cannot be set as it is implicit in the dataset
     return self.dataset.instance_space
@@ -217,18 +240,16 @@ class DataProxy(object):
     fm.split = self.split
     return fm
 
-  def tokenize(self, tsname, extractor):
+  def tokenize(self, extractor):
     """
     Map a feature extractor onto a tokenstream and save the corresponding
     output into the backing store.
     """
     # Definition of space name.
-    space_name = '_'.join((tsname,extractor.__name__))
+    space_name = '_'.join((self.tokenstream_name,extractor.__name__))
     if not self.store.has_Data(self.dsname, space_name):
-      self.inducer.process(self.dataset, tss=tsname)
-
       # Read the tokenstream
-      tss = self.store.get_TokenStreams(self.dsname, tsname)
+      tss = self.tokenstream
       feat_dict = dict()
 
       # TODO: Backoff behaviour if multiprocessing fails
