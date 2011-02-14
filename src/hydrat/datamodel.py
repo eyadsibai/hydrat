@@ -7,6 +7,8 @@
 import numpy
 import scipy.sparse
 
+from copy import deepcopy
+
 class Fold(object):
   """
   Represents a fold. Abstracts accessing of subsections of a numpy/scipy array
@@ -197,13 +199,12 @@ class TaskSet(object):
     self.metadata = dict(metadata)
 
 # TODO: New-style Tasks
-from hydrat.task import InMemoryTask
 class DataTaskSet(TaskSet):
-  def __init__(self, featuremap, classmap, sequence=None, metadata):
+  def __init__(self, featuremap, classmap, sequence=None, metadata={}):
     self.featuremap = featuremap
     self.classmap = classmap
     self.sequence = sequence
-    self.metadata = metadata
+    self.metadata = dict(metadata)
 
   @classmethod
   def from_proxy(cls, proxy):
@@ -216,11 +217,44 @@ class DataTaskSet(TaskSet):
 
   @property
   def tasks(self):
-    fm = self.proxy.featuremap
-    cm = self.proxy.classmap
-    sq = self.proxy.sequence
+    fm = self.featuremap
+    cm = self.classmap
+    sq = self.sequence
 
     tasklist = []
     for i,fold in enumerate(fm.folds):
-      tasklist.append(InMemoryTask(fm.raw, cm.raw, fold.train_ids, fold.test_ids, {'index':i}, sequence=sq))
+      tasklist.append(DataTask(fm.raw, cm.raw, fold.train_ids, fold.test_ids, {'index':i}, sequence=sq))
     return tasklist
+
+"""
+import hydrat.task.transform as tx
+class Transform(TaskSet):
+  def __init__(self, tasksetsource, transformer):
+    self.tasksetsource = tasksetsource
+    self.transformer = transformer
+
+  @property
+  def _desc(self):
+    return tx.update_medata(tasksetsource.desc, self.transformer)
+    
+  @property
+  def tasklist(self):
+    # TODO: Work out how to get the required weights, and how to extend them back
+    # TODO: Work out why we need add_args
+    raise NotImplementedError
+    self.weights = transformer.weights.keys()
+    taskset = self.taskset
+    new_taskset = tx.transform_taskset(taskset, transformer, add_args=add_args)
+    self.store.extend_Weights(taskset)
+    #self.store.new_TaskSet(new_taskset)
+"""
+
+###
+# Result
+###
+from result.result import Result
+
+###
+# TaskSetResult
+###
+from result.tasksetresult import TaskSetResult

@@ -1,30 +1,10 @@
 import numpy
 
+from result import Result
+from result import confusion_matrix, classification_matrix
+
 class ResultError(Exception): pass
 
-def confusion_matrix(gs, cl):
-  assert gs.shape == cl.shape
-  gs_n  = numpy.logical_not(gs)
-  cl_n  = numpy.logical_not(cl)
-
-  tp = numpy.logical_and(gs  , cl  ).sum(0)
-  tn = numpy.logical_and(gs_n, cl_n).sum(0)
-  fp = numpy.logical_and(gs_n, cl  ).sum(0)
-  fn = numpy.logical_and(gs  , cl_n).sum(0)
-
-  return numpy.column_stack((tp, tn, fp, fn))
-
-def classification_matrix(gs, cl):
-  assert gs.shape == cl.shape
-  class_count = cl.shape[1]
-  matrix = numpy.empty((class_count, class_count), dtype='int64')
-  for gs_i in xrange(class_count):
-    for cl_i in xrange(class_count):
-      gs_c = gs[:,gs_i]
-      cl_c = cl[:,cl_i]
-      matrix[gs_i,cl_i] = numpy.logical_and(gs_c,cl_c).sum()
-  return matrix
-  
 
 class Microaverage(object):
   def __call__(self, matrix, function = None):

@@ -246,29 +246,8 @@ class DataProxy(object):
 
   @property
   def taskset(self):
-    self.store.new_TaskSet(DataTaskSet.fromproxy(self))
+    self.store.new_TaskSet(DataTaskSet.from_proxy(self))
     return self.store.get_TaskSet(self.desc, None)
 
   
-
-import hydrat.task.transform as tx
-class Transform(TaskSet):
-  def __init__(self, tasksetsource, transformer):
-    self.tasksetsource = tasksetsource
-    self.transformer = transformer
-
-  @property
-  def _desc(self):
-    return tx.update_medata(tasksetsource.desc, self.transformer)
-    
-  @property
-  def tasklist(self):
-    # TODO: Work out how to get the required weights, and how to extend them back
-    # TODO: Work out why we need add_args
-    raise NotImplementedError
-    self.weights = transformer.weights.keys()
-    taskset = self.taskset
-    new_taskset = tx.transform_taskset(taskset, transformer, add_args=add_args)
-    self.store.extend_Weights(taskset)
-    #self.store.new_TaskSet(new_taskset)
 

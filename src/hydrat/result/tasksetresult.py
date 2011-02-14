@@ -6,8 +6,8 @@ from collections import defaultdict
 class TaskSetResult(RichComparisonMixin):
   #Contains a raw result and descriptive frills
   # TODO: Add descriptive frills
-  def __init__(self, raw_results, metadata = None):
-    self.raw_results = raw_results
+  def __init__(self, results, metadata = None):
+    self.results = results
     if metadata:
       # Copy the metadata if some is provided
       self.metadata = dict(metadata)
@@ -15,7 +15,7 @@ class TaskSetResult(RichComparisonMixin):
       self.metadata = {}
 
   def individual_metadata(self, raw_result_key):
-    return [ r.metadata[raw_result_key] for r in self.raw_results ]
+    return [ r.metadata[raw_result_key] for r in self.results ]
     
   def __repr__(self):
     return "<TaskSetResult %s>"% (str(self.metadata))
@@ -28,15 +28,15 @@ class TaskSetResult(RichComparisonMixin):
 
   def __eq__(self, other):
     try:
-      cond_1 = len(self.raw_results) == len(other.raw_results)
-      cond_2 = all( r in self.raw_results for r in other.raw_results )
+      cond_1 = len(self.results) == len(other.results)
+      cond_2 = all( r in self.results for r in other.results )
       return cond_1 and cond_2
     except AttributeError:
       return False
 
   @property
   def all_indices(self):
-    indices = reduce(set.union, (set(r.instance_indices) for r in self.raw_results))
+    indices = reduce(set.union, (set(r.instance_indices) for r in self.results))
     return numpy.array(sorted(indices))
 
   ###
@@ -46,13 +46,13 @@ class TaskSetResult(RichComparisonMixin):
   def overall_classification(self, indices=None): 
     if indices is None:
       indices = self.all_indices
-    r = self.raw_results[0]
+    r = self.results[0]
     num_inst = len(indices)
     num_class = r.goldstandard.shape[1]
-    num_res = len(self.raw_results)
+    num_res = len(self.results)
     result = numpy.zeros((num_inst, num_class, num_res), dtype=r.classifications.dtype)
 
-    for r_i, r in enumerate(self.raw_results): 
+    for r_i, r in enumerate(self.results): 
       r_map = dict( (k,v) for v,k in enumerate(r.instance_indices))
       for i in indices: 
         if i in r_map:
@@ -64,7 +64,7 @@ class TaskSetResult(RichComparisonMixin):
     Return a mapping (from, to) -> [indices] extended over all folds
     """
     mapping = defaultdict(list)
-    for r in self.raw_results:
+    for r in self.results:
       cl = r.classpairs(interpreter)
       for key in cl:
         mapping[key].extend(cl[key])
@@ -77,7 +77,7 @@ class TaskSetResult(RichComparisonMixin):
              axis 1 - Classifier Output
     @rtype: 2-d array
     """
-    return sum([ r.classification_matrix(interpreter) for r in self.raw_results ])
+    return sum([ r.classification_matrix(interpreter) for r in self.results ])
 
   def overall_confusion_matrix(self, interpreter):
     """
@@ -87,7 +87,7 @@ class TaskSetResult(RichComparisonMixin):
              axis 2 - tp, tn, fp, fn
     @rtype: 3-d array
     """
-    return numpy.array([ r.confusion_matrix(interpreter) for r in self.raw_results ])
+    return numpy.array([ r.confusion_matrix(interpreter) for r in self.results ])
 
   def overall_correct(self, interpreter):
     """
@@ -96,13 +96,13 @@ class TaskSetResult(RichComparisonMixin):
     be used to compute the number of times an instance is correctly classified
     overall.
     """
-    r = self.raw_results[0]
+    r = self.results[0]
     num_inst = len(self.all_indices)
     num_class = r.goldstandard.shape[1]
-    num_res = len(self.raw_results)
+    num_res = len(self.results)
 
     retval = numpy.ones((num_inst, num_class, num_res)) * numpy.nan
-    for r_i, r in enumerate(self.raw_results):
+    for r_i, r in enumerate(self.results):
       correct = r.correct(interpreter)
       retval[r.instance_indices,:,r_i] = correct
     return retval

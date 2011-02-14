@@ -5,22 +5,30 @@ import numpy
 from hydrat.common.invert_dict import invert_dict
 from hydrat.common.richcomp import RichComparisonMixin
 from hydrat.common.metadata import metadata_matches
-from hydrat.result import confusion_matrix, classification_matrix
 
-def result_from_task(task, classifications, metadata = {}):
-  """
-  Build a result object by combining a task and the classifications
-  resulting from running the task, along with any additional 
-  metadata to be saved.
-  """
-  goldstandard     = task.test_classes
-  classifications  = classifications
-  instance_indices = numpy.flatnonzero(task.test_indices)
-  full_metadata    =  {}
-  full_metadata.update(task.metadata)
-  full_metadata.update(metadata)
+def confusion_matrix(gs, cl):
+  assert gs.shape == cl.shape
+  gs_n  = numpy.logical_not(gs)
+  cl_n  = numpy.logical_not(cl)
 
-  return Result(goldstandard, classifications, instance_indices, full_metadata)
+  tp = numpy.logical_and(gs  , cl  ).sum(0)
+  tn = numpy.logical_and(gs_n, cl_n).sum(0)
+  fp = numpy.logical_and(gs_n, cl  ).sum(0)
+  fn = numpy.logical_and(gs  , cl_n).sum(0)
+
+  return numpy.column_stack((tp, tn, fp, fn))
+
+def classification_matrix(gs, cl):
+  assert gs.shape == cl.shape
+  class_count = cl.shape[1]
+  matrix = numpy.empty((class_count, class_count), dtype='int64')
+  for gs_i in xrange(class_count):
+    for cl_i in xrange(class_count):
+      gs_c = gs[:,gs_i]
+      cl_c = cl[:,cl_i]
+      matrix[gs_i,cl_i] = numpy.logical_and(gs_c,cl_c).sum()
+  return matrix
+  
 
 class Result(RichComparisonMixin):
   """
@@ -112,6 +120,22 @@ class Result(RichComparisonMixin):
                  , (self.classifications  == other.classifications).all()
                  ]
     return all(conditions)
+
+  @classmethod
+  def from_task(cls, task, classifications, metadata = {}):
+    """
+    Build a result object by combining a task and the classifications
+    resulting from running the task, along with any additional 
+    metadata to be saved.
+    """
+    goldstandard     = task.test_classes
+    classifications  = classifications
+    instance_indices = task.test_indices
+    full_metadata    =  {}
+    full_metadata.update(task.metadata)
+    full_metadata.update(metadata)
+
+    return cls(goldstandard, classifications, instance_indices, full_metadata)
 
   def classification_matrix(self, interpreter):
     """

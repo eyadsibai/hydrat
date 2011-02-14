@@ -48,7 +48,7 @@ def result_summary_table(summaries, renderer, relevant = None, title = None):
 def render_TaskSetResult(renderer, tsr, classlabels, interpreter, summary):
   show_metadata(renderer, summary)
   render_TaskSetResult_summary(renderer, tsr, classlabels, interpreter)
-  for i,result in enumerate(tsr.raw_results):
+  for i,result in enumerate(tsr.results):
     renderer.subsection("Result %d"% i)
     show_Result(renderer, result, interpreter)
 
