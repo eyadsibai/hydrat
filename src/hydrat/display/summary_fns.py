@@ -141,7 +141,7 @@ def result_metadata(result, interpreter):
   """
   entry =\
     { 'interpreter'      : interpreter.__name__
-    , 'probabilisitc'    : is_probabilistic(result.raw_results[0].classifications)
+    , 'probabilisitc'    : is_probabilistic(result.results[0].classifications)
     }
   entry.update(result.metadata)
   #TODO: This should go elsewhere
@@ -216,7 +216,7 @@ class PerfoldConfusionMetric:
 
   def __call__(self, result, interpreter):
     fold_results = {}
-    for r in result.raw_results:
+    for r in result.results:
       index = r.metadata['index']
       cm = r.confusion_matrix(interpreter)
       fold_results[index] = self.aggregator(cm, self.metric)
@@ -233,7 +233,7 @@ class PerfoldClassificationMetric:
 
   def __call__(self, result, interpreter):
     fold_results = {}
-    for r in result.raw_results:
+    for r in result.results:
       space_name = result.metadata['class_space']
       space = self.data.get_Space(space_name)
       #TODO ranklist might be what we actually want!

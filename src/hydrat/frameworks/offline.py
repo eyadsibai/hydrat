@@ -164,7 +164,7 @@ class OfflineFramework(Framework):
     metadata['feature_desc'] += tuple(sorted(feature_spaces))
     if not self.store.has_TaskSet(self.taskset_desc):
       # Catch up any missing feature spaces
-      self.inducer.process_Dataset(self.dataset, fms=feature_spaces)
+      self.inducer.process(self.dataset, fms=feature_spaces)
       ds_name = self.dataset.__name__
       featuremaps = []
       for feature_space in sorted(feature_spaces):

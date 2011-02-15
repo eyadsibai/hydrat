@@ -1,7 +1,7 @@
 from abstract import Dataset
 import numpy
 import hydrat
-from hydrat.preprocessor.model.inducer import map2matrix, matrix2map
+from hydrat.common.mapmatrix import map2matrix, matrix2map
 from hydrat.task.sampler import stratify, allocate
 from hydrat.common.decorators import replace_with_result
 

@@ -3,6 +3,7 @@ import logging
 import warnings
 import functools
 import inspect
+import time
 from hydrat import config
 
 
@@ -109,6 +110,52 @@ class replace_with_result(object):
     def __repr__(self):
         """Return the function's docstring."""
         return self.fn.__doc__ + " (cached)"
+
+
+class timed(object):
+  """ Decorator that adds execution time of a method to a
+      dictionary called __timing_data__
+  """
+  def __init__(self, decoratee):
+    self.decoratee = decoratee
+    self.__name__ = decoratee.__name__
+    self.instance = None
+    self.owner = None
+
+  def __get__(self, instance, owner):
+    self.instance = instance
+    self.owner = owner
+    return self
+
+  def __call__(self, *args, **kwargs):
+    if self.owner is None:
+      # If we have no owner, we are decorating a function
+      # TODO: Can we inject into a global in this case?
+      raise NotImplementedError, "Only implemented for methods"
+
+    if self.instance:
+      # If we have an instance we are bound
+      instance = self.instance
+    else:
+      # Otherwise, we are unbound and the first argument is the instance
+      instance = args[0]
+      args = args[1:]
+
+    # Do the actual operation
+    start = time.time()
+    retval = self.decoratee(instance, *args, **kwargs)
+    duration = time.time() - start
+
+    # Create the __timing_data__ dictionary if needed
+    if not hasattr(instance, '__timing_data__'):
+      instance.__timing_data__ = {}
+
+    # Attach the measured time
+    instance.__timing_data__[self.__name__] = duration
+
+    return retval
+
+
 
 
 # from http://wiki.python.org/moin/PythonDecoratorLibrary#GeneratingDeprecationWarnings
