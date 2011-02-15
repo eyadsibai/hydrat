@@ -5,66 +5,39 @@ import datetime
 import os.path
 import numpy
 import hydrat
-from hydrat.common.pb import ProgressIter
-from hydrat.langid import goog2iso639_1
-from hydrat.wrapper.googlelangid import GoogleLangid
-from hydrat.common.mapmatrix import map2matrix 
-from hydrat.store import Store
-from hydrat.result.result import Result
-from hydrat.result.tasksetresult import TaskSetResult
 
-def goog_langid(ds, tokenstream, key=None):
-  cat = GoogleLangid(retry=300, apikey=key)
-  ts = ds.tokenstream(tokenstream)
-  filename = 'google-%s-%s' % (tokenstream, ds.__name__)
-  path = os.path.join(hydrat.config.getpath('paths','scratch'), filename)
-  obtained = {}
-  if os.path.exists(path):
-    with open(path) as f:
-      reader = csv.reader(f, delimiter='\t')
-      for row in reader:
-        obtained[row[0]] = row[1]
+import hydrat.wrapper.googlelangid as googlelangid
 
-  with open(path, 'a') as f:
-    writer = csv.writer(f, delimiter='\t')
-    for key in ProgressIter(ts, label='Google-Langid'):
-      if key in obtained: continue
-      text = ts[key]
-      sleep_len = random.uniform(0,10)
-      now = datetime.datetime.now().isoformat()
-      pred_lang = cat.classify(text)
-      print sleep_len, pred_lang, now, text,
-      time.sleep(sleep_len) # sleep for up to 3 seconds
-      writer.writerow((key, pred_lang, now, text.strip()))
-      f.flush()
-  return obtained
+def goog2iso639_1(lang):
+  if lang == 'fil':             return 'tl'
+  if lang == 'zh-TW':           return 'zh'
+  if lang == 'zh-CN':           return 'zh'
+  if lang == 'iw':              return 'he'
+  elif lang in ISO639_1_CODES:  return lang
+  else:                         return 'UNKNOWN'
 
-def do_google(test_ds, tokenstream, class_space, classlabels, spacemap, key=None):
-  md = dict(\
-    class_space  = class_space,
-    dataset      = 'GoogleLangid',
-    eval_dataset = test_ds.__name__,
-    instance_space = 'GoogleLangid',
-    eval_space   = test_ds.instance_space,
-    learner      = 'GoogleLangid',
-    learner_params = dict(tokenstream=tokenstream, spacemap=spacemap.__name__)
-    )
+class GoogleLangid(googlelangid.GoogleLangid):
+  def __init__(self, chunksize=500, referer=None, retry=30, sleep=0.2):
+    googlelangid.GoogleLangid.__init__(self, retry=retry, sleep=sleep, referer=referer)
+    self.spacemap = goog2iso639_1
+    self.chunksize = chunksize
 
-  preds = goog_langid(test_ds, tokenstream, key=key)
-  for key in preds:
-    preds[key] = [spacemap(preds[key])]
+  @property
+  def metadata(self):
+    metadata = dict(
+      class_space  = 'iso639_1',
+      dataset      = 'GoogleLangid',
+      instance_space = 'GoogleLangid',
+      learner      = 'GoogleLangid',
+      learner_params = dict(spacemap=self.spacemap.__name__, chunksize=self.chunksize)
+      )
+    return metadata
 
-  cl = map2matrix( preds, test_ds.instance_ids, classlabels )
-  gs = map2matrix( test_ds.classmap(class_space), test_ds.instance_ids, classlabels )
+  def classify_batch(self, texts, callback=None):
+    retval = []
+    for i, cl in enumerate(self.batch_classify(t[:self.chunksize] for t in texts)):
+      retval.append([self.spacemap(cl)])
+      if callback is not None:
+        callback(i)
+    return retval
 
-  result_md = dict(md)
-  result_md['learn_time'] = None
-  result_md['classify_time'] = None
-
-  # We always use all instances
-  instance_indices = numpy.ones(len(test_ds.instance_ids), dtype='bool')
-  result = Result(gs, cl, instance_indices, result_md )
-  tsr = TaskSetResult( [result], md )
-  return tsr
-
-      
