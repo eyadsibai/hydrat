@@ -149,17 +149,15 @@ class TextCat(Configurable, textcat.TextCat):
       )
 
   def classify(self, text): 
-    return self.classlabel_map(textcat.TextCat.classify_single(self, text))
+    return [ self.classlabel_map(textcat.TextCat.classify_single(self, text)) ]
 
   def classify_batch(self, texts, callback=None):
     retval = []
     for i, t in enumerate(texts):
-      retval.append([self.classify(t)])
+      retval.append(self.classify(t))
       if callback is not None:
-        callback(len(retval))
+        callback(i)
     return retval
-    
-
 
 
 from hydrat.datamodel import TaskSetResult, Result

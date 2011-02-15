@@ -1,65 +1,44 @@
 import time
-from hydrat.result.tasksetresult import TaskSetResult
-from hydrat.result.result import Result
-from hydrat.common.mapmatrix import map2matrix 
-from hydrat.wrapper.langdetect import LangDetect
-from hydrat.common.pb import ProgressBar, get_widget
+import hydrat.wrapper.langdetect as langdetect
 
 from hydrat import config
 from hydrat.configuration import Configurable, EXE, DIR, FILE
-from hydrat.task.sampler import membership_vector
 
-class LangDetectConfig(Configurable):
+def langdetect2iso639_1(label):
+  if label in ISO639_1_CODES:
+    return label
+  elif label.startswith('zh'):
+    return 'zh'
+  else:
+    return 'UNKNOWN'
+
+class LangDetect(Configurable, langdetect.LangDetect):
   requires={
     ('tools','java-bin')             : EXE('java'),
     ('tools','langdetect')           : FILE('langdetect.jar'),
     ('tools','langdetect-profiles')  : DIR('profiles'),
     }
 
-def do_langdetect(store, test_ds, tokenstream, class_space, spacemap, batchsize=100, store_result = True):
-  instance_labels = store.get_Space(test_ds.instance_space)
-  classlabels = store.get_Space(class_space)
-  md = dict(\
-    class_space  = class_space,
-    dataset      = 'LangDetect',
-    eval_dataset = test_ds.__name__,
-    instance_space = 'LangDetect',
-    eval_space   = test_ds.instance_space,
-    learner      = 'LangDetect',
-    learner_params = dict(tokenstream=tokenstream, spacemap=spacemap.__name__, batchsize=batchsize),
+  metadata = dict(
+    class_space = 'iso639_1',
+    dataset='langdetect',
+    instance_space='langdetect',
+    learner='langdetect',
+    learner_params={},
     )
 
-  if store.has_TaskSetResult(md):
-    return store.get_TaskSetResult(md)
-  else:
-    cat = LangDetect(
+
+  def __init__(self, batchsize=100):
+    langdetect.LangDetect.__init__(self,
       config.getpath('tools','java-bin'), 
       config.getpath('tools','langdetect'), 
       config.getpath('tools','langdetect-profiles'), 
       config.getpath('paths','scratch'),
       batchsize = batchsize,
-      )
+    )
 
-    test_ts = test_ds.tokenstream(tokenstream)
-    class_map = {}
-    start = time.time()
-
-    with ProgressBar(widgets=get_widget('LangDetect'),maxval=len(test_ts)) as pb:
-      klass = cat.classify_batch(test_ts.values(), callback=pb.update)
-
-    for id, cl in zip(test_ts, klass):
-      class_map[id] = [ spacemap(cl) ]
-    test_time = time.time() - start
+  def classify_batch(self, texts, callback=None):
+    cl = langdetect.LangDetect.classify_batch(self, texts, callback)
+    return [ [langdetect2iso639_1(c)] for c in cl ]
+  
     
-    cl = map2matrix( class_map, test_ds.instance_ids, classlabels )
-    gs = map2matrix( test_ds.classmap(class_space), test_ds.instance_ids, classlabels )
-
-    result_md = dict(md)
-    result_md['learn_time'] = None
-    result_md['classify_time'] = test_time
-    instance_indices = membership_vector(instance_labels, test_ds.instance_ids)
-    result = Result(gs, cl, instance_indices, result_md )
-    tsr = TaskSetResult( [result], md )
-    if store_result:
-      store.new_TaskSetResult(tsr)
-    return tsr
