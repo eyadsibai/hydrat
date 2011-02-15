@@ -27,6 +27,7 @@ class NullVector(MetricError):
     self.vector_num = vector_num
     self.index = index
 
+# TODO: Rename to DistanceMetric for consistency
 class distance_metric(object):
   """Abstract parent for distance metric classes"""
   __name__ = "distance_metric"
@@ -90,7 +91,11 @@ class dm_cosine(distance_metric):
     return 1 - results
 
 class dm_skew(distance_metric):
-  # TODO: Implement dimensionality reduction as per cosine.
+  """
+  Skew Divergence
+  See Lee L. Measures of distributional similarity. 
+  In: Proceedings of the 37th Annual Meeting of the ACL. College Park, USA; 1999:25-32.
+  """
   __name__ = "skew"
 
   def __init__(self, alpha = 0.99):
@@ -103,59 +108,67 @@ class dm_skew(distance_metric):
     return p
 
   def vector_distances(self, v1, v2, thresh=10):
-    # TODO: There is a problem in this implementation.
-    #       Vector distance calculation outcomes are different if we do
-    #       v1xv2 versus one member of v2 at a time against v1.
-    #       The issue is probably in the feature collapse step, we are possibly collapsing too many
-    #       features, or normalizing wrongly as was the case with cosine.
-    #       This problem becomes evident when either v1 or v2 is very short, and so we keep very few features.
-    #       As a temporary workaround, we skip the feature collapse if v1 or v2 are below a threshold
     self.logger.debug('Creating dense representation')
     orig_feats = v1.shape[1]
+    k = numpy.log(1 / (1 - self.alpha))
+
+    # Calculate instance sums
+    sum1 = numpy.array(v1.sum(1))
+    sum2 = numpy.array(v2.sum(1))
 
     # Determine shared features
-    if v1.shape[0] > thresh and v2.shape[0] > thresh:
-      f1 = numpy.asarray( v1.sum(0) ) [0] > 0
-      f2 = numpy.asarray( v2.sum(0) ) [0] > 0
-      i  = numpy.flatnonzero(numpy.logical_and(f1, f2))
+    f1 = numpy.asarray( v1.sum(0) ) [0] > 0
+    f2 = numpy.asarray( v2.sum(0) ) [0] > 0
+    nb = numpy.flatnonzero(numpy.logical_and(f1, f2)) # both nonzero
+    n1 = numpy.flatnonzero(numpy.logical_and(f1, numpy.logical_not(f2))) # only f1 nonzero
       
-      if len(i) == 0:
-        # No overlapping features.
-        return numpy.empty((v1.shape[0],v2.shape[0]), dtype='float')
+    if len(nb) == 0:
+      # No overlapping features.
+      return numpy.empty((v1.shape[0],v2.shape[0]), dtype='float')
 
-      # Select only shared features from both matrices
-      v1 = v1.transpose()[i].transpose().toarray()
-      v2 = v2.transpose()[i].transpose().toarray()
-      self.logger.debug('Reduced matrices from %d to %d features', orig_feats, v1.shape[1] )
+    # Calculate term for where v2 is always zero but v1 is not
+    #   This is a 1-dimensional vector, one scalar value per v1 instance
+    #   In the case where there are no such terms, we set penalty to 0 and let array
+    #   broadcasting take care of it.
+    if len(n1) > 0:
+      penalty = numpy.array(v1[:,n1].sum(1))
     else:
-      v1 = v1.toarray()
-      v2 = v2.toarray()
-      self.logger.debug('Maintaining full set of %d features', orig_feats )
+      penalty = 0
 
-    self.logger.debug('Calculating distributions')
-    s1 = [ float(v.sum()) for v in v1 ]
-    s2 = [ float(v.sum()) for v in v2 ]
-    # Replace an empty distribution with a uniform distribution.
-    # Empty instances are a problem all the way back at the dataset level.
-    n1 = [ self.alpha * ( (v/s) if s > 0 else numpy.ones_like(v) ) for (v,s) in izip(v1, s1) ]
-    n2 = [ ( (v/s) if s > 0 else numpy.ones_like(v) ) for (v,s) in izip(v2,s2) ]
-    n3 = [ (1-self.alpha) * q for q in n2 ]
+    # Select only shared features from both matrices
+    v1 = v1.transpose()[nb].transpose().toarray()
+    v2 = v2.transpose()[nb].transpose().toarray()
+    self.logger.debug('Reduced matrices from %d to %d features', orig_feats, v1.shape[1] )
 
-    self.logger.debug('Computing Distances')
-    results = numpy.empty((v1.shape[0],v2.shape[0]), dtype='float')
+    # Replace empty distributions with uniform distributions
+    for i in numpy.flatnonzero(sum1 == 0):
+      v1[i] = numpy.ones_like(v1[i])
+      sum1[i] = v1[i].sum()
+    for i in numpy.flatnonzero(sum2 == 0):
+      v2[i] = numpy.ones_like(v2[i])
+      sum2[i] = v2[i].sum()
 
-    def report(i, t): self.logger.debug('Processing entry %d', i+1 )
+    # Calculate term for shared features
+    # TODO: Possibly roll one loop back into numpy for speed
+    a = self.alpha
+    sum_ratio = (sum1.astype(float) / sum2.transpose())
+    acc_a = numpy.empty((v1.shape[0], v2.shape[0]))
+    for ip, _p in enumerate(v1):
+      pg = _p > 0
+      for iq, _q in enumerate(v2):
+        feats = numpy.logical_and(pg, _q>0)
+        p = _p[feats]
+        q = _q[feats]
+        v = p * numpy.log( p / (sum_ratio[ip,iq] * a * q + (1-a) * p) )
+        acc_a[ip, iq] = numpy.sum(v)
 
-    piter = ProgressIter(n1, label = "Skew Divergence")
-    for i,r_p in enumerate(timed_report(piter,10,report)):
-      for j,(q, r_q) in enumerate(izip(n2, n3)):
-        r = r_p + r_q
-        r = r[q>0]
-        q = q[q>0]
-        results[i,j] = numpy.dot(q,numpy.log(q/r))
+    # This is just the sum of p where q is zero. 
+    acc_b  = numpy.dot(v1, (v2==0).transpose())
+
+    retval = ( acc_a + k * (acc_b + penalty) ) / sum1
 
     self.logger.debug('Returning Results')
-    return results
+    return retval
 
 class dm_outofplace(distance_metric):
   """

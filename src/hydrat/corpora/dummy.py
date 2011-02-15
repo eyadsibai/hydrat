@@ -43,6 +43,12 @@ class single_char_dummy(dummy):
   __name__ = "dummy-single"
   words = [u'A',u'B',u'C',u'D',u'E']
 
+class langid(unicode_dummy):
+  """Dummy dataset with mapping into ISO639-1"""
+  def cm_iso639_1(self):
+    keys = self.cm_dummy_default().keys()
+    return dict( (k, ['UNKNOWN']) for k in keys)
+
 class unicode_dummy_multiclass(ByteUBT, CodepointUBT, UTF8):
   """Unicode dummy dataset with multiclass labels"""
   __name__ = "dummy-multiclass-unicode"

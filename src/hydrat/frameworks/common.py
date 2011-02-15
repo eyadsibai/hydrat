@@ -5,7 +5,7 @@ import numpy
 import hydrat
 from hydrat.common.pb import ProgressIter
 from hydrat.store import Store, StoreError, NoData, AlreadyHaveData
-from hydrat.preprocessor.model.inducer.dataset import DatasetInducer
+from hydrat.inducer import DatasetInducer
 from hydrat.preprocessor.features.transform import union
 from hydrat.task.sampler import membership_vector
 from hydrat.common import as_set
@@ -76,7 +76,7 @@ class Framework(object):
 
   @property
   def featuremap(self):
-    self.inducer.process_Dataset(self.dataset, fms=self.feature_spaces)
+    self.inducer.process(self.dataset, fms=self.feature_spaces)
     ds_name = self.dataset.__name__
     featuremaps = []
     for feature_space in sorted(self.feature_spaces):
@@ -97,7 +97,7 @@ class Framework(object):
 
   @property
   def classmap(self):
-    self.inducer.process_Dataset(self.dataset, cms=self.class_space)
+    self.inducer.process(self.dataset, cms=self.class_space)
     ds_name = self.dataset.__name__
     cm = self.store.get_ClassMap(ds_name, self.class_space)
     return cm[self.train_indices]
@@ -119,29 +119,10 @@ class Framework(object):
 
   @property
   def split(self):
-    # TODO: grab from store instead. must ensure it has been induced.
-    #       this code goes into the inducer
-    split_raw = self.dataset.split(self.split_name)
-    if 'train' in split_raw and 'test' in split_raw:
-      # Train/test type split.
-      all_ids = self.dataset.instance_ids
-      train_ids = membership_vector(all_ids, split_raw['train'])
-      test_ids = membership_vector(all_ids, split_raw['test'])
-      split = numpy.dstack((train_ids, test_ids)).swapaxes(0,1)
-    elif any(key.startswith('fold') for key in split_raw):
-      # Cross-validation folds
-      all_ids = self.dataset.instance_ids
-      folds_present = sorted(key for key in split_raw if key.startswith('fold'))
-      partitions = []
-      for fold in folds_present:
-        test_ids = membership_vector(all_ids, split_raw[fold])
-        train_docids = sum((split_raw[f] for f in folds_present if f is not fold), [])
-        train_ids = membership_vector(all_ids, train_docids)
-        partitions.append( numpy.dstack((train_ids, test_ids)).swapaxes(0,1) )
-      split = numpy.hstack(partitions)
+    if self.split_name is None:
+      return None
     else:
-      raise ValueError, "Unknown type of split"
-    return split
+      return self.store.get_Split(self.dataset.__name, self.split_name)
 
   @property
   def sequence(self):
@@ -155,14 +136,14 @@ class Framework(object):
     self.logger.info(str)
 
   def set_feature_spaces(self, feature_spaces):
-    self.inducer.process_Dataset( self.dataset, fms = feature_spaces)
+    self.inducer.process( self.dataset, fms = feature_spaces)
     self.feature_spaces = as_set(feature_spaces)
     self.feature_desc = tuple(sorted(self.feature_spaces))
     self.notify("Set feature_spaces to '%s'" % str(feature_spaces))
     self.configure()
 
   def set_class_space(self, class_space):
-    self.inducer.process_Dataset( self.dataset, cms = class_space)
+    self.inducer.process( self.dataset, cms = class_space)
     self.class_space = class_space
     self.notify("Set class_space to '%s'" % class_space)
     self.configure()
@@ -188,13 +169,13 @@ class Framework(object):
     self.configure()
 
   def set_sequence(self, sequence):
-    self.inducer.process_Dataset( self.dataset, sqs = sequence)
+    self.inducer.process( self.dataset, sqs = sequence)
     self.sequence_name = sequence
     self.notify("Set sequence to '%s'" % sequence)
     self.configure()
 
   def configure(self): 
-    self.inducer.process_Dataset(self.dataset, fms=self.feature_spaces, cms=self.class_space)
+    self.inducer.process(self.dataset, fms=self.feature_spaces, cms=self.class_space)
 
   def process_tokenstream(self, tsname, extractor):
     dsname = self.dataset.__name__
@@ -204,7 +185,7 @@ class Framework(object):
       self.notify("Inducing TokenStream '%s'" % tsname)
       # We always call this as if the ts has already been processed it is a fairly 
       # cheap no-op
-      self.inducer.process_Dataset(self.dataset, tss=tsname)
+      self.inducer.process(self.dataset, tss=tsname)
 
       self.notify("Reading TokenStream '%s'" % tsname)
       tss = self.store.get_TokenStreams(dsname, tsname)

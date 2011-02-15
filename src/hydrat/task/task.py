@@ -12,8 +12,6 @@ well as a method for reconciling the data.
 import numpy
 
 class Task(object):
-  # TODO: Why is task carrying around train_indices and test_indices? 
-  #       This should have been abstracted away.
   __slots__ = [ 'train_vectors'
               , 'train_classes'
               , 'train_sequence'
@@ -37,10 +35,10 @@ class InMemoryTask(Task):
               , metadata
               , sequence = None
               ):
-    if not issubclass(train_indices.dtype.type, numpy.bool_):
-      raise ValueError, 'Expected a boolean selection map'
-    if not issubclass(test_indices.dtype.type, numpy.bool_):
-      raise ValueError, 'Expected a boolean selection map'
+    if not issubclass(train_indices.dtype.type, numpy.int_):
+      raise ValueError, 'Expected integral indices'
+    if not issubclass(test_indices.dtype.type, numpy.int_):
+      raise ValueError, 'Expected integral indices'
 
     self.class_map = class_map
     self.feature_map = feature_map
@@ -60,7 +58,7 @@ class InMemoryTask(Task):
     @return: axis 0 is instances, axis 1 is features
     @rtype: 2-d array
     """
-    return self.feature_map[self.train_indices.nonzero()[0]]
+    return self.feature_map[self.train_indices]
 
   @property
   def test_vectors(self):
@@ -69,7 +67,7 @@ class InMemoryTask(Task):
     @return: axis 0 is instances, axis 1 is features
     @rtype: 2-d array
     """
-    return self.feature_map[self.test_indices.nonzero()[0]]
+    return self.feature_map[self.test_indices]
 
   @property
   def train_classes(self):
@@ -94,7 +92,7 @@ class InMemoryTask(Task):
     if self.sequence is None:
       return None
     else:
-      indices = self.train_indices.nonzero()[0]
+      indices = self.train_indices
       matrix = self.sequence[indices].transpose()[indices].transpose()
       return matrix
 
@@ -103,7 +101,7 @@ class InMemoryTask(Task):
     if self.sequence is None:
       return None
     else:
-      indices = self.test_indices.nonzero()[0]
+      indices = self.test_indices
       matrix = self.sequence[indices].transpose()[indices].transpose()
       return matrix
 
