@@ -1,0 +1,5 @@
+- Implement split mixins
+	- For shared task type datasets. User declares train/dev/test split, we automatically derive
+		pairings such as train/dev train/test train-dev/test 
+  - For fixing cross-validations and train/test splits. Provide a configurable mixin that takes a seed,
+  	and returns the appropriate split. This can then feed into the Store and be saved there.
