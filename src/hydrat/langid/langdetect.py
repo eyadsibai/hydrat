@@ -45,7 +45,7 @@ def do_langdetect(store, test_ds, tokenstream, class_space, spacemap, batchsize=
     start = time.time()
 
     with ProgressBar(widgets=get_widget('LangDetect'),maxval=len(test_ts)) as pb:
-      klass = cat.batch_classify(test_ts.values(), callback=pb.update)
+      klass = cat.classify_batch(test_ts.values(), callback=pb.update)
 
     for id, cl in zip(test_ts, klass):
       class_map[id] = [ spacemap(cl) ]
