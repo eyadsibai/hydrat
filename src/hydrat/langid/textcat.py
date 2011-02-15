@@ -7,15 +7,10 @@ import hydrat.wrapper.textcat as textcat
 from hydrat import config
 from hydrat.configuration import Configurable, EXE, DIR
 from hydrat.common.mapmatrix import map2matrix, matrix2map
+from hydrat.common.pb import ProgressIter
 
 logger = logging.getLogger(__name__)
 
-class TextCatConfig(Configurable):
-  requires =\
-    { 
-    ('tools', 'textcat')         : EXE('text_cat'),
-    ('tools', 'textcat-models')  : DIR('LM'),
-    }
 
 # Association list for mapping textcat's internal output onto
 # iso639_1
@@ -103,7 +98,12 @@ def textcat2iso639_1(klass):
 def identity(klass):
   return klass
 
-class TextCat(textcat.TextCat):
+class TextCat(Configurable, textcat.TextCat):
+  requires =\
+    { 
+    ('tools', 'textcat')         : EXE('text_cat'),
+    ('tools', 'textcat-models')  : DIR('LM'),
+    }
   def __init__(self, classlabel_map=textcat2iso639_1):
     textcat.TextCat.__init__( self,
       config.getpath('tools','textcat'), 
@@ -118,6 +118,8 @@ class TextCat(textcat.TextCat):
       tokenstream='byte', 
       class_space='iso639_1',
       train_time=None,
+      learner='textcat',
+      learner_params={'tokenstream':'byte','classlabel_map':self.classlabel_map.__name__},
       )
 
   def train(self, proxy, classlabel_map = None):
@@ -142,10 +144,21 @@ class TextCat(textcat.TextCat):
       tokenstream=proxy.tokenstream_name, 
       class_space=proxy.class_space,
       train_time=train_time,
+      learner='textcat',
+      learner_params={'tokenstream':'byte','classlabel_map':self.classlabel_map.__name__},
       )
 
   def classify(self, text): 
     return self.classlabel_map(textcat.TextCat.classify_single(self, text))
+
+  def classify_batch(self, texts, callback=None):
+    retval = []
+    for i, t in enumerate(texts):
+      retval.append([self.classify(t)])
+      if callback is not None:
+        callback(len(retval))
+    return retval
+    
 
 
 
@@ -183,7 +196,7 @@ class TextCatExperiment(TaskSetResult):
     ids = proxy.instancelabels
     texts = proxy.tokenstream
     class_map = {}
-    for id, text in zip(ids, texts):
+    for id, text in ProgressIter(zip(ids, texts),label='TextCat'):
       class_map[id] = [ self.classifier.classify(text) ]
     test_time = time.time() - start
     
@@ -197,7 +210,7 @@ class TextCatExperiment(TaskSetResult):
     return [ Result(gs, cl, instance_indices, result_md ) ]
 
 class TextCatCrossvalidate(TaskSetResult):
-  def __init__(self, proxy): pass
+  def __init__(self, proxy):
     self.classifier = TextCat()
     self.proxy = proxy
 

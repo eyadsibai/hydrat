@@ -1,4 +1,4 @@
-from textcat import TextCatConfig
+from textcat import TextCat
 from langdetect import LangDetectConfig
 
 from hydrat.dataset.iso639 import ISO639_1_CODES
