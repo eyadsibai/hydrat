@@ -35,7 +35,8 @@ class GoogleLangid(object):
       try:
         search_results = urllib2.urlopen(req)
         response = json.loads(search_results.read())
-      except urllib2.URLError:
+      except urllib2.URLError,e:
+        logger.warning(e)
         response = {'responseData':None}
         
 
