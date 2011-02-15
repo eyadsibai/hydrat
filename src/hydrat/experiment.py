@@ -8,6 +8,28 @@
 from hydrat.datamodel import TaskSetResult, Result
 from hydrat.common.pb import ProgressIter
 
+class ExperimentFold(object):
+  def __init__(self, task, learner, add_args={}):
+    self.task = task
+    self.learner = learner
+    self.add_args = add_args
+
+  @property
+  def classifier(self):
+    train_add_args = dict( (k, v[self.task.train_indices]) for k,v in self.add_args.items())
+    classifier = self.learner( self.task.train_vectors, self.task.train_classes,\
+        sequence=self.task.train_sequence, indices=self.task.train_indices, **train_add_args)
+    return classifier
+
+  @property
+  def result(self):
+    classifier = self.classifier
+    test_add_args = dict( (k, v[self.task.test_indices]) for k,v in self.add_args.items())
+    classifications = classifier( self.task.test_vectors,\
+        sequence=self.task.test_sequence, indices=self.task.test_indices, **test_add_args)
+
+    return Result.from_task(self.task, classifications, dict(classifier.metadata))
+
 # TODO: Refactor in a way that allows access to per-fold classifiers
 class Experiment(TaskSetResult):
   def __init__(self, taskset, learner=None):
@@ -29,27 +51,18 @@ class Experiment(TaskSetResult):
       self.run()
     return self._results
 
+  @property
+  def folds(self):
+    folds = []
+    for task in self.taskset.tasks:
+      folds.append(ExperimentFold(task, self.learner))
+    return folds
+
   def run(self, add_args = None):
     label = "Experiment: %s %s" % (self.learner.__name__, self.learner.params)
     results = []
-    for task in ProgressIter(self.taskset.tasks, label):
-      if add_args is None:
-        add_args = {}
-
-      # TODO: Decide if it ever makes sense to allow add_args that don't have to be
-      # normalized by the split.
-      # NOTE: Sequence requires special treatment because it has to be normalized in both
-      # axes.
-      train_add_args = dict( (k, v[task.train_indices]) for k,v in add_args.items())
-      classifier = self.learner( task.train_vectors, task.train_classes,\
-          sequence=task.train_sequence, indices=task.train_indices, **train_add_args)
-
-      test_add_args = dict( (k, v[task.test_indices]) for k,v in add_args.items())
-      classifications = classifier( task.test_vectors,\
-          sequence=task.test_sequence, indices=task.test_indices, **test_add_args)
-
-      results.append(Result.from_task(task, classifications, dict(classifier.metadata)))
-          
+    for fold in ProgressIter(self.folds, label):
+      results.append(fold.result)
     self._results = results
     return results
 
