@@ -44,7 +44,7 @@ class LangDetect(object):
       return out.split(':')[1][1:]
     raise ValueError, "Error in underlying library"
 
-  def batch_classify(self, texts, callback=None):
+  def classify_batch(self, texts, callback=None):
     retval = []
     cm = {}
     while texts:
