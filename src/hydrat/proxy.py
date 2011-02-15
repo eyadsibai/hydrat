@@ -215,6 +215,7 @@ class DataProxy(object):
 
   @property
   def instancelabels(self):
+    self.inducer.process(self.dataset)
     return self.store.get_Space(self.instance_space)
 
   @property 
