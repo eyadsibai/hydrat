@@ -51,7 +51,7 @@ class page(markup.page):
     search_cols = []
     _col_headings = []
     if col_headings is not None:
-      with self.form:
+      with closing(self.form.open(onsubmit="return false;")):
         with closing(self.table.open(style="width:auto")):
           for i,h in enumerate(col_headings):
             try:
