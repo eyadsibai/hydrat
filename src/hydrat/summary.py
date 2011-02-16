@@ -1,7 +1,9 @@
 import numpy
 import hydrat
+import hydrat.common.markup as markup
 from hydrat.result import CombinedMacroAverage, CombinedMicroAverage
 from hydrat.result import Microaverage, Macroaverage, PRF
+from hydrat.display.sparklines import boxplot
 
 class Summary(object):
   def __init__(self):
@@ -172,6 +174,24 @@ class PerfoldMicroPRF(PerfoldConfusionMetric):
   def key_perfold_microprf(self):
     return self.foldscores
 
+class BoxPlot(PerfoldConfusionMetric):
+  def __init__(self, klass, width=300, range=None):
+    self.range = range
+    self.width = width
+    self.klass = klass
+    PerfoldConfusionMetric.__init__(self)
+    self.aggregator = None
+    self.metric = PRF()
+
+  def init(self, result, interpreter):
+    index = result.class_space.index(self.klass)
+    self.aggregator = lambda x, m: m(x[index])
+    PerfoldConfusionMetric.init(self, result, interpreter)
+
+  def key_distplot(self):
+    scores = [f['fscore'] for f in self.foldscores.values()]
+    return str(markup.oneliner.img(src=boxplot(scores, width=self.width, range=self.range)))
+    
 def classification_summary():
   sf = Summary()
   sf.extend(MacroPRF())
@@ -179,3 +199,4 @@ def classification_summary():
   sf.extend(Metadata(['dataset','class_space','feature_desc','split','learner','learner_params']))
   sf.extend(TimeTaken())
   return sf
+

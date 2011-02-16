@@ -4,6 +4,7 @@ Wrapper for google's langid API
 based on code from http://stackoverflow.com/questions/1136604/how-do-i-use-the-json-google-translate-api
 """
 import urllib, urllib2
+import httplib
 import json
 import time
 import random
@@ -35,8 +36,7 @@ class GoogleLangid(object):
       try:
         search_results = urllib2.urlopen(req)
         response = json.loads(search_results.read())
-      except urllib2.URLError,e:
-        logger.warning(e)
+      except (urllib2.URLError, httplib.BadStatusLine):
         response = {'responseData':None}
         
 
