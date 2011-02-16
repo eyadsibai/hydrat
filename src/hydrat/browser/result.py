@@ -457,18 +457,43 @@ class Results(object):
     pairs = result.overall_classpairs(self.interpreter)
 
     rows = []
+    fr_count = defaultdict(int)
+    to_count = defaultdict(int)
     for cl_fr, cl_to in pairs:
+      count = len(pairs[cl_fr, cl_to])
+      fr_count[class_space[cl_fr]] += count
+      to_count[class_space[cl_to]] += count
       if cl_fr != cl_to:
         row = {}
         #TODO: Construct useful links here!!
         row['from'] = markup.oneliner.a(class_space[cl_fr], href='')
         row['to'] = markup.oneliner.a(class_space[cl_to], href='')
         link = 'classpair?'+urllib.urlencode({'uuid':result.uuid, 'gs':cl_fr, 'cl':cl_to})
-        row['count'] = markup.oneliner.a(len(pairs[cl_fr, cl_to]), href=link)
+        row['count'] = markup.oneliner.a(count, href=link)
         rows.append(row)
+
+    classes = sorted(map(class_space.__getitem__, set.union(*map(set,zip(*pairs)))))
 
     page = markup.page()
     page.init(**page_config)
+    with page.table:
+      with page.tr:
+        page.th('Class')
+        page.th(classes)
+      with page.tr:
+        page.th('Goldstandard')
+        for c in classes:
+          if fr_count[c] == 0:
+            page.td(fr_count[c], **{'class':'highlight'})
+          else:
+            page.td(fr_count[c])
+      with page.tr:
+        page.th('Classified')
+        for c in classes:
+          if to_count[c] == 0:
+            page.td(to_count[c], **{'class':'highlight'})
+          else:
+            page.td(to_count[c])
     page.dict_table(rows, ['from','to','count'], 
         col_headings=[
           {'label':'From', 'searchable':True}, 
