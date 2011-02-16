@@ -26,11 +26,11 @@ class Tasks(object):
     page.init(**page_config)
 
     summaries = []
-    uuids = self.store._resolve_TaskSet(params)
-    for uuid in uuids:
-      summary = self.store._get_TaskSetMetadata(uuid)
-      summary['_select'] = markup.oneliner.input(type='checkbox', name='uuid', value=uuid)
-      summary['uuid'] = str(summary['uuid'])
+    tasksets = self.store.get_TaskSets(params)
+    for taskset in tasksets:
+      summary = dict(taskset.metadata)
+      summary['_select'] = markup.oneliner.input(type='checkbox', name='uuid', value=taskset.uuid)
+      summary['uuid'] = taskset.uuid
       summaries.append(summary)
 
     page.h3('Parameters')
@@ -47,7 +47,7 @@ class Tasks(object):
       with TableSort(text) as renderer:
         result_summary_table(summaries, renderer, relevant)
 
-      page.p('Displaying %d tasksets' % len(uuids))
+      page.p('Displaying %d tasksets' % len(tasksets))
 
       page.form(action='receive', method='post')
       page.input(type='submit', name='action', value='view')

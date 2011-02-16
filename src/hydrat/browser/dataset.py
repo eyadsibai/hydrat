@@ -1,8 +1,7 @@
 import cherrypy
 import urllib
-import StringIO
-import hydrat.common.markup as markup
-from hydrat.display.html import TableSort
+import numpy
+import hydrat.display.markup as markup
 from common import page_config
 from display import list_as_html, dict_as_html, list_of_links, dict_table
 
@@ -123,20 +122,21 @@ class Dataset(object):
       with page.ul:
         for i in self.instanceids: 
           with page.li:
-            page.a(i, href='instances?'+urllib.urlencode({'id':i}))
+            #page.a(i, href='instances?'+urllib.urlencode({'id':i}))
+            page.a(i, href='instances/%s' % i)
     else:
       page.h1(id)
       page.h2("TokenStreams")
       with page.ul:
         for ts in self.tokenstreams:
           with page.li:
-            link = 'tokenstream/%s/%s' % (ts, id)
+            link = '../tokenstream/%s/%s' % (ts, id)
             page.a(ts, href=link)
       page.h2("Feature Spaces")
       with page.ul:
         for fs in self.featurespaces:
           with page.li:
-            link = 'features/%s/%s' % (fs, id)
+            link = '../features/%s/%s' % (fs, id)
             page.a(fs, href=link)
       page.h2("Class Spaces")
       page.add(list_as_html(self.classspaces))
@@ -176,7 +176,7 @@ class Dataset(object):
     return str(page)
 
   @cherrypy.expose
-  def classspace(self, name):
+  def classspace(self, name, klass=None):
     space = self.store.get_Space(name)
     classmap = self.store.get_ClassMap(self.name, name)
 
@@ -184,9 +184,34 @@ class Dataset(object):
 
     page = markup.page()
     page.init(**page_config)
-    page.h2('Class Distribution')
-    # TODO: Do this as a tablesort
-    page.add(dict_as_html(class_dist))
+    if klass is None:
+      # Show the distribution across all classes
+      page.h2('Class Distribution')
+
+      def link(k):
+        return markup.oneliner.a(k, href='%s/%s' % (name,k))
+
+      page.dict_table( [dict(klass=link(k), count=v) for k,v in class_dist.items() if v>0], 
+        ['klass', 'count'], col_headings=[{'label':'Class'}, {'label':'Count', 'sorter':'digit'}])
+
+    else:
+      page.h2('Instances in class %s' % klass)
+      page.a('Back to distribution',href='../%s' % name)
+
+      rows = []
+      class_index = space.index(klass)
+      instance_space = self.store.get_InstanceIds(self.name)
+      for i in numpy.flatnonzero(classmap[:,class_index]):
+        row = {}
+        id = instance_space[i]
+        row['id'] = markup.oneliner.a(id,href='../../instances/%s' % id)
+        # TODO: Only display byte if they are actually available
+        row['byte'] = markup.oneliner.a('byte',href='../../tokenstream/byte/%s' % id)
+        rows.append(row)
+
+      page.dict_table( rows, ['id', 'byte',], 
+        col_headings=['Identifier','byte',] )
+    
     return str(page)
 
   @cherrypy.expose
@@ -211,21 +236,18 @@ class Dataset(object):
     md['Document Size std']  = doc_sizes.std()
     page.add(dict_as_html(md))
 
-    text = StringIO.StringIO()
     rows = []
     for i, id in enumerate(self.store.get_InstanceIds(self.name)):
       row = {}
       row['index'] = i
       row['id'] = markup.oneliner.a(id,href='../features/%s/%s' % (name, id))
       row['size'] = doc_sizes[i,0]
+      # TODO: Not everyone has bytes!
       row['bytes'] = markup.oneliner.a('link',href='../tokenstream/byte/%s' % id)
       rows.append(row)
 
-    with TableSort(text) as renderer:
-      renderer.dict_table( rows
-                         , ['index', 'id', 'size', 'bytes'] 
-                         , col_headings = ['Index', 'Identifier', 'Size', 'bytes']
-                         )
-    page.add(text.getvalue())
+    page.dict_table( rows, ['index', 'id', 'size', 'bytes'],
+        col_headings = ['Index', 'Identifier', 'Size', 'bytes'])
+
     return str(page)
 

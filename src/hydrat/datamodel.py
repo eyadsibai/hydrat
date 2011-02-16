@@ -115,9 +115,9 @@ class DataTask(Task):
               , metadata
               , sequence = None
               ):
-    if not issubclass(train_indices.dtype.type, numpy.int_):
+    if not issubclass(train_indices.dtype.type, numpy.int):
       raise ValueError, 'Expected integral indices'
-    if not issubclass(test_indices.dtype.type, numpy.int_):
+    if not issubclass(test_indices.dtype.type, numpy.int):
       raise ValueError, 'Expected integral indices'
 
     self.class_map = class_map
