@@ -2,8 +2,7 @@ import cherrypy
 import urllib
 import StringIO
 import numpy
-import hydrat.common.markup as markup
-from hydrat.display.html import TableSort
+import hydrat.display.markup as markup
 from common import page_config
 from display import list_as_html, dict_as_html, list_of_links, dict_table
 
@@ -189,8 +188,6 @@ class Dataset(object):
     # TODO: Do this as a tablesort
     page.add(dict_as_html(class_dist))
 
-    # TODO: Clean up tablesort implementation!
-    text = StringIO.StringIO()
     rows = []
     for i, id in enumerate(self.store.get_InstanceIds(self.name)):
       row = {}
@@ -199,11 +196,8 @@ class Dataset(object):
       row['class'] = ' '.join(space[classmap[i]])
       rows.append(row)
 
-    with TableSort(text) as renderer:
-      renderer.dict_table( rows, ['index', 'class', 'id', ], 
-        col_headings=['Index', 'Class', 'Identifier',] )
-    page.add(text.getvalue())
-    
+    page.dict_table( rows, ['index', 'class', 'id', ], 
+      col_headings=['Index', 'Class', 'Identifier',] )
     
     return str(page)
 
@@ -229,7 +223,6 @@ class Dataset(object):
     md['Document Size std']  = doc_sizes.std()
     page.add(dict_as_html(md))
 
-    text = StringIO.StringIO()
     rows = []
     for i, id in enumerate(self.store.get_InstanceIds(self.name)):
       row = {}
@@ -240,11 +233,8 @@ class Dataset(object):
       row['bytes'] = markup.oneliner.a('link',href='../tokenstream/byte/%s' % id)
       rows.append(row)
 
-    with TableSort(text) as renderer:
-      renderer.dict_table( rows
-                         , ['index', 'id', 'size', 'bytes'] 
-                         , col_headings = ['Index', 'Identifier', 'Size', 'bytes']
-                         )
-    page.add(text.getvalue())
+    page.dict_table( rows, ['index', 'id', 'size', 'bytes'],
+        col_headings = ['Index', 'Identifier', 'Size', 'bytes'])
+
     return str(page)
 

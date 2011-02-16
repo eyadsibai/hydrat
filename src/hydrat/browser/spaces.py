@@ -1,8 +1,7 @@
 import cherrypy
 import urllib
 import StringIO
-import hydrat.common.markup as markup
-from hydrat.display.html import TableSort
+import hydrat.display.markup as markup
 from common import page_config
 from display import list_as_html, dict_as_html, list_of_links
 
@@ -23,27 +22,14 @@ class Spaces(object):
     rows = [self.store.get_SpaceMetadata(s) for s in self.store.list_FeatureSpaces()]
     for r in rows:
       r['name'] = markup.oneliner.a(r['name'], href='view?' +urllib.urlencode({'name':r['name']}))
-    text = StringIO.StringIO()
-    with TableSort(text) as renderer:
-      renderer.dict_table( rows
-                         , cols
-                         , col_headings = headings
-                         #, title = 'Feature Spaces'
-                         )
-    page.add(text.getvalue())
+    page.dict_table( rows, cols, col_headings=headings)
 
     page.h1('Class Spaces')
     rows = [self.store.get_SpaceMetadata(s) for s in self.store.list_ClassSpaces()]
     for r in rows:
       r['name'] = markup.oneliner.a(r['name'], href='view?' +urllib.urlencode({'name':r['name']}))
-    text = StringIO.StringIO()
-    with TableSort(text) as renderer:
-      renderer.dict_table( rows
-                         , cols
-                         , col_headings = headings
-                         #, title = 'Feature Spaces'
-                         )
-    page.add(text.getvalue())
+
+    page.dict_table( rows, cols, col_headings=headings)
     return str(page)
 
   @cherrypy.expose

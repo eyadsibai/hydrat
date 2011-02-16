@@ -1,5 +1,8 @@
 from contextlib import closing
 import hydrat.common.markup as markup
+
+oneliner = markup.oneliner
+
 CSS_URL = "http://hum.cs.mu.oz.au/~mlui/lib/blue_style/style.css"
 SCRIPTS = [ 
   "http://hum.cs.mu.oz.au/~mlui/lib/jquery-1.3.2.min.js",
