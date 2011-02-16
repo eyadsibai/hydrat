@@ -468,7 +468,7 @@ class Results(object):
         #TODO: Construct useful links here!!
         row['from'] = markup.oneliner.a(class_space[cl_fr], href='')
         row['to'] = markup.oneliner.a(class_space[cl_to], href='')
-        link = 'classpair?'+urllib.urlencode({'uuid':result.uuid, 'gs':cl_fr, 'cl':cl_to})
+        link = 'classpair?'+urllib.urlencode({'uuid':result.uuid, 'gs':class_space[cl_fr], 'cl':class_space[cl_to]})
         row['count'] = markup.oneliner.a(count, href=link)
         rows.append(row)
 
@@ -476,6 +476,7 @@ class Results(object):
 
     page = markup.page()
     page.init(**page_config)
+    page.add(dict_as_html(summary))
     with page.table:
       with page.tr:
         page.th('Class')
