@@ -113,6 +113,7 @@ class element:
             self.render( self.tag, False, None, kwargs )
         elif self.mode == 'strict_html' and self.tag in self.parent.deptags:
             raise DeprecationError( self.tag )
+        return self
 
 class page:
     """This is our main class representing a document. Elements are added
