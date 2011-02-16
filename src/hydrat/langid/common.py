@@ -3,6 +3,7 @@ import time
 
 from hydrat.datamodel import TaskSetResult, Result
 from hydrat.common.pb import ProgressBar, get_widget
+from hydrat.common.mapmatrix import map2matrix
 
 class External(TaskSetResult):
   def __init__(self, classifier, proxy):
