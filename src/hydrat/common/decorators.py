@@ -180,3 +180,17 @@ def deprecated(func):
 
         return func(*args, **kwargs)
     return new_func
+
+# from http://wiki.python.org/moin/PythonDecoratorLibrary#Synchronization
+def synchronized(lock):
+    """ Synchronization decorator. """
+
+    def wrap(f):
+        def new_function(*args, **kw):
+            lock.acquire()
+            try:
+                return f(*args, **kw)
+            finally:
+                lock.release()
+        return new_function
+    return wrap
