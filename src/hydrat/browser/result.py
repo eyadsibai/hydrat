@@ -480,7 +480,9 @@ class Results(object):
     with page.table:
       with page.tr:
         page.th('Class')
-        page.th(classes)
+        for c in classes:
+          link = 'classpair?'+urllib.urlencode({'uuid':result.uuid, 'gs':c, 'cl':c})
+          page.th(markup.oneliner.a(c, href=link))
       with page.tr:
         page.th('Goldstandard')
         for c in classes:
