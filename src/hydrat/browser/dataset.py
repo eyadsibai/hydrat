@@ -1,6 +1,5 @@
 import cherrypy
 import urllib
-import StringIO
 import numpy
 import hydrat.display.markup as markup
 from common import page_config
@@ -123,20 +122,21 @@ class Dataset(object):
       with page.ul:
         for i in self.instanceids: 
           with page.li:
-            page.a(i, href='instances?'+urllib.urlencode({'id':i}))
+            #page.a(i, href='instances?'+urllib.urlencode({'id':i}))
+            page.a(i, href='instances/%s' % i)
     else:
       page.h1(id)
       page.h2("TokenStreams")
       with page.ul:
         for ts in self.tokenstreams:
           with page.li:
-            link = 'tokenstream/%s/%s' % (ts, id)
+            link = '../tokenstream/%s/%s' % (ts, id)
             page.a(ts, href=link)
       page.h2("Feature Spaces")
       with page.ul:
         for fs in self.featurespaces:
           with page.li:
-            link = 'features/%s/%s' % (fs, id)
+            link = '../features/%s/%s' % (fs, id)
             page.a(fs, href=link)
       page.h2("Class Spaces")
       page.add(list_as_html(self.classspaces))
@@ -176,28 +176,41 @@ class Dataset(object):
     return str(page)
 
   @cherrypy.expose
-  def classspace(self, name):
-    space = numpy.array(self.store.get_Space(name))
+  def classspace(self, name, klass=None):
+    space = self.store.get_Space(name)
     classmap = self.store.get_ClassMap(self.name, name)
 
     class_dist = dict(zip(space, classmap.raw.sum(axis=0)))
 
     page = markup.page()
     page.init(**page_config)
-    page.h2('Class Distribution')
-    # TODO: Do this as a tablesort
-    page.add(dict_as_html(class_dist))
+    if klass is None:
+      # Show the distribution across all classes
+      page.h2('Class Distribution')
 
-    rows = []
-    for i, id in enumerate(self.store.get_InstanceIds(self.name)):
-      row = {}
-      row['index'] = i
-      row['id'] = markup.oneliner.a(id,href='../tokenstream/byte/%s' % id)
-      row['class'] = ' '.join(space[classmap[i]])
-      rows.append(row)
+      def link(k):
+        return markup.oneliner.a(k, href='%s/%s' % (name,k))
 
-    page.dict_table( rows, ['index', 'class', 'id', ], 
-      col_headings=['Index', 'Class', 'Identifier',] )
+      page.dict_table( [dict(klass=link(k), count=v) for k,v in class_dist.items() if v>0], 
+        ['klass', 'count'], col_headings=[{'label':'Class'}, {'label':'Count', 'sorter':'digit'}])
+
+    else:
+      page.h2('Instances in class %s' % klass)
+      page.a('Back to distribution',href='../%s' % name)
+
+      rows = []
+      class_index = space.index(klass)
+      instance_space = self.store.get_InstanceIds(self.name)
+      for i in numpy.flatnonzero(classmap[:,class_index]):
+        row = {}
+        id = instance_space[i]
+        row['id'] = markup.oneliner.a(id,href='../../instances/%s' % id)
+        # TODO: Only display byte if they are actually available
+        row['byte'] = markup.oneliner.a('byte',href='../../tokenstream/byte/%s' % id)
+        rows.append(row)
+
+      page.dict_table( rows, ['id', 'byte',], 
+        col_headings=['Identifier','byte',] )
     
     return str(page)
 
