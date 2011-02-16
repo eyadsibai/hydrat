@@ -154,9 +154,8 @@ class dm_skew(distance_metric):
     sum_ratio = (sum1.astype(float) / sum2.transpose())
     acc_a = numpy.empty((v1.shape[0], v2.shape[0]))
     for ip, _p in enumerate(v1):
-      pg = _p > 0
       for iq, _q in enumerate(v2):
-        feats = numpy.logical_and(pg, _q>0)
+        feats = numpy.logical_and(_p, _q)
         p = _p[feats]
         q = _q[feats]
         v = p * numpy.log( p / (sum_ratio[ip,iq] * a * q + (1-a) * p) )
