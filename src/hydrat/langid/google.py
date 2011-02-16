@@ -7,6 +7,7 @@ import numpy
 import hydrat
 
 import hydrat.wrapper.googlelangid as googlelangid
+from hydrat.dataset.iso639 import ISO639_1_CODES
 
 def goog2iso639_1(lang):
   if lang == 'fil':             return 'tl'
