@@ -915,18 +915,25 @@ class Store(object):
     """ Check if any taskset matches the specified metadata """
     return bool(self._resolve_TaskSet(desired_metadata))
 
-  def get_TaskSet(self, desired_metadata, weights=None):
+  def get_TaskSet(self, desired_metadata):
     """ Convenience function to bypass tag resolution """
     tags = self._resolve_TaskSet(desired_metadata)
     if len(tags) == 0: raise NoData
     elif len(tags) > 1: raise InsufficientMetadata
     try:
-      return self._get_TaskSet(tags[0],weights=weights)
+      return self._get_TaskSet(tags[0])
     except tables.NoSuchNodeError:
       logger.warning('Removing damaged TaskSet node with metadata %s', str(desired_metadata))
       self.fileh.removeNode(self.tasksets, tags[0], recursive=True)
       raise NoData
 
+  def get_TaskSets(self, desired_metadata):
+    tags = self._resolve_TaskSet(desired_metadata)
+    return [self._get_TaskSet(t) for t in tags]
+  
+  # No longer need this if we work with proxy-based store access: can just get the taskset
+  # itself as the actual expensive load of data only occurs on demand.
+  @deprecated
   def _get_TaskSetMetadata(self, taskset_tag):
     try:
       taskset_entry  = getattr(self.tasksets, taskset_tag)
