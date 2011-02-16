@@ -21,13 +21,28 @@ def confusion_matrix(gs, cl):
 def classification_matrix(gs, cl):
   assert gs.shape == cl.shape
   class_count = cl.shape[1]
-  matrix = numpy.empty((class_count, class_count), dtype='int64')
-  for gs_i in xrange(class_count):
-    for cl_i in xrange(class_count):
+  matrix = numpy.zeros((class_count, class_count), dtype='int64')
+  relevant = numpy.flatnonzero(numpy.logical_and(gs.sum(0), cl.sum(0)))
+  for gs_i in relevant:
+    for cl_i in relevant:
       gs_c = gs[:,gs_i]
       cl_c = cl[:,cl_i]
       matrix[gs_i,cl_i] = numpy.logical_and(gs_c,cl_c).sum()
   return matrix
+
+def classpairs(gs, cl):
+  assert gs.shape == cl.shape
+  mapping = dict()
+
+  relevant = numpy.flatnonzero(numpy.logical_and(gs.sum(0), cl.sum(0)))
+  for gs_i in relevant:
+    for cl_i in relevant:
+      gs_c = gs[:,gs_i]
+      cl_c = cl[:,cl_i]
+      indices = numpy.flatnonzero(numpy.logical_and(gs_c,cl_c))
+      if len(indices) > 0:
+        mapping[(gs_i, cl_i)] = indices 
+  return mapping
   
 
 class Result(RichComparisonMixin):
@@ -153,15 +168,10 @@ class Result(RichComparisonMixin):
     """
     Return a mapping (from, to) -> [indices]
     """
-    classifications = interpreter(self.classifications)
-    doc_count, class_count = classifications.shape
-    mapping = dict()
-    for gs_i in xrange(class_count):
-      for cl_i in xrange(class_count):
-        gs = self.goldstandard[:,gs_i]
-        cl = classifications[:,cl_i]
-        mapping[(gs_i, cl_i)] = numpy.logical_and(gs, cl).nonzero()[0]
-    return mapping
+    gs = self.goldstandard
+    cl = interpreter(self.classifications)
+    pairs = classpairs(gs, cl)
+    return dict((k,self.instance_indices[v]) for k,v in pairs.iteritems())
 
   def confusion_matrix(self, interpreter):
     """
