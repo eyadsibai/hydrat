@@ -1,4 +1,4 @@
-from task import InMemoryTask
+from hydrat.common.decorators import deprecated
 class TaskSet(object):
   """
   Collates task objects and their metadata
@@ -13,8 +13,23 @@ class TaskSet(object):
   def __eq__(self, other):
     raise NotImplementedError
 
-# TODO: Split the metadata management out from the 
-#       core problem of producing new tasks.
+class TaskSetSource(object):
+  """
+  Represents an object that can, on demand, generate a taskset with the given
+  description. Should always be subclassed. Subclasses should implement two 
+  properties _desc and tasklist.
+  """
+  @property
+  def desc(self):
+    return self._desc
+
+  @property
+  def taskset(self):
+    return TaskSet(self.tasklist, self.desc)
+
+# DEPRECATED! Should generate tasksets using a TaskSetSource instead
+from task import InMemoryTask
+@deprecated
 def from_partitions( partitions
                    , feature_map
                    , class_map

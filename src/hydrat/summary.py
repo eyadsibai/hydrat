@@ -149,7 +149,7 @@ class PerfoldConfusionMetric(Summary):
 
   def init(self, result, interpreter):
     fold_results = {}
-    for r in result.raw_results:
+    for r in result.results:
       index = r.metadata['index']
       cm = r.confusion_matrix(interpreter)
       prf = self.aggregator(cm, self.metric)

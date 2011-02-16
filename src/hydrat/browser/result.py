@@ -4,7 +4,7 @@ import numpy
 import StringIO
 from collections import defaultdict
 
-import hydrat.common.markup as markup
+import hydrat.display.markup as markup
 from hydrat.display.html import TableSort
 from hydrat.common import as_set
 from hydrat.display.tsr import result_summary_table, project_compound
@@ -29,14 +29,14 @@ from hydrat.summary import Summary
 class Navigation(Summary):
   def init(self, result, interpreter):
     Summary.init(self, result, interpreter)
-    self.uuid = str(result.metadata['uuid'])
+    self.uuid = str(result.uuid)
 
   def key__link(self):
     link = markup.oneliner.a('link', href='view?'+urllib.urlencode({'uuid':self.uuid}))
     return str(link)
     
   def key__pairs(self):
-    link = markup.oneliner.a('link', href='matrix?'+urllib.urlencode({'uuid':self.uuid}))
+    link = markup.oneliner.a('link', href='confusion?'+urllib.urlencode({'uuid':self.uuid}))
     return str(link)
 
   def key__select(self):
@@ -444,6 +444,38 @@ class Results(object):
 
     page.add(text.getvalue())
     return str(page)
+
+  @cherrypy.expose
+  def confusion(self, uuid):
+    """
+    Display a sortable list of confusion pairs.
+    """
+    result = self.store._get_TaskSetResult(uuid)
+    # TODO: make the class space a result attribute
+    class_space = self.store.get_Space(result.metadata['class_space'])
+    summary = self.summary_fn(result, self.interpreter)
+    pairs = result.overall_classpairs(self.interpreter)
+
+    rows = []
+    for cl_fr, cl_to in pairs:
+      if cl_fr != cl_to:
+        row = {}
+        #TODO: Construct useful links here!!
+        row['from'] = markup.oneliner.a(class_space[cl_fr], href='')
+        row['to'] = markup.oneliner.a(class_space[cl_to], href='')
+        link = 'classpair?'+urllib.urlencode({'uuid':result.uuid, 'gs':cl_fr, 'cl':cl_to})
+        row['count'] = markup.oneliner.a(len(pairs[cl_fr, cl_to]), href=link)
+        rows.append(row)
+
+    page = markup.page()
+    page.init(**page_config)
+    page.dict_table(rows, ['from','to','count'], 
+        col_headings=[
+          {'label':'From', 'searchable':True}, 
+          {'label':'To', 'searchable':True}, 
+          'Count',
+          ])
+    return page()
 
   @cherrypy.expose
   def matrix(self, uuid, threshold=0):

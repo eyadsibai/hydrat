@@ -11,10 +11,8 @@ import scipy.sparse
 import hydrat
 import hydrat.common.extractors as ext
 from hydrat.store import Store, StoreError, NoData, AlreadyHaveData
-from hydrat.preprocessor.model.inducer.dataset import DatasetInducer
 from hydrat.common import as_set
 from hydrat.preprocessor.features.transform import union
-from hydrat.preprocessor.model.inducer import invert_text
 from hydrat.common.pb import ProgressIter
 from hydrat.frameworks.common import Framework
 
@@ -120,6 +118,10 @@ class OnlineFramework(Framework):
     server = SimpleXMLRPCServer((host, port), logRequests=True, encoding='ascii')
     server.register_introspection_functions()
 
+    def list_classlabels():
+      self.logger.info('Serving classlabels')
+      return json.dumps(self.classlabels)
+
     def configuration():
       self.logger.info('Serving configuration')
       return json.dumps(self.metadata)
@@ -142,6 +144,7 @@ class OnlineFramework(Framework):
 
     server.register_function(configuration)
     server.register_function(classify)
+    server.register_function(list_classlabels)
 
     try:
       print 'Use Crtl+C to exit'

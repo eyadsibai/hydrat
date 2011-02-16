@@ -5,22 +5,45 @@ import numpy
 from hydrat.common.invert_dict import invert_dict
 from hydrat.common.richcomp import RichComparisonMixin
 from hydrat.common.metadata import metadata_matches
-from hydrat.result import confusion_matrix, classification_matrix
 
-def result_from_task(task, classifications, metadata = {}):
-  """
-  Build a result object by combining a task and the classifications
-  resulting from running the task, along with any additional 
-  metadata to be saved.
-  """
-  goldstandard     = task.test_classes
-  classifications  = classifications
-  instance_indices = numpy.flatnonzero(task.test_indices)
-  full_metadata    =  {}
-  full_metadata.update(task.metadata)
-  full_metadata.update(metadata)
+def confusion_matrix(gs, cl):
+  assert gs.shape == cl.shape
+  gs_n  = numpy.logical_not(gs)
+  cl_n  = numpy.logical_not(cl)
 
-  return Result(goldstandard, classifications, instance_indices, full_metadata)
+  tp = numpy.logical_and(gs  , cl  ).sum(0)
+  tn = numpy.logical_and(gs_n, cl_n).sum(0)
+  fp = numpy.logical_and(gs_n, cl  ).sum(0)
+  fn = numpy.logical_and(gs  , cl_n).sum(0)
+
+  return numpy.column_stack((tp, tn, fp, fn))
+
+def classification_matrix(gs, cl):
+  assert gs.shape == cl.shape
+  class_count = cl.shape[1]
+  matrix = numpy.zeros((class_count, class_count), dtype='int64')
+  relevant = numpy.flatnonzero(numpy.logical_and(gs.sum(0), cl.sum(0)))
+  for gs_i in relevant:
+    for cl_i in relevant:
+      gs_c = gs[:,gs_i]
+      cl_c = cl[:,cl_i]
+      matrix[gs_i,cl_i] = numpy.logical_and(gs_c,cl_c).sum()
+  return matrix
+
+def classpairs(gs, cl):
+  assert gs.shape == cl.shape
+  mapping = dict()
+
+  relevant = numpy.flatnonzero(numpy.logical_and(gs.sum(0), cl.sum(0)))
+  for gs_i in relevant:
+    for cl_i in relevant:
+      gs_c = gs[:,gs_i]
+      cl_c = cl[:,cl_i]
+      indices = numpy.flatnonzero(numpy.logical_and(gs_c,cl_c))
+      if len(indices) > 0:
+        mapping[(gs_i, cl_i)] = indices 
+  return mapping
+  
 
 class Result(RichComparisonMixin):
   """
@@ -113,6 +136,22 @@ class Result(RichComparisonMixin):
                  ]
     return all(conditions)
 
+  @classmethod
+  def from_task(cls, task, classifications, metadata = {}):
+    """
+    Build a result object by combining a task and the classifications
+    resulting from running the task, along with any additional 
+    metadata to be saved.
+    """
+    goldstandard     = task.test_classes
+    classifications  = classifications
+    instance_indices = task.test_indices
+    full_metadata    =  {}
+    full_metadata.update(task.metadata)
+    full_metadata.update(metadata)
+
+    return cls(goldstandard, classifications, instance_indices, full_metadata)
+
   def classification_matrix(self, interpreter):
     """
     @param interpreter: How to interpret the classifier output
@@ -129,15 +168,10 @@ class Result(RichComparisonMixin):
     """
     Return a mapping (from, to) -> [indices]
     """
-    classifications = interpreter(self.classifications)
-    doc_count, class_count = classifications.shape
-    mapping = dict()
-    for gs_i in xrange(class_count):
-      for cl_i in xrange(class_count):
-        gs = self.goldstandard[:,gs_i]
-        cl = classifications[:,cl_i]
-        mapping[(gs_i, cl_i)] = numpy.logical_and(gs, cl).nonzero()[0]
-    return mapping
+    gs = self.goldstandard
+    cl = interpreter(self.classifications)
+    pairs = classpairs(gs, cl)
+    return dict((k,self.instance_indices[v]) for k,v in pairs.iteritems())
 
   def confusion_matrix(self, interpreter):
     """
