@@ -1,6 +1,7 @@
 import cherrypy
 import urllib
 import StringIO
+import numpy
 import hydrat.common.markup as markup
 from hydrat.display.html import TableSort
 from common import page_config
@@ -177,7 +178,7 @@ class Dataset(object):
 
   @cherrypy.expose
   def classspace(self, name):
-    space = self.store.get_Space(name)
+    space = numpy.array(self.store.get_Space(name))
     classmap = self.store.get_ClassMap(self.name, name)
 
     class_dist = dict(zip(space, classmap.raw.sum(axis=0)))
@@ -187,6 +188,23 @@ class Dataset(object):
     page.h2('Class Distribution')
     # TODO: Do this as a tablesort
     page.add(dict_as_html(class_dist))
+
+    # TODO: Clean up tablesort implementation!
+    text = StringIO.StringIO()
+    rows = []
+    for i, id in enumerate(self.store.get_InstanceIds(self.name)):
+      row = {}
+      row['index'] = i
+      row['id'] = markup.oneliner.a(id,href='../tokenstream/byte/%s' % id)
+      row['class'] = ' '.join(space[classmap[i]])
+      rows.append(row)
+
+    with TableSort(text) as renderer:
+      renderer.dict_table( rows, ['index', 'class', 'id', ], 
+        col_headings=['Index', 'Class', 'Identifier',] )
+    page.add(text.getvalue())
+    
+    
     return str(page)
 
   @cherrypy.expose
@@ -218,6 +236,7 @@ class Dataset(object):
       row['index'] = i
       row['id'] = markup.oneliner.a(id,href='../features/%s/%s' % (name, id))
       row['size'] = doc_sizes[i,0]
+      # TODO: Not everyone has bytes!
       row['bytes'] = markup.oneliner.a('link',href='../tokenstream/byte/%s' % id)
       rows.append(row)
 
