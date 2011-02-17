@@ -459,11 +459,15 @@ class Results(object):
     rows = []
     fr_count = defaultdict(int)
     to_count = defaultdict(int)
+    fp_count = defaultdict(int)
+    fn_count = defaultdict(int)
     for cl_fr, cl_to in pairs:
       count = len(pairs[cl_fr, cl_to])
       fr_count[class_space[cl_fr]] += count
       to_count[class_space[cl_to]] += count
       if cl_fr != cl_to:
+        fp_count[class_space[cl_to]] += count
+        fn_count[class_space[cl_fr]] += count
         row = {}
         #TODO: Construct useful links here!!
         row['from'] = markup.oneliner.a(class_space[cl_fr], href='')
@@ -477,6 +481,13 @@ class Results(object):
     page = markup.page()
     page.init(**page_config)
     page.add(dict_as_html(summary))
+
+    def highlight_zero(content):
+      if content == 0:
+        page.td(content, **{'class':'highlight'})
+      else:
+        page.td(content)
+
     with page.table:
       with page.tr:
         page.th('Class')
@@ -486,17 +497,19 @@ class Results(object):
       with page.tr:
         page.th('Goldstandard')
         for c in classes:
-          if fr_count[c] == 0:
-            page.td(fr_count[c], **{'class':'highlight'})
-          else:
-            page.td(fr_count[c])
+          highlight_zero(fr_count[c])
       with page.tr:
         page.th('Classified')
         for c in classes:
-          if to_count[c] == 0:
-            page.td(to_count[c], **{'class':'highlight'})
-          else:
-            page.td(to_count[c])
+          highlight_zero(to_count[c])
+      with page.tr:
+        page.th('False Positive')
+        for c in classes:
+          highlight_zero(fp_count[c])
+      with page.tr:
+        page.th('False Negative')
+        for c in classes:
+          highlight_zero(fn_count[c])
     page.dict_table(rows, ['from','to','count'], 
         col_headings=[
           {'label':'From', 'searchable':True}, 
