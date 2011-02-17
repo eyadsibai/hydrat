@@ -8,8 +8,8 @@ class Transform(TaskSet):
   @property
   def metadata(self):
     # TODO: how about parametrized transformers?
-    metadata = dict(taskset.metadata)
-    metadata['feature_desc'] += (transformer.__name__,)
+    metadata = dict(self.taskset.metadata)
+    metadata['feature_desc'] += (self.transformer.__name__,)
     return metadata
     
   @property
