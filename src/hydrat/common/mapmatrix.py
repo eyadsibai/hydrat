@@ -14,7 +14,11 @@ def map2matrix(mapping, instance_ids=None, labels=None):
 
   for i, id in enumerate(instance_ids):
     for c in mapping[id]:
-      j = indices[c]
+      try:
+        j = indices[c]
+      except KeyError:
+        # No such label. Use 'UNKNOWN' if present.
+        j = indices['UNKNOWN']
       matrix[i,j] = True
 
   return matrix
