@@ -19,7 +19,7 @@ from common import page_config
 KEY_SEP =':'
 
 def results_metadata_map(store, params, max_uniq = 10):
-  mapping = metamap( store._get_TaskSetResultMetadata(uuid) for uuid in store._resolve_TaskSetResults(params) )
+  mapping = metamap( t.metadata for t in store.get_TaskSetResults(params) )
   for key in mapping.keys():
     if len(mapping[key]) > max_uniq or len(mapping[key]) <= 1:
       del mapping[key]

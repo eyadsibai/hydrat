@@ -1001,6 +1001,10 @@ class Store(object):
     elif len(tags) > 1: raise InsufficientMetadata
     return self._get_TaskSetResult(tags[0])
 
+  def get_TaskSetResults(self, desired_metadata):
+    tags = self._resolve_TaskSetResults(desired_metadata)
+    return [ self._get_TaskSetResult(t) for t in tags ]
+
   # TODO: Replace uses of this with a direct access to a StoredTaskSetResult, which does not
   # load results until they are explicitly accessed.
   @deprecated
