@@ -11,10 +11,12 @@ class FeatureSelect(Transformer):
     self.weights[weighting_function.__name__] = None
 
   def learn(self, feature_map, class_map):
-    self.logger.debug('Learning Weights')
     wf_name = self.weighting_function.__name__
     if self.weights[wf_name] is None:
+      self.logger.debug('Learning Weights')
       self.weights[wf_name] = self.weighting_function(feature_map, class_map)
+    else:
+      self.logger.debug('Using learned weights')
 
     weights = self.weights[wf_name]
     self.keep_indices = self.keep_rule(weights)
