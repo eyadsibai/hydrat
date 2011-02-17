@@ -205,7 +205,7 @@ class StoredTask(Stored, Task):
   def weights(self):
     return StoredWeights(self.node.weights)
 
-class StoredWeights(object):
+class StoredWeights(dict):
    def __init__(self, node):
      self.node = node
 
@@ -218,7 +218,7 @@ class StoredWeights(object):
    def __setitem__(self, key, value):
      if key in self.node:
        # TODO: Do something at key replacement
-       pass
+       raise NotImplementedError
      else:
        self.node._v_file.createArray(self.node, key, value)
 
@@ -235,7 +235,7 @@ class StoredWeights(object):
 
    def __len__(self):
      return len(self.node._v_children)
-     
+
   
 class StoredResult(Stored, Result):
   @property
