@@ -1,12 +1,15 @@
 import cherrypy
 import urllib
 import StringIO
-import hydrat.common.markup as markup
+from collections import defaultdict
+
+import hydrat.display.markup as markup
 from hydrat.display.html import TableSort
-from common import page_config
-from display import list_as_html, dict_as_html, list_of_links
 from hydrat.display.tsr import result_summary_table
 from hydrat.common import as_set
+
+from common import page_config
+from display import list_as_html, dict_as_html, list_of_links
 
 
 class Tasks(object):
@@ -81,28 +84,40 @@ class Tasks(object):
       page.h2('Task')
       with page.ul:
         for key in task.weights.keys():
-          page.a(key, href='./weight/%s/%d/%s'% (uuid,i,key))
+          page.a(key, href='./weight/%s/%s'% (key,uuid))
 
     return str(page)
 
   @cherrypy.expose
-  def weight(self, uuid, index, weight_key):
+  def weight(self, weight_key, uuid):
     uuid = as_set(uuid).pop()
     taskset = self.store._get_TaskSet(uuid)
-    task = taskset.tasks[int(index)]
+    tasks = taskset.tasks
 
-    weight = task.weights[weight_key]
     # TODO: Better space resolution. Should make this part of the taskset.
     space = self.store.get_Space(taskset.metadata['feature_desc'][0])
 
-    d = dict(zip(space, weight))
+    weights = defaultdict(dict)
+    cols = ['feature']
+    for task_index, task in enumerate(tasks):
+      task_id = 'fold%d' % task_index
+      cols.append(task_id)
+      weight = task.weights[weight_key]
+      for i, w in enumerate(weight):
+        weights[space[i]][task_id] = w
+
+    rows = []
+    for f in weights:
+      d = weights[f]
+      d['feature'] = f
+      rows.append(d)
+
     page = markup.page()
     page.init(**page_config)
     page.add(dict_as_html(taskset.metadata))
     page.h2('%s on %s' % (weight_key, taskset.metadata['feature_desc']))
 
-    #TODO: Sortable dict!
-    page.add(dict_as_html(d))
+    page.dict_table(rows, cols, col_headings=cols)
 
     return page()
 
