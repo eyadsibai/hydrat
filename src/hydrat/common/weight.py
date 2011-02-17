@@ -47,6 +47,11 @@ class CavnarTrenkle94(WeightingFunction):
   """
   Weighting function generalized from the highly 
   influential 1994 paper N-gram based text categorization
+
+  TODO: Implement the count-free version of this, which
+  will score each feature on the basis of its ranking,
+  which then allows the count to be varied without recomputing
+  the weights.
   """
   def __init__(self, count=300):
     self.__name__ = 'CavnarTrenkle94-' + str(count)
