@@ -269,7 +269,7 @@ class DataProxy(object):
   @property
   def taskset(self):
     self.store.new_TaskSet(DataTaskSet.from_proxy(self))
-    return self.store.get_TaskSet(self.desc, None)
+    return self.store.get_TaskSet(self.desc)
 
   
 

@@ -163,10 +163,6 @@ class StoredTaskSet(Stored, TaskSet):
     return tasks
 
 class StoredTask(Stored, Task):
-  # TODO: Finish implementing this in a lazy fashion. The biggest challenge
-  # right now is handling sparse nodes, which currently require special treatment
-  # because they're not first-class in pytables terms. We should implement a nice 
-  # subclass of Table.Leaf for it
   @property
   def train_vectors(self):
     return Store._read_sparse_node(self.node.train_vectors)
@@ -207,17 +203,40 @@ class StoredTask(Stored, Task):
 
   @property
   def weights(self):
-    raise NotImplementedError
-    # TODO: Improve this so that we produce a dictionary that loads weights on-demand instead
-    retval = {}
-    if self.weight_keys is not None:
-      for key in self.weight_keys:
-        if key in self.node.weights:
-          retval[key] = getattr(self.node.weights, key).read()
-        else:
-          retval[key] = None
-    return retval
+    return StoredWeights(self.node.weights)
 
+class StoredWeights(dict):
+   def __init__(self, node):
+     self.node = node
+
+   def __getitem__(self, key):
+     if key in self.node:
+       return getattr(self.node, key).read()
+     else:
+       return None
+
+   def __setitem__(self, key, value):
+     if key in self.node:
+       # TODO: Do something at key replacement
+       raise NotImplementedError
+     else:
+       self.node._v_file.createArray(self.node, key, value)
+
+   def __delitem__(self, key):
+     # TODO: Implement deletion
+     raise NotImplementedError
+
+   def __contains__(self, key):
+     return key in self.node
+   
+   def __iter__(self):
+     # TODO: Implement iteration over the children
+     return iter(self.node._v_children)
+
+   def __len__(self):
+     return len(self.node._v_children)
+
+  
 class StoredResult(Stored, Result):
   @property
   def goldstandard(self):
