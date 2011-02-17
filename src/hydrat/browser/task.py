@@ -73,24 +73,38 @@ class Tasks(object):
     uuid = as_set(uuid).pop()
     taskset = self.store._get_TaskSet(uuid)
 
-    summaries = []
-    for task in taskset.tasks:
-      summary = {}
-      summary['features']     = task.train_vectors.shape[1]
-      summary['train_count']  = task.train_vectors.shape[0]
-      summary['test_count']   = task.test_vectors.shape[0]
-      summaries.append(summary)
-
-    text = StringIO.StringIO()
-    with TableSort(text) as renderer:
-      result_summary_table(summaries, renderer)
-
     page = markup.page()
     page.init(**page_config)
     page.add(dict_as_html(taskset.metadata))
-    page.add(text.getvalue())
+
+    for i, task in enumerate(taskset.tasks):
+      page.h2('Task')
+      with page.ul:
+        for key in task.weights.keys():
+          page.a(key, href='./weight/%s/%d/%s'% (uuid,i,key))
 
     return str(page)
+
+  @cherrypy.expose
+  def weight(self, uuid, index, weight_key):
+    uuid = as_set(uuid).pop()
+    taskset = self.store._get_TaskSet(uuid)
+    task = taskset.tasks[int(index)]
+
+    weight = task.weights[weight_key]
+    # TODO: Better space resolution. Should make this part of the taskset.
+    space = self.store.get_Space(taskset.metadata['feature_desc'][0])
+
+    d = dict(zip(space, weight))
+    page = markup.page()
+    page.init(**page_config)
+    page.add(dict_as_html(taskset.metadata))
+    page.h2('%s on %s' % (weight_key, taskset.metadata['feature_desc']))
+
+    #TODO: Sortable dict!
+    page.add(dict_as_html(d))
+
+    return page()
 
   @cherrypy.expose
   def delete(self, uuid, confirmed='N'):
