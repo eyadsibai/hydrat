@@ -109,8 +109,7 @@ class DataProxy(object):
 
   @property
   def feature_desc(self):
-    #TODO: Construct the complete feature_desc based on feature_spaces and any transforms applied.
-    return self.feature_spaces
+    return tuple(sorted(self.feature_spaces))
 
   @property
   def class_space(self):
