@@ -16,6 +16,17 @@ def filter_kwargs(fn, skip, kwargs):
   return supported_kwargs
 
 class Transformer(object):
+  """
+  Base class representing an algorithm capable of transforming a
+  taskset into a different taskset. There are two pieces of state
+  that one must pay attention to when dealing with this: the
+  learning state, and the weights. The learning state simply refers
+  to whether a transformer has been trained. The weights are vectors
+  which should be the same length as the number of features, and are
+  specific to a task. Thus the user needs to ensure that old weights
+  are not re-used by accident, and there is currently no mechanism to
+  enforce this.
+  """
   def __init__(self):
     if not hasattr(self, '__name__'):
       self.__name__ = self.__class__.__name__
