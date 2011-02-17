@@ -4,6 +4,7 @@ import tables
 import os
 import warnings
 import logging
+import UserDict 
 import numpy
 warnings.simplefilter("ignore", tables.NaturalNameWarning)
 from scipy.sparse import lil_matrix, coo_matrix
@@ -205,7 +206,7 @@ class StoredTask(Stored, Task):
   def weights(self):
     return StoredWeights(self.node.weights)
 
-class StoredWeights(dict):
+class StoredWeights(UserDict.DictMixin):
    def __init__(self, node):
      self.node = node
 
@@ -228,14 +229,10 @@ class StoredWeights(dict):
 
    def __contains__(self, key):
      return key in self.node
+
+   def keys(self):
+     return self.node._v_children
    
-   def __iter__(self):
-     # TODO: Implement iteration over the children
-     return iter(self.node._v_children)
-
-   def __len__(self):
-     return len(self.node._v_children)
-
   
 class StoredResult(Stored, Result):
   @property
