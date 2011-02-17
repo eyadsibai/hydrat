@@ -3,6 +3,7 @@ import hydrat.wrapper.langdetect as langdetect
 
 from hydrat import config
 from hydrat.configuration import Configurable, EXE, DIR, FILE
+from hydrat.dataset.iso639 import ISO639_1_CODES
 
 def langdetect2iso639_1(label):
   if label in ISO639_1_CODES:
