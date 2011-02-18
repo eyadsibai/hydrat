@@ -65,14 +65,14 @@ class CavnarTrenkle94(WeightingFunction):
     profiles = []
     for cl_i in ProgressIter(range(class_map.shape[1]), 'CavnarTrenkle94'):
       # Get the instance indices which correspond to this class
-      class_indices = np.flatnonzero(class_map[:,cl_i])
+      class_indices = numpy.flatnonzero(class_map[:,cl_i])
       if len(class_indices) == 0: continue # Skip this class: no instances
       # Sum features over all instances in the class
-      class_profile = np.array(feature_map[class_indices].sum(axis=0))[0]
+      class_profile = numpy.array(feature_map[class_indices].sum(axis=0))[0]
       # Add this profile to the list
       profiles.append(rankdata(class_profile))
     # The feature weights are the minimum across all classes
-    feature_weights = np.min(profiles, axis=0)
+    feature_weights = numpy.min(profiles, axis=0)
     return feature_weights
 
 
