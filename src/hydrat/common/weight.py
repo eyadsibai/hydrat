@@ -1,6 +1,6 @@
 import numpy
 import logging
-from hydrat.common import entropy
+from hydrat.common import entropy, rankdata
 from hydrat.common.pb import ProgressIter
 
 class WeightingFunction(object):
@@ -48,38 +48,33 @@ class CavnarTrenkle94(WeightingFunction):
   Weighting function generalized from the highly 
   influential 1994 paper N-gram based text categorization
 
-  TODO: Implement the count-free version of this, which
-  will score each feature on the basis of its ranking,
-  which then allows the count to be varied without recomputing
-  the weights.
+  The basic principle is to keep the most common N features
+  from each class. To generalize this, we compute a score
+  for each feature. For a given N, a feature should be
+  kept if its score is < N. 
+
+  This is fairly simple to compute. For each class, features
+  are ranked on the basis of their frequency. The score for
+  each feature is then the minimum rank across all classes.
+
+  TODO: Generalize this approach to use a per-class metric
+  other than simple counts. For example, could use mutual
+  information. Would need some way to work with saved weights.
   """
-  def __init__(self, count=300):
-    self.__name__ = 'CavnarTrenkle94-' + str(count)
-    WeightingFunction.__init__(self)
-    self.count = count
-
   def weight(self, feature_map, class_map):
-    """
-    We return a boolean vector of weights,
-    which corresponds to whether to keep the
-    feature or not. This should be used with
-    a NonZero KeepRule 
-
-    The exact number of features kept will depend on the
-    class labels
-    """
-    feature_weights = numpy.zeros(feature_map.shape[1], dtype=bool)
+    profiles = []
     for cl_i in ProgressIter(range(class_map.shape[1]), 'CavnarTrenkle94'):
       # Get the instance indices which correspond to this class
-      class_indices = numpy.flatnonzero(class_map[:,cl_i])
+      class_indices = np.flatnonzero(class_map[:,cl_i])
       if len(class_indices) == 0: continue # Skip this class: no instances
       # Sum features over all instances in the class
-      class_profile = feature_map[class_indices].sum(axis=0)
-      # Select the top 'count' indices to keep
-      keep_indices = numpy.array(class_profile.argsort())[0][-self.count:]
-      # Flag these features
-      feature_weights[keep_indices] = True
+      class_profile = np.array(feature_map[class_indices].sum(axis=0))[0]
+      # Add this profile to the list
+      profiles.append(rankdata(class_profile))
+    # The feature weights are the minimum across all classes
+    feature_weights = np.min(profiles, axis=0)
     return feature_weights
+
 
 class InfoGain(WeightingFunction):
   def __init__(self, feature_discretizer):
