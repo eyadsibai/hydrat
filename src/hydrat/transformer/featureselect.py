@@ -62,9 +62,18 @@ class Exceeds(KeepRule):
   def __call__(self, weight_vector):
     return numpy.flatnonzero(weight_vector >= self.n)
 
+class LessThan(KeepRule):
+  def __init__(self, n):
+    self.__name__ = 'LessThan-%d' % n
+    KeepRule.__init__(self)
+    self.n = n
+
+  def __call__(self, weight_vector):
+    return numpy.flatnonzero(weight_vector < self.n)
+
 
 import hydrat.common.weight as weight 
-cavnar_trenkle94 = FeatureSelect(weight.CavnarTrenkle94(300), nonzero)
+cavnar_trenkle94 = FeatureSelect(weight.CavnarTrenkle94(), LessThan(300))
 def term_count_exceeds(x): return FeatureSelect(weight.TermFrequency(), Exceeds(x))
 def doc_count_exceeds(x): return FeatureSelect(weight.DocumentFrequency(), Exceeds(x))
 def ig_bern(x): return FeatureSelect(weight.ig_bernoulli, HighestN(x))
