@@ -81,3 +81,15 @@ def as_set(s):
     except TypeError:
       return set([s])
 
+def rankdata(vector):
+  """
+  Compute rank order statistics for a 1-d vector.
+  
+  TODO: proper tie handling
+  TODO: generalize to an n-d vector
+  """
+  result = numpy.empty(len(vector), dtype=int)
+  result[numpy.argsort(vector)] = numpy.arange(len(vector))
+  return result
+
+
