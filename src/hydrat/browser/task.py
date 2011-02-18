@@ -1,6 +1,7 @@
 import cherrypy
 import urllib
 import StringIO
+import numpy
 from collections import defaultdict
 
 import hydrat.display.markup as markup
@@ -84,12 +85,13 @@ class Tasks(object):
       page.h2('Task')
       with page.ul:
         for key in task.weights.keys():
-          page.a(key, href='./weight/%s/%s'% (key,uuid))
+          # TODO: remove hardcoding of top 100 weights
+          page.a(key, href='./weight/%s/%s?top=%d'% (key,uuid, 100))
 
     return str(page)
 
   @cherrypy.expose
-  def weight(self, weight_key, uuid):
+  def weight(self, weight_key, uuid, top=None, bottom=None):
     uuid = as_set(uuid).pop()
     taskset = self.store._get_TaskSet(uuid)
     tasks = taskset.tasks
@@ -97,14 +99,33 @@ class Tasks(object):
     # TODO: Better space resolution. Should make this part of the taskset.
     space = self.store.get_Space(taskset.metadata['feature_desc'][0])
 
+    # first, compute indexes to keep
+    # NOTE: the extrema are anchored to the first fold
+    if top is not None and bottom is not None:
+      page = markup.page()
+      page.init(**page_config)
+      page.h1('ERROR: Cannot have both top and bottom set')
+      return page()
+
+    weight = tasks[0].weights[weight_key]
+    if top is None and bottom is None:
+      indexes = numpy.arange(len(weight))
+    else:
+      indexes = numpy.argsort(weight)
+      if top is not None:
+        indexes = indexes[-int(top):]
+      else:
+        indexes = indexes[:int(bottom)]
+    
+    # actually copy values for each index out
     weights = defaultdict(dict)
     cols = ['feature']
     for task_index, task in enumerate(tasks):
       task_id = 'fold%d' % task_index
       cols.append(task_id)
       weight = task.weights[weight_key]
-      for i, w in enumerate(weight):
-        weights[space[i]][task_id] = w
+      for i in indexes:
+        weights[space[i]][task_id] = weight[i]
 
     rows = []
     for f in weights:
