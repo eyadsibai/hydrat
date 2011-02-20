@@ -132,6 +132,8 @@ class HydratCmdln(cmdln.Cmdln):
     summary_fn = browser_config.summary_fn
     interpreter = browser_config.interpreter
     int_id = interpreter.__name__
+
+    #TODO: refactor using proxy objects
     for tsr_id in store._resolve_TaskSetResults({}):
       if opts.delete:
         res = store.del_Summary(tsr_id, int_id)
