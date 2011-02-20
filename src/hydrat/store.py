@@ -131,6 +131,7 @@ def update_h5store(fileh):
   # Replace all boolean maps for tasks with their equivalent flatnonzero indices
   # Eliminate UUID from taskset and result metadata
   # Get rid of all date attrs
+  # Ensure all TSR nodes have a summary node
         
 
   logger.debug("updated store from version %d to %d", version, STORE_VERSION)
@@ -153,8 +154,29 @@ class Stored(object):
   def __repr__(self):
     return "<%s on '%s'>" % (str(self.__class__.__name__), str(self.node))
 
+class SpaceProxy(object):
+  def get_space(self, name):
+    try:
+      return self.store.get_Space(self.metadata[name])
+    except NoData:
+      return None
+    
+  @property
+  def instance_space(self):
+    return self.get_space('instance_space')
 
-class StoredTaskSet(Stored, TaskSet):
+  @property
+  def class_space(self):
+    return self.get_space('class_space')
+
+  @property
+  def feature_space(self):
+    # Obtaining a feature space is tricky. We first need to determine if this space is native, or
+    # if it has been transformed at some point. Even for native spaces, we need to handle compound
+    # spaces.
+    raise NotImplementedError
+
+class StoredTaskSet(SpaceProxy, Stored, TaskSet):
   @property
   def tasks(self):
     tasks = []
@@ -206,33 +228,69 @@ class StoredTask(Stored, Task):
   def weights(self):
     return StoredWeights(self.node.weights)
 
-class StoredWeights(UserDict.DictMixin):
-   def __init__(self, node):
-     self.node = node
+class NodeProxy(UserDict.DictMixin):
+  def __init__(self, node):
+    self.node = node
 
-   def __getitem__(self, key):
-     if key in self.node:
-       return getattr(self.node, key).read()
-     else:
-       return None
+  def __contains__(self, key):
+    return key in self.node
 
-   def __setitem__(self, key, value):
-     if key in self.node:
-       # TODO: Do something at key replacement
-       raise NotImplementedError
-     else:
-       self.node._v_file.createArray(self.node, key, value)
+  def keys(self):
+    return list(self.node._v_children)
 
-   def __delitem__(self, key):
-     # TODO: Implement deletion
-     raise NotImplementedError
 
-   def __contains__(self, key):
-     return key in self.node
+class StoredSummaries(NodeProxy):
+  def __init__(self, node, overwrite = False):
+    NodeProxy.__init__(self, node)
+    self.overwrite = overwrite
 
-   def keys(self):
-     return self.node._v_children
-   
+  def __getitem__(self, key):
+    if key in self.node:
+      attr_node = getattr(self.node, key)._v_attrs
+      return dict( (k,attr_node[k]) for k in attr_node._v_attrnamesuser )
+    else:
+      return {}
+
+  def __setitem__(self, key, value):
+    if key in self:
+      summary_node = getattr(self.node, key)
+      if not self.overwrite:
+        # Check for key collisions first 
+        old_keys = set(summary_node._v_attrs._v_attrnamesuser)
+        new_keys = set(value.keys())
+        overlap = old_keys & new_keys
+        if len(overlap) != 0:
+          raise ValueError, "Already had the following keys: %s" % str(list(overlap))
+    else:
+      summary_node = self.node._v_file.createGroup(self.node, key)
+    for k, v in value.iteritems():
+      summary_node._v_attrs[k] = v
+
+  def __delitem__(self, key):
+    if key in self:
+      summary_node = getattr(self.node, key)
+      self.node._v_file.removeNode(summary_node)
+      return True
+    else:
+      return False
+
+class StoredWeights(NodeProxy):
+  def __getitem__(self, key):
+    if key in self.node:
+      return getattr(self.node, key).read()
+    else:
+      return None
+
+  def __setitem__(self, key, value):
+    if key in self.node:
+      # TODO: Do something at key replacement
+      raise NotImplementedError
+    else:
+      self.node._v_file.createArray(self.node, key, value)
+
+  def __delitem__(self, key):
+    # TODO: Implement deletion
+    raise NotImplementedError
   
 class StoredResult(Stored, Result):
   @property
@@ -246,21 +304,20 @@ class StoredResult(Stored, Result):
   @property
   def instance_indices(self):
     return self.node.instance_indices.read()
-    
-class StoredTaskSetResult(Stored, TaskSetResult):
-  def get_space(self, name):
-    try:
-      return self.store.get_Space(self.metadata[name])
-    except NoData:
-      return None
-    
-  @property
-  def instance_space(self):
-    return self.get_space('instance_space')
 
+    
+class StoredTaskSetResult(SpaceProxy, Stored, TaskSetResult):
   @property
-  def class_space(self):
-    return self.get_space('class_space')
+  def taskset(self):
+    # NOTE: This makes the assumption that the only difference between a tsr and the
+    # corresponding taskset is the learner + learner_params.
+    md = dict(self.metadata)
+    del md['learner']
+    del md['learner_params']
+    try:
+      return self.store.get_TaskSet(md)
+    except NoData:
+      raise NoData, "no corresponding taskset"
 
   @property
   def results(self):
@@ -274,7 +331,26 @@ class StoredTaskSetResult(Stored, TaskSetResult):
     except KeyError:
       logger.warning("Tasks do not have index- returning in unspecified order")
     return results
-      
+
+  @property
+  def summaries(self):
+    # TODO: creation of summary nodes should happen at TSR initialization
+    if not hasattr(self.node, 'summary'):
+      self.node._v_file.createGroup(self.node,'summary')
+    return StoredSummaries(self.node.summary)
+
+  def summarize(self, summary_fn, interpreter, force=False):
+    if force:
+      missing_keys = set(summary_fn.keys)
+    else:
+      summary = self.summaries[interpreter.__name__]
+      missing_keys = set(summary_fn.keys) - set(summary)
+    if len(missing_keys) > 0:
+      summary_fn.init(self, interpreter)
+      new_values = dict( (key, summary_fn[key]) for key in missing_keys )
+      self.summaries.overwrite = force
+      self.summaries[interpreter.__name__] = new_values
+    return self.summaries[interpreter.__name__]
 
 
 class Store(object):
@@ -1161,6 +1237,7 @@ class Store(object):
   # Summary
   ###
 
+  @deprecated
   def add_Summary(self, tsr_id, interpreter_id, summary, overwrite=False):
     """
     Add a summary, pertaining to a particular interpreter over a 
@@ -1169,6 +1246,7 @@ class Store(object):
     and immediately updates the keys. 
     """
     tsr_node = getattr(self.results, str(tsr_id))
+    # TODO: creation of summary nodes should happen at TSR initialization
     if not hasattr(tsr_node, 'summary'):
       self.fileh.createGroup(tsr_node,'summary')
     group_node = tsr_node.summary
@@ -1186,6 +1264,7 @@ class Store(object):
     for k,v in summary.iteritems():
       summary_node._v_attrs[k] = v
 
+  @deprecated
   def get_Summary(self, tsr_id, interpreter_id):
     """
     Get a summary back from a tsr given an interpreter id
@@ -1197,6 +1276,7 @@ class Store(object):
     except tables.NoSuchNodeError:
       return {}
 
+  @deprecated
   def del_Summary(self, tsr_id, interpreter_id):
     """
     Delete the summary for a given tsr/interpreter combo.
