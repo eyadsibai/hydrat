@@ -24,3 +24,4 @@ class PrototypeL(Learner):
     return self.learner(p_fv, p_cv)
 
 def mean_prototypeL(learner): return PrototypeL(learner, prototype.mean())
+def sum_prototypeL(learner): return PrototypeL(learner, prototype.sum())
