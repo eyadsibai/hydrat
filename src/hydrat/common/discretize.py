@@ -6,7 +6,9 @@ import numpy
 
 def bernoulli(v):
   nonzero = v.nonzero()[0]
-  zero = numpy.array(list(set(range(v.shape[0])) - set(nonzero)))
+  zero = numpy.ones((v.shape[0],), dtype=bool)
+  zero[nonzero] = False
+  zero = numpy.flatnonzero(zero)
   return [zero, nonzero]
 
 class UniformBand(object):
