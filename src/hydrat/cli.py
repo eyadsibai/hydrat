@@ -134,25 +134,13 @@ class HydratCmdln(cmdln.Cmdln):
     int_id = interpreter.__name__
 
     #TODO: refactor using proxy objects
-    for tsr_id in store._resolve_TaskSetResults({}):
+    for tsr in store.get_TaskSetResults({}):
       if opts.delete:
-        res = store.del_Summary(tsr_id, int_id)
-        if res:
-          print "Deleted summary", int_id, "from", tsr_id
-        else:
-          print "Failed to delete", int_id, "from", tsr_id
+        del tsr.summaries[int_id]
+        print "Deleted summary", int_id, "from", tsr
       else:
-        if opts.force:
-          missing_keys = set(summary_fn.keys)
-        else:
-          summary = store.get_Summary(tsr_id, int_id)
-          missing_keys = set(summary_fn.keys) - set(summary)
-        if len(missing_keys) > 0:
-          result = store._get_TaskSetResult(tsr_id)
-          summary_fn.init(result, interpreter)
-          new_values = dict( (key, summary_fn[key]) for key in missing_keys )
-          store.add_Summary(tsr_id, int_id, new_values, overwrite=opts.force) 
-        print "Added", missing_keys, "to", tsr_id
+        tsr.summarize(summary_fn, interpreter, force=opts.force)
+        print "Added summary", int_id, "to", tsr
 
   # TODO: Refactor against frameworks.offline and browser.results
   def do_output(self, subcmd, opts, store_path, output_path):
