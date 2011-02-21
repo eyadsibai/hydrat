@@ -5,7 +5,7 @@ from numpy import seterr
 from numpy import concatenate
 from numpy import logical_xor
 from numpy.linalg import norm
-from hydrat.common import progress, timed_report
+from hydrat.common import progress, timed_report, rankdata
 from hydrat.common.pb import ProgressIter
 
 def dot(q,r):
@@ -174,62 +174,25 @@ class dm_outofplace(distance_metric):
   Ranklist-based distance metric described in Cavnar & Trenkel 1994.
   """
   __name__ = "OutOfPlace"
-  # TODO: This could probably be further optimized for sparse data.
-  #       In particular, we should be able to again reduce the set of features
-  #       being considered. Features present in neither set will always rank tied last,
-  #       so we should be able to separately calculate their contribution to the metric
-  #       rather than naively compute it. Right now this metric is not really tractable
-  #       for big,sparse spaces.
-  
-  @staticmethod
-  def ranklist(v):
-    v = v.toarray()[0]
-    ordered_indices = reversed(numpy.argsort(v))
-    output = numpy.empty(len(v),dtype=float)
-
-    order = 1
-    indices = [ ordered_indices.next() ]
-    value = v[indices[0]] 
-
-    for index in ordered_indices: 
-      if v[index] == value:
-        indices.append(index)
-      else:
-        score_sum = sum(range(len(indices)))
-        score = order + (float(score_sum) / len(indices))
-        for i in indices:
-          output[i] = score
-
-        order = order + len(indices)
-        indices = [ index ]
-        value = v[ index ]
-
-    # finish last sequence
-    score_sum = sum(range(len(indices)))
-    score = order + (float(score_sum) / len(indices))
-    for i in indices:
-      output[i] = score
-
-    return output
-      
-  def basic(self, p, q):
-    p_rl = dm_outofplace.ranklist(p)
-    q_rl = dm_outofplace.ranklist(q)
-    result = self.fast(p_rl, q_rl) 
-    return result
-
-  def fast(self, p_rl, q_rl):
-    return numpy.sum(numpy.abs(p_rl - q_rl))
-
   def vector_distances(self, v1, v2):
-    rl_v1 = [ dm_outofplace.ranklist(v) for v in v1 ]
-    rl_v2 = [ dm_outofplace.ranklist(v) for v in v2 ]
+    # Determine shared features
+    f1 = numpy.asarray( v1.sum(0) ) [0] > 0
+    f2 = numpy.asarray( v2.sum(0) ) [0] > 0
+    no = numpy.flatnonzero(numpy.logical_or(f1, f2)) # either nonzero 
+
+    # Select only shared features from both matrices
+    v1 = v1[:,no].toarray()
+    v2 = v2[:,no].toarray()
+
+    # Compute ranklists over shared features
+    rl_v1 = [ rankdata(v) for v in v1 ]
+    rl_v2 = [ rankdata(v) for v in v2 ]
 
     results = numpy.empty((v1.shape[0],v2.shape[0]))
-    piter = ProgressIter(rl_v1, label = "Out-of-Place")
-    for i,(q_rl) in enumerate(piter):
-      for j,(r_rl) in enumerate(rl_v2):
-        results[i,j] = self.fast(q_rl, r_rl)
+    rl_v1 = ProgressIter(rl_v1, label = "Out-of-Place")
+    for i,(p_rl) in enumerate(rl_v1):
+      for j,(q_rl) in enumerate(rl_v2):
+        results[i,j] = numpy.sum(numpy.abs(p_rl-q_rl))
     return results
 
 # TODO: Tau has been dead code for some time now. Would be nice to 
