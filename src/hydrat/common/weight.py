@@ -75,13 +75,12 @@ class CavnarTrenkle94(WeightingFunction):
     feature_weights = numpy.min(profiles, axis=0)
     return feature_weights
 
-
 class InfoGain(WeightingFunction):
   def __init__(self, feature_discretizer):
     self.__name__ = 'infogain-' + feature_discretizer.__name__
     WeightingFunction.__init__(self)
     self.feature_discretizer = feature_discretizer
-
+  
   def weight(self, feature_map, class_map):
     overall_class_distribution = class_map.sum(axis=0)
     total_instances = float(feature_map.shape[0])
@@ -95,7 +94,7 @@ class InfoGain(WeightingFunction):
       H_i = 0.0
       for f_mask in self.feature_discretizer(feature_map[:,i]):
         f_count = len(f_mask) 
-        if f_count == 0: continue # Skip partition if no instances are in it
+        if f_count == 0: continue # Skip unused features
         f_distribution = class_map[f_mask].sum(axis=0)
         f_entropy = entropy(f_distribution)
         f_weight = f_count / total_instances
