@@ -14,7 +14,6 @@ class Transform(TaskSet):
     
   @property
   def tasks(self):
-    # TODO: Work out how to get the required weights, and how to extend them back
     # TODO: Work out why we needed add_args, and what to do with it now
     # TODO: Timing of the component parts
     tasks = []
