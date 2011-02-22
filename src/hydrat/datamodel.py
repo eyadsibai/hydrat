@@ -39,6 +39,7 @@ class SplitArray(object):
     self.raw = raw
     self.split = split
     self.metadata = deepcopy(metadata)
+    # TODO: Not all splitarrays need a feature_desc!
     if 'feature_desc' not in metadata:
       self.metadata['feature_desc'] = tuple()
 
