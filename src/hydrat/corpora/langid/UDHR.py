@@ -1,21 +1,27 @@
 import os
+import re
 from hydrat import config
 from hydrat.dataset.text import ByteUBT
 from hydrat.dataset.encoded import CodepointUBT
+from hydrat.dataset.iso639 import ISO639_1_CODES
+from hydrat.configuration import Configurable, DIR
 from collections import defaultdict
 import xml.etree.ElementTree as e
 
-class UDHR(ByteUBT, CodepointUBT):
+class UDHR(Configurable, ByteUBT, CodepointUBT):
   """Backend for UDHR data"""
+  requires={
+    ('corpora', 'UDHR') : DIR('udhr'),
+    }
   __name__ = "UDHR"
   __data = None
-  path = config.getpath('corpora','UDHR')
   __index = None
   __docids = None
 
   def __init__(self):
     ByteUBT.__init__(self)
     CodepointUBT.__init__(self)
+    self.path = os.path.join(config.getpath('corpora','UDHR'), 'txt')
 
   @property
   def _index(self):
@@ -59,3 +65,17 @@ class UDHR(ByteUBT, CodepointUBT):
   def cm_bcp47(self): return self.index_classmap('bcp47')
   def cm_ohchr(self): return self.index_classmap('ohchr')
   def cm_ethnologue(self): return self.index_classmap('l')
+
+  def cm_iso639_1(self):
+    cm = self.classmap('uli')
+    retval = {}
+    for key in cm:
+      retval[key] = []
+      for v in cm[key]:
+        match = re.match(r'^(?P<code>\w\w)(-\w+)?$', v)
+        if match:
+          code = match.group('code')
+          retval[key].append( code if code in ISO639_1_CODES else 'UNKNOWN' )
+        else:
+          retval[key].append('UNKNOWN')
+    return retval
