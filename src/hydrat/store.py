@@ -348,8 +348,9 @@ class StoredTaskSetResult(SpaceProxy, Stored, TaskSetResult):
     if len(missing_keys) > 0:
       summary_fn.init(self, interpreter)
       new_values = dict( (key, summary_fn[key]) for key in missing_keys )
-      self.summaries.overwrite = force
-      self.summaries[interpreter.__name__] = new_values
+      summaries = self.summaries
+      summaries.overwrite = force
+      summaries[interpreter.__name__] = new_values
     return self.summaries[interpreter.__name__]
 
 
