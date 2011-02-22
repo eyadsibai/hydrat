@@ -210,6 +210,8 @@ class DataTaskSet(TaskSet):
   @classmethod
   def from_proxy(cls, proxy):
     """ Convenience method to build a DataTaskSet from a DataProxy """
+    if proxy.split_name is None:
+      raise ValueError, "cannot create taskset from proxy without a defined split"
     fm = proxy.featuremap
     cm = proxy.classmap
     sq = proxy.sequence
