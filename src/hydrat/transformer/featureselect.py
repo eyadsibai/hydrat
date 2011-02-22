@@ -74,6 +74,7 @@ class LessThan(KeepRule):
 
 import hydrat.common.weight as weight 
 cavnar_trenkle94 = FeatureSelect(weight.CavnarTrenkle94(), LessThan(300))
+def cavnar_trenkle(x): return FeatureSelect(weight.CavnarTrenkle94(), LessThan(x))
 def term_count_exceeds(x): return FeatureSelect(weight.TermFrequency(), Exceeds(x))
 def doc_count_exceeds(x): return FeatureSelect(weight.DocumentFrequency(), Exceeds(x))
 def ig_bern(x): return FeatureSelect(weight.ig_bernoulli, HighestN(x))
