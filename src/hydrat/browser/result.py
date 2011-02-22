@@ -382,7 +382,8 @@ class Results(object):
     summaries = []
 
     for uuid in uuids:
-      summary = self.store.get_Summary(uuid, int_id)
+      result = self.store._get_TaskSetResult(uuid)
+      summary = result.summaries[int_id]
       missing_keys = set(summary_fn.keys) - set(summary)
       if len(missing_keys) > 0:
         result = self.store._get_TaskSetResult(uuid)
