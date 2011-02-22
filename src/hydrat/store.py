@@ -335,8 +335,15 @@ class StoredTaskSetResult(SpaceProxy, Stored, TaskSetResult):
   @property
   def summaries(self):
     # TODO: creation of summary nodes should happen at TSR initialization
-    if not hasattr(self.node, 'summary'):
-      self.node._v_file.createGroup(self.node,'summary')
+    # This ad-hoc fix creates problems with read-only mode. We patch this
+    # with an ad-hoc fix until we get round to ensuring all TSR have summary
+    # nodes
+    try:
+      if not hasattr(self.node, 'summary'):
+        self.node._v_file.createGroup(self.node,'summary')
+    except tables.FileModeError:
+      from collections import defaultdict
+      return defaultdict(dict)
     return StoredSummaries(self.node.summary)
 
   def summarize(self, summary_fn, interpreter, force=False):
