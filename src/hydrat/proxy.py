@@ -10,6 +10,7 @@
 import logging
 import os
 import numpy
+import scipy.sparse
 
 from copy import deepcopy
 
@@ -50,6 +51,7 @@ class DataProxy(object):
     self.class_space = class_space
     self.split_name = split_name
     self.sequence_name = sequence_name
+    self.tokenstream_name = tokenstream_name
 
     # Hack to deal with bad interaction between pytables and h5py
     import atexit; atexit.register(lambda: self.store.__del__())
@@ -270,5 +272,145 @@ class DataProxy(object):
     self.store.new_TaskSet(DataTaskSet.from_proxy(self))
     return self.store.get_TaskSet(self.desc)
 
-  
+class CrossDomainDataProxy(DataProxy):
+  metadata = {}
+  def __init__(self, train_ds, eval_ds, store=None, feature_spaces=None,
+        class_space=None, sequence_name=None, tokenstream_name=None):
+    """
+    Initialize on two datasets, one for training and one
+    for evaluation. Note that we want these two to share
+    the same Store. This behaves just like a DataProxy,
+    but it bridges two datasets. The feature and class
+    spaces stay the same, but the instance space is defined
+    as the concatenation of the two.
+    """
+    self.train = DataProxy(train_ds, store, feature_spaces=feature_spaces,
+        class_space=class_space, sequence_name=sequence_name, 
+        tokenstream_name=tokenstream_name)
+    self.eval = DataProxy(eval_ds, self.train.store, feature_spaces=feature_spaces,
+        class_space=class_space, sequence_name=sequence_name, 
+        tokenstream_name=tokenstream_name)
+
+    self.feature_spaces = feature_spaces
+    self.class_space = class_space
+    self.sequence_name = sequence_name
+    self.tokenstream_name = tokenstream_name
+
+
+    self.inducer = self.train.inducer
+    self.store = self.train.store
+
+  @property
+  def dsname(self):
+    return '+'.join((self.train.dsname, self.eval.dsname))
+
+  @property
+  def feature_spaces(self):
+    return self._feature_spaces
+
+  @feature_spaces.setter
+  def feature_spaces(self, value):
+    self.train.feature_spaces = value
+    self.eval.feature_spaces = value
+    self._feature_spaces = as_set(value)
+
+  @property
+  def featurelabels(self):
+    self.inducer.process(self.train.dataset, fms=self.feature_spaces)
+    self.inducer.process(self.eval.dataset, fms=self.feature_spaces)
+    labels = []
+    for feature_space in sorted(self.feature_spaces):
+      labels.extend(self.store.get_Space(feature_space))
+    return labels
+
+  @property
+  def class_space(self):
+    return self._class_space
+
+  @property
+  def classlabels(self):
+    self.inducer.process(self.train.dataset, cms=self.class_space)
+    self.inducer.process(self.eval.dataset, cms=self.class_space)
+    return self.store.get_Space(self.class_space)
+
+  @class_space.setter
+  def class_space(self, value):
+    self.train.class_space = value
+    self.eval.class_space = value
+    self._class_space = value
+
+  @property
+  def split_name(self):
+    return 'crossdomain'
+
+  @property
+  def split(self):
+    num_train = len(self.train.instancelabels)
+    num_eval = len(self.eval.instancelabels)
+    num_inst = num_train + num_eval
+    retval = numpy.zeros((num_inst,1,2), dtype=bool)
+    retval[:num_train,:,0] = True
+    retval[-num_eval:,:,1] = True
+    return retval
+
+  @property
+  def tokenstream_name(self):
+    return self._tokenstream_name
+
+  @tokenstream_name.setter
+  def tokenstream_name(self, value):
+    if value is None:
+      self._tokenstream_name=None
+    else:
+      if not isinstance(value, str):
+        raise TypeError, "Invalid tokenstream identifier: %s" % str(value)
+      present_tokenstream_train=set(self.train.dataset.tokenstream_names)
+      present_tokenstream_eval=set(self.eval.dataset.tokenstream_names)
+      if value not in present_tokenstream_train:
+        raise ValueError, "Unknown tokenstream: %s" % value
+      if value not in present_tokenstream_eval:
+        raise ValueError, "Unknown tokenstream: %s" % value
+
+      self._tokenstream_name = value
+
+  @property
+  def tokenstream(self):
+    return self.train.tokenstream + self.eval.tokenstream
+
+  @property
+  def instance_space(self):
+    """ Returns a concatenation of the two instance spaces """
+    return '+'.join((self.train.instance_space, self.eval.instance_space))
+
+  @property
+  def instancelabels(self):
+    return self.train.instancelabels + self.eval.instancelabels
+
+  @property
+  def classmap(self):
+    cm_train = self.train.classmap
+    cm_eval = self.eval.classmap
+    raw = numpy.vstack((cm_train.raw, cm_eval.raw))
+    md = dict(dataset=self.dsname, class_space=self.class_space, 
+        instance_space=self.instance_space)
+    return ClassMap(raw, split=self.split, metadata=md)
+
+  @property
+  def featuremap(self):
+    # NOTE: We access the featurelabels of both in order to ensure that
+    # full common feature space is learned before we attempt to access
+    # the actual featuremaps
+    self.train.featurelabels
+    self.eval.featurelabels
+
+    fm_train=self.train.featuremap
+    fm_eval=self.eval.featuremap
+    raw = scipy.sparse.vstack((fm_train.raw, fm_eval.raw)).tocsr()
+    md = dict(dataset=self.dsname, feature_spaces=self.feature_spaces, 
+        instance_space=self.instance_space)
+    return FeatureMap(raw, split=self.split, metadata=md)
+
+  def tokenize(self, extractor):
+    # TODO: How does this broadcast?
+    raise NotImplementedError
 
