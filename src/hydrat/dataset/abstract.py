@@ -1,5 +1,6 @@
 import logging
 import os
+from hydrat import config
 from hydrat.common.pb import ProgressIter
 
 # TODO: Automatically monkeypatch an instance when a particular ts/fm/cm is loaded, 
@@ -122,7 +123,11 @@ class Dataset(object):
     for instance_id in ProgressIter(tokenstream, label="Processing Documents"):
       fm[instance_id] = extractor(tokenstream[instance_id])
       if len(fm[instance_id]) == 0:
-        self.logger.warning( "TokenStream '%s' has no tokens for '%s'", tsname, instance_id )
+        msg =  "%s_%s has no tokens for '%s'" % (tsname, extractor.__name__, instance_id)
+        if config.getboolean('debug','allow_empty_instance'):
+          self.logger.warning(msg)
+        else:
+          raise ValueError, msg
 
     return fm
 
