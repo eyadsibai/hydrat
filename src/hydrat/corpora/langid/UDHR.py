@@ -2,13 +2,13 @@ import os
 import re
 from hydrat import config
 from hydrat.dataset.text import ByteUBT
-from hydrat.dataset.encoded import CodepointUBT
+from hydrat.dataset.encoded import CodepointUBT, UTF8
 from hydrat.dataset.iso639 import ISO639_1_CODES
 from hydrat.configuration import Configurable, DIR
 from collections import defaultdict
 import xml.etree.ElementTree as e
 
-class UDHR(Configurable, ByteUBT, CodepointUBT):
+class UDHR(UTF8, Configurable, ByteUBT, CodepointUBT):
   """Backend for UDHR data"""
   requires={
     ('corpora', 'UDHR') : DIR('udhr'),
@@ -44,9 +44,6 @@ class UDHR(Configurable, ByteUBT, CodepointUBT):
     if self.__docids is None:
       self.__docids = [os.path.splitext(f)[0] for f in os.listdir(self.path) if f.endswith('.txt')]
     return self.__docids
-
-  def encodings(self):
-    return defaultdict(lambda:'utf-8')
 
   def ts_byte(self):
     data = {}
