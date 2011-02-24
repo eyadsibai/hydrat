@@ -9,9 +9,10 @@ import csv
 from hydrat import config
 from hydrat.dataset.text import ByteUBT, SingleDir
 from hydrat.dataset.encoded import CodepointUBT, UTF8
+from hydrat.dataset.iso639 import ISO639_1
 from hydrat.configuration import Configurable, DIR
 
-class Acquis10k(Configurable, SingleDir, UTF8, ByteUBT, CodepointUBT):
+class Acquis10k(Configurable, ISO639_1, SingleDir, UTF8, ByteUBT, CodepointUBT):
   requires={
     ('corpora', 'acquis10k') : DIR('acquis3-10k-v1'),
     }
