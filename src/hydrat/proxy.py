@@ -26,7 +26,7 @@ class DataProxy(object):
   convenience methods for accesing portions of that store that are directly
   impacted by the dataset API.
   """
-  def __init__( self, dataset, store=None,
+  def __init__( self, dataset, store=None, inducer = None,
         feature_spaces=None, class_space=None, split_name=None, sequence_name=None,
         tokenstream_name=None):
     self.logger = logging.getLogger(__name__+'.'+self.__class__.__name__)
@@ -45,7 +45,7 @@ class DataProxy(object):
     else:
       self.store = Store(store, 'a')
 
-    self.inducer = DatasetInducer(self.store)
+    self.inducer = DatasetInducer(self.store) if inducer is None else inducer
 
     self.feature_spaces = feature_spaces
     self.class_space = class_space
@@ -406,6 +406,155 @@ class CrossDomainDataProxy(DataProxy):
     fm_train=self.train.featuremap
     fm_eval=self.eval.featuremap
     raw = scipy.sparse.vstack((fm_train.raw, fm_eval.raw)).tocsr()
+    md = dict(dataset=self.dsname, feature_spaces=self.feature_spaces, 
+        instance_space=self.instance_space)
+    return FeatureMap(raw, split=self.split, metadata=md)
+
+  def tokenize(self, extractor):
+    # TODO: How does this broadcast?
+    raise NotImplementedError
+
+class DomainCrossValidation(DataProxy):
+  """
+  Cross-validate across a set of domains.
+  """
+  metadata = {}
+  def __init__(self, datasets, store=None, feature_spaces=None,
+        class_space=None, sequence_name=None, tokenstream_name=None):
+    ds, datasets = datasets[0], datasets[1:]
+    proxy = DataProxy(ds, store, feature_spaces=feature_spaces,
+        class_space=class_space, sequence_name=sequence_name, 
+        tokenstream_name=tokenstream_name)
+    self.proxies = [ proxy ]
+
+    self.inducer = self.proxies[0].inducer
+    self.store = self.proxies[0].store
+    
+    # Build up a list of proxies, one per dataset
+    # They can all share the store and inducer
+    for ds in datasets:
+      proxy = DataProxy(ds, self.store, self.inducer,
+          feature_spaces=feature_spaces, class_space=class_space, 
+          sequence_name=sequence_name, tokenstream_name=tokenstream_name)
+      self.proxies.append(proxy)
+    # Sort proxies by their dataset name to avoid identifying different
+    # orderings as different tasksets
+    self.proxies.sort(key=lambda x:x.dsname)
+
+    self.feature_spaces = feature_spaces
+    self.class_space = class_space
+    self.sequence_name = sequence_name
+    self.tokenstream_name = tokenstream_name
+
+  @property
+  def dsname(self):
+    return '+'.join(p.dsname for p in self.proxies)
+
+  @property
+  def feature_spaces(self):
+    return self._feature_spaces
+
+  @feature_spaces.setter
+  def feature_spaces(self, value):
+    for p in self.proxies:
+      p.feature_spaces = value
+    self._feature_spaces = as_set(value)
+
+  @property
+  def featurelabels(self):
+    for p in self.proxies:
+      self.inducer.process(p.dataset, fms=self.feature_spaces)
+    labels = []
+    for feature_space in sorted(self.feature_spaces):
+      labels.extend(self.store.get_Space(feature_space))
+    return labels
+
+  @property
+  def class_space(self):
+    return self._class_space
+
+  @property
+  def classlabels(self):
+    for p in self.proxies:
+      self.inducer.process(p.dataset, cms=self.class_space)
+    return self.store.get_Space(self.class_space)
+
+  @class_space.setter
+  def class_space(self, value):
+    for p in self.proxies:
+      p.class_space = value
+    self._class_space = value
+
+  @property
+  def split_name(self):
+    return 'DomainCrossValidation'
+
+  @property
+  def split(self):
+    """
+    Leave-one-out cross-validation of domains
+    """
+    num_domains = len(self.proxies)
+    num_inst = sum(len(p.instancelabels) for p in self.proxies)
+
+    start_index = [ 0 ]
+    for p in self.proxies:
+      start_index.append( start_index[-1] + len(p.instancelabels) )
+
+    retval = numpy.zeros((num_inst,num_domains,2), dtype=bool)
+    for i in xrange(num_domains):
+      retval[start_index[i]:start_index[i+1],i,1] = True # Set Eval
+      retval[:,i,0] = numpy.logical_not(retval[:,i,0]) #Train on all that are not eval
+    return retval
+
+  @property
+  def tokenstream_name(self):
+    return self._tokenstream_name
+
+  @tokenstream_name.setter
+  def tokenstream_name(self, value):
+    for p in self.proxies:
+      p.tokenstream_name = value
+    self._tokenstream_name = value
+
+  @property
+  def tokenstream(self):
+    ts = []
+    for p in self.proxies:
+      ts.extend(p.tokenstream)
+    return ts
+
+  @property
+  def instance_space(self):
+    """ Returns a concatenation of the two instance spaces """
+    return '+'.join(p.instance_space for p in self.proxies)
+
+  @property
+  def instancelabels(self):
+    # TODO: May need to handle clashes in labels. Could prefix dataset name.
+    labels = []
+    for p in self.proxies:
+      labels.extend(p.instancelabels)
+    return labels
+
+  @property
+  def classmap(self):
+    cms = [ p.classmap.raw for p in self.proxies ]
+    raw = numpy.vstack(cms)
+    md = dict(dataset=self.dsname, class_space=self.class_space, 
+        instance_space=self.instance_space)
+    return ClassMap(raw, split=self.split, metadata=md)
+
+  @property
+  def featuremap(self):
+    # NOTE: We access the featurelabels in order to ensure that
+    # full common feature space is learned before we attempt to access
+    # the actual featuremaps
+    for p in self.proxies:
+      p.featurelabels
+
+    fms = [ p.featuremap.raw for p in self.proxies ]
+    raw = scipy.sparse.vstack(fms).tocsr()
     md = dict(dataset=self.dsname, feature_spaces=self.feature_spaces, 
         instance_space=self.instance_space)
     return FeatureMap(raw, split=self.split, metadata=md)
