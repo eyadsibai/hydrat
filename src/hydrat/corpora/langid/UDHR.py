@@ -3,12 +3,12 @@ import re
 from hydrat import config
 from hydrat.dataset.text import ByteUBT
 from hydrat.dataset.encoded import CodepointUBT, UTF8
-from hydrat.dataset.iso639 import ISO639_1_CODES
+from hydrat.dataset.iso639 import ISO639_1, ISO639_1_CODES
 from hydrat.configuration import Configurable, DIR
 from collections import defaultdict
 import xml.etree.ElementTree as e
 
-class UDHR(UTF8, Configurable, ByteUBT, CodepointUBT):
+class UDHR(UTF8, ISO639_1, Configurable, ByteUBT, CodepointUBT):
   """Backend for UDHR data"""
   requires={
     ('corpora', 'UDHR') : DIR('udhr'),
