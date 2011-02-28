@@ -10,6 +10,21 @@ from hydrat.task.sampler import membership_vector
 
 logger = logging.getLogger(__name__)
 
+
+from collections import defaultdict
+class Enumerator(object):
+  """
+  Enumerator object. Returns a larger number each call. 
+  Can be used with defaultdict to enumerate a sequence of items.
+  """
+  def __init__(self, start=0):
+    self.n = start
+
+  def __call__(self):
+    retval = self.n
+    self.n += 1
+    return retval
+
 class DatasetInducer(object):
 
   def __init__(self, store):
@@ -152,51 +167,44 @@ class DatasetInducer(object):
     self.store.add_TokenStreams(dsname, stream_name, tslist)
 
   def add_Featuremap(self, dsname, space_name, feat_dict):
-    metadata = {'type':'feature','name':space_name}
-
-    # One pass to compute the full set of features
-    logger.debug("Computing Feature Set")
-    feat_labels = reduce\
-                    ( set.union
-                    , (    set(f.keys()) 
-                      for  f 
-                      in   ProgressIter(feat_dict.values(),"Computing Feature Set")
-                      )
-                    )
-    logger.debug("  Identified %d unique features", len(feat_labels))
-
-    # Handle the feature space information
-    try:
-      space = self.store.get_Space(space_name)
-      logger.debug("Extending a previous space")
-      new_labels = list(feat_labels - set(space))
-      new_labels.sort()
-      feat_labels = space
-      feat_labels.extend(new_labels)
-      space_tag = self.store.extend_Space(space_name, feat_labels)
-    except NoData:
-      feat_labels = list(feat_labels)
-      feat_labels.sort()
-      logger.debug("Creating a new space")
-      self.store.add_Space(feat_labels, metadata)
-
+    # Check the list of instances is correct
     instance_ids = self.store.get_Space(dsname)
     assert set(instance_ids) == set(feat_dict.keys())
 
-    n_inst = len(feat_dict)
-    n_feat = len(feat_labels)
+    # load up the existing space if any
+    try:
+      space = self.store.get_Space(space_name)
+      logger.debug('existing space "%s" (%d feats)', space_name, len(space))
+    except NoData:
+      space = []
+      logger.debug('new space "%s', space_name)
+      
+    # Enumerate the existing keys
+    feat_index = defaultdict(Enumerator())
+    [ feat_index[f] for f in space ]
 
     logger.debug("Computing feature map")
     # Build a list of triplets:
     # (instance#, feat#, value)
     feat_map = []
-    feat_index = dict( (k,v) for v, k in enumerate(feat_labels) )
-    for i, id in enumerate(ProgressIter(instance_ids,label='Computing Feature Map')):
-      for feat in feat_dict[id]:
+    for i, id in enumerate(ProgressIter(instance_ids,label='FeatureMap(%s)' % space_name)):
+      d = feat_dict[id]
+      for feat in d:
         j = feat_index[feat]
-        feat_map.append((i,j,feat_dict[id][feat]))
+        feat_map.append((i,j,d[feat]))
+    logger.debug(' space "%s" now has %d unique features', space_name, len(feat_index))
 
-    logger.debug("Adding map to store")
+    # Store the extended space
+    space = sorted(feat_index, key=feat_index.get)
+    try:
+      self.store.extend_Space(space_name, space)
+      logger.debug('  extending exisitng space "%s"', space_name)
+    except NoData:
+      logger.debug('  saving new space "%s"', space_name)
+      metadata = {'type':'feature','name':space_name}
+      self.store.add_Space(space, metadata)
+
+    logger.debug("adding map to store")
     self.store.add_FeatureDict(dsname, space_name, feat_map)
 
   def add_Classmap(self, dsname, space_name, docclassmap):
