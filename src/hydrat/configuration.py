@@ -216,7 +216,8 @@ def read_configuration(additional_path=[]):
   """
   if isinstance(additional_path, str):
     additional_path = [additional_path]
-  all_paths = [os.path.expanduser('~/'+DEFAULT_CONFIG_FILE),'./'+DEFAULT_CONFIG_FILE ]
+  all_paths = [os.path.expanduser('~/'+DEFAULT_CONFIG_FILE),
+      './'+DEFAULT_CONFIG_FILE,'../'+DEFAULT_CONFIG_FILE, ]
   all_paths.extend(additional_path)
 
   config = default_configuration()
