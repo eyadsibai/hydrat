@@ -4,8 +4,9 @@ from hydrat import config
 import tempfile
 import os
 import numpy
+import subprocess
 
-from hydrat.classifier.SVM import SVMFileWriter
+from hydrat.classifier.libsvm import SVMFileWriter
 from hydrat.configuration import is_exe, Configurable, EXE
 
 """
@@ -39,12 +40,10 @@ class maxentLearner(Configurable, Learner):
               )
 
   def _learn(self, feature_map, class_map):
-    writer = SVMFileWriter
-
     #Create and write the training file
     train = tempfile.NamedTemporaryFile(delete=self.clear_temp)
     self.logger.debug("writing training file: %s", train.name)
-    writer.writefile(train, feature_map, class_map)
+    SVMFileWriter.write(train, feature_map, class_map)
     train.flush()
 
     #Create a temporary file for the model
@@ -53,19 +52,13 @@ class maxentLearner(Configurable, Learner):
     os.close(model_file)
 
     train_path = train.name 
-    training_command = "%s %s -b -m %s -i %d" % ( self.toolpath 
-                                                , train_path
-                                                , self.model_path 
-                                                , self.iterations
-                                                )
-    self.logger.debug("Training maxent: %s", training_command)
-    process = os.popen(training_command)
-    output = process.read()
-    return_value = process.close()
-    if return_value:
-      self.logger.critical("Training maxent failed with output:")
-      self.logger.critical(output)
-      raise ValueError, "Training maxent returned %s"%(str(return_value))
+    training_cmd = [ self.toolpath, train_path, '-b', '-m', self.model_path, 
+        '-i', str(self.iterations) ]
+    self.logger.debug("Training maxent: %s", ' '.join(training_cmd))
+    retcode = subprocess.call(training_cmd)
+    if retcode:
+      self.logger.critical("Training maxent failed")
+      raise ValueError, "Training maxent returned %s"%(str(retcode))
 
     return maxentClassifier( self.model_path
                           , class_map.shape[1]
@@ -80,35 +73,37 @@ class maxentClassifier(Classifier):
   __name__ = "maxent"
 
   def __init__(self, model_path, num_classes, name=None):
-    self.toolpath = config.get('tools','maxent')
+    self.toolpath = config.getpath('tools','maxent')
     if name:
       self.__name__ = name
     Classifier.__init__(self)
     self.model_path  = model_path
     self.num_classes = num_classes
-    self.clear_temp  = True# Clear temp files after execution
+    self.clear_temp  = config.getboolean('debug', 'clear_temp_files')
   
-  def __invoke_classifier(self, test_path):
-    #Create a temporary file for the results
+  def _classify(self, feature_map):
+    test  = tempfile.NamedTemporaryFile(delete=self.clear_temp)
+
+    # create and write the test file
+    self.logger.debug("writing test file: %s", test.name)
+    SVMFileWriter.write(test, feature_map)
+    test.flush()
+
+    num_test_docs = feature_map.shape[0]
+
+    # create a temporary file for the results
     result_file, result_path = tempfile.mkstemp()
     os.close(result_file)
 
-    classif_command = "%s -p -m %s --detail -o %s %s" % ( self.toolpath 
-                                                        , self.model_path
-                                                        , result_path
-                                                        , test_path
-                                                        )
-    self.logger.debug("Classifying maxent: %s", classif_command)
-    process = os.popen(classif_command)
-    output = process.read()
-    return_value = process.close()
-    if return_value:
-      self.logger.critical("Classifying maxent failed with output:\n"+output)
-      raise ValueError, "Classif maxent returned %s"%(str(return_value))
+    # call the classifier
+    classif_cmd = [ self.toolpath, '-p', '-m', self.model_path, '--detail', 
+        '-o', result_path, test.name ]
+    self.logger.debug("Classifying maxent: %s", ' '.join(classif_cmd))
+    retcode = subprocess.call(classif_cmd, stdout=open('/dev/null'))
+    if retcode:
+      self.logger.critical("Classifying maxent failed")
+      raise ValueError, "Classif maxent returned %s"%(str(retcode))
 
-    return result_path 
-
-  def __parse_result(self, result_path, num_test_docs):
     result_file = open(result_path)
     classifications = numpy.zeros((num_test_docs, self.num_classes), dtype='float')
 
@@ -133,23 +128,3 @@ class maxentClassifier(Classifier):
 
     return classifications
 
-
-  def write_testfile(self, test, feature_map):
-    writer = SVMFileWriter
-
-    #Create and write the test file
-    self.logger.debug("writing test file: %s", test.name)
-    writer.writefile(test, feature_map)
-    test.flush()
-
-  def _classify(self, feature_map):
-    test  = tempfile.NamedTemporaryFile(delete=self.clear_temp)
-    self.write_testfile(test, feature_map)
-    num_test_docs = feature_map.shape[0]
-
-    return self.classify_from_file(test.name, num_test_docs)
-
-  def classify_from_file(self, test_path, num_test_docs):
-    result_path = self.__invoke_classifier(test_path)
-    classifications = self.__parse_result(result_path, num_test_docs)
-    return classifications
