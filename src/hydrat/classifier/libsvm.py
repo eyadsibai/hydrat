@@ -17,11 +17,6 @@ from hydrat import config
 from hydrat.configuration import Configurable, EXE
 from hydrat.classifier.abstract import Learner, Classifier, NotInstalledError
 
-__all__ =\
-  [ "libsvmExtL"
-  , "bsvmL"
-  ]
-
 logger = logging.getLogger(__name__)
 tempfile.tempdir = config.getpath('paths','scratch')
 
