@@ -285,6 +285,10 @@ class DataProxy(TaskSet):
       tasklist.append(t)
     return tasklist
 
+  @property
+  def taskset(self):
+    return self.store.new_TaskSet(self)
+
 class CrossDomainDataProxy(DataProxy):
   metadata = {}
   def __init__(self, train_ds, eval_ds, store=None, feature_spaces=None,
