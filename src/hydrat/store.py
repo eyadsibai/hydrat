@@ -924,6 +924,7 @@ class Store(object):
     """
     if not self.has_TaskSet(taskset.metadata): 
       self.add_TaskSet(taskset)
+    return self.get_TaskSet(taskset.metadata)
 
   def _add_Task(self, task, ts_entry): 
     #TODO: Enforce type of train/test indices to be integer sequences
@@ -1070,6 +1071,7 @@ class Store(object):
     """
     if not self.has_TaskSetResult(tsr.metadata): 
       self.add_TaskSetResult(tsr)
+    return self.get_TaskSetResult(tsr.metadata)
 
   def has_TaskSetResult(self, desired_metadata):
     """ Check if the TaskSetResult already exists """
