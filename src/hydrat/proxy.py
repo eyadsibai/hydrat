@@ -17,9 +17,9 @@ from copy import deepcopy
 from hydrat.common import as_set
 from hydrat.store import Store, StoreError, NoData, AlreadyHaveData
 from hydrat.inducer import DatasetInducer
-from hydrat.datamodel import FeatureMap, ClassMap, DataTaskSet
+from hydrat.datamodel import FeatureMap, ClassMap, TaskSet, DataTask
 
-class DataProxy(object):
+class DataProxy(TaskSet):
   """
   This class is meant to act as a go-between between the user and the dataset/store
   classes. It is initialized on a dataset (and an optional store), and provides
@@ -58,6 +58,11 @@ class DataProxy(object):
 
   @property
   def desc(self):
+    # TODO: Eliminate this altogether
+    return self.metadata
+
+  @property
+  def metadata(self):
     md = dict()
     md['dataset'] = self.dsname
     md['instance_space'] = self.instance_space
@@ -268,9 +273,17 @@ class DataProxy(object):
     self.feature_spaces = space_name
 
   @property
-  def taskset(self):
-    self.store.new_TaskSet(DataTaskSet.from_proxy(self))
-    return self.store.get_TaskSet(self.desc)
+  def tasks(self):
+    fm = self.featuremap
+    cm = self.classmap
+    sq = self.sequence
+
+    tasklist = []
+    for i,fold in enumerate(fm.folds):
+      t = DataTask(fm.raw, cm.raw, fold.train_ids, fold.test_ids, 
+          {'index':i}, sequence=sq)
+      tasklist.append(t)
+    return tasklist
 
 class CrossDomainDataProxy(DataProxy):
   metadata = {}
