@@ -432,18 +432,81 @@ class Results(object):
       
   @cherrypy.expose
   def view(self, uuid):
+    """
+    Display details for a single TSR
+    """
     from hydrat.display.tsr import render_TaskSetResult
+    
+    tsr = self.store._get_TaskSetResult(uuid)
+    class_space = self.store.get_Space(tsr.metadata['class_space'])
+    confusion_matrix = tsr.overall_confusion_matrix(self.interpreter).sum(0)
+    used_classes = (confusion_matrix[:,0] + confusion_matrix[:,3]) > 0
+    summary = self.summary_fn(tsr, self.interpreter)
+    from hydrat.result import CombinedMacroAverage, CombinedMicroAverage, PRF
+    metric = PRF()
+
+    rows = []
+    footer = defaultdict(int)
+    for i,cm in enumerate(confusion_matrix[used_classes]):
+      row = {}
+      #row['label'] = class_space[i]
+      row['tp'], row['tn'], row['fp'], row['fn'] = cm
+      row['precision'], row['recall'], row['fscore'] = metric(cm)
+      footer['tp'] += row['tp']
+      footer['tn'] += row['tn']
+      footer['fp'] += row['fp']
+      footer['fn'] += row['fn']
+      rows.append(row)
+
+    cols, col_headings = zip(*[
+      ('tp',dict(label='TP', sorter='digit')),
+      ('tn',dict(label='TN', sorter='digit')),
+      ('fp',dict(label='FP', sorter='digit')),
+      ('fn',dict(label='FN', sorter='digit')),
+      ('precision', dict(label='P', sorter='digit')),
+      ('recall', dict(label='R', sorter='digit')),
+      ('fscore', dict(label='F', sorter='digit')),
+      ])
+
     page = markup.page()
     page.init(**page_config)
-    
-    result = self.store._get_TaskSetResult(uuid)
-    class_space = self.store.get_Space(result.metadata['class_space'])
-    summary = self.summary_fn(result, self.interpreter)
-    text = StringIO.StringIO()
-    with TableSort(text) as result_renderer:
-      render_TaskSetResult(result_renderer, result, class_space, self.interpreter, summary)
+    page.add(dict_as_html(summary))
+    space = list(numpy.array(class_space)[used_classes])
+    page.dict_table(rows, cols, list(col_headings), space, footer)
 
-    page.add(text.getvalue())
+    for i, result in enumerate(tsr.results):
+      page.h2('Result %d' % i)
+      cm_r = result.confusion_matrix(self.interpreter)
+      used_classes = (cm_r[:,0] + cm_r[:,3]) > 0
+      space_r = list(numpy.array(class_space)[used_classes])
+      rows_r = []
+      footer_r = defaultdict(int)
+      for i, cm in enumerate(cm_r[used_classes]):
+        row = {}
+        row['tp'], row['tn'], row['fp'], row['fn'] = cm
+        row['precision'], row['recall'], row['fscore'] = metric(cm)
+        footer_r['tp'] += row['tp']
+        footer_r['tn'] += row['tn']
+        footer_r['fp'] += row['fp']
+        footer_r['fn'] += row['fn']
+        rows_r.append(row)
+
+      with page.table:
+        with page.tr:
+          with page.td:
+            #TODO: More info here
+            page.add(dict_as_html(result.metadata))
+          with page.td:
+            page.dict_table(rows_r, cols, list(col_headings), space_r, footer_r)
+      
+
+
+
+    #text = StringIO.StringIO()
+    #with TableSort(text) as result_renderer:
+    #  render_TaskSetResult(result_renderer, result, class_space, self.interpreter, summary)
+
+    #page.add(text.getvalue())
     return str(page)
 
   @cherrypy.expose
