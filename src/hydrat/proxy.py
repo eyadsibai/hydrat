@@ -435,7 +435,6 @@ class DomainCrossValidation(DataProxy):
   """
   Cross-validate across a set of domains.
   """
-  metadata = {}
   def __init__(self, datasets, store=None, feature_spaces=None,
         class_space=None, sequence_name=None, tokenstream_name=None):
     ds, datasets = datasets[0], datasets[1:]
