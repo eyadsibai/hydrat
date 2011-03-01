@@ -82,11 +82,17 @@ class Tasks(object):
     page.add(dict_as_html(taskset.metadata))
 
     for i, task in enumerate(taskset.tasks):
-      page.h2('Task')
+      page.h2('Task %d' % i)
+      md = dict(task.metadata)
+      md['train_count'] = len(task.train_indices)
+      md['test_count'] = len(task.test_indices)
+      page.add(dict_as_html(md))
+      page.h3('Weights')
       with page.ul:
         for key in task.weights.keys():
           # TODO: remove hardcoding of top 100 weights
-          page.a(key, href='./weight/%s/%s?top=%d'% (key,uuid, 100))
+          with page.li:
+            page.a(key, href='./weight/%s/%s?top=%d'% (key,uuid, 100))
 
     return str(page)
 
