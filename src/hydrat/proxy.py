@@ -521,7 +521,7 @@ class DomainCrossValidation(DataProxy):
     retval = numpy.zeros((num_inst,num_domains,2), dtype=bool)
     for i in xrange(num_domains):
       retval[start_index[i]:start_index[i+1],i,1] = True # Set Eval
-      retval[:,i,0] = numpy.logical_not(retval[:,i,0]) #Train on all that are not eval
+      retval[:,i,0] = numpy.logical_not(retval[:,i,1]) #Train on all that are not eval
     return retval
 
   @property
