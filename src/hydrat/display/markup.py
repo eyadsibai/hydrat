@@ -36,7 +36,7 @@ class page(markup.page):
     return markup.page.__str__(self)
 
   def dict_table( self, rows, cols, col_headings=None, row_headings=None, 
-      title=None):
+      footer=None, title=None):
     if col_headings and len(col_headings) != len(cols):
         raise ValueError, "mismatch between cols and col_headings"
     if row_headings and len(row_headings) != len(rows):
@@ -106,6 +106,14 @@ class page(markup.page):
               self.th(row_headings[i])
             for c in cols:
               self.td(rows[i][c] if c in rows[i] else 'UNKNOWN')
+
+      if footer is not None:
+        with self.tfoot:
+          with self.tr:
+            if row_headings is not None:
+              self.th()
+            for c in cols:
+              self.th(footer[c])
         
 
 if __name__ == "__main__":
