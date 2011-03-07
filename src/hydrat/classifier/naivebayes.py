@@ -45,9 +45,9 @@ class Multinomial(NBEventModel):
     ptc = np.log(1 + prod) - np.log(v + prod.sum(0))
     return ptc
  
- class UniformClassPrior(NBEventModel):
-   def class_priors(self, fm, cm):
-     return np.log(np.ones((cm.shape[1],),dtype=cm.dtype))
+class UniformClassPrior(NBEventModel):
+  def class_priors(self, fm, cm):
+    return np.log(np.ones((cm.shape[1],),dtype=cm.dtype))
 
 class MultinomialBoolean(Multinomial):
   """
