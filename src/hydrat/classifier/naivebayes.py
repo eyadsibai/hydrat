@@ -45,10 +45,6 @@ class Multinomial(NBEventModel):
     ptc = np.log(1 + prod) - np.log(v + prod.sum(0))
     return ptc
  
-class UniformClassPrior(NBEventModel):
-  def class_priors(self, fm, cm):
-    return np.log(np.ones((cm.shape[1],),dtype=cm.dtype))
-
 class MultinomialBoolean(Multinomial):
   """
   Convert term matrix to boolean before applying multinomial model.
@@ -61,19 +57,32 @@ class MultinomialBoolean(Multinomial):
 
 class NaiveBayesL(Learner):
   __name__ = "naivebayes" 
-  def __init__(self, eventmodel):
+  VALID_CLASS_PRIORS = ['default', 'uniform']
+  def __init__(self, eventmodel, class_prior='default'):
+    """
+    no_class_prior: override the calculated class prior with a uniform prior
+    """
+
     Learner.__init__(self)
     self.eventmodel = eventmodel
+    if class_prior not in self.VALID_CLASS_PRIORS:
+      raise ValueError, "unknown class prior"
+    self.class_prior = class_prior
 
   def _params(self):
-    return {'eventmodel':self.eventmodel.__name__}
+    return {'eventmodel':self.eventmodel.__name__, 'class_prior':self.class_prior }
 
   def _learn(self, fm, cm):
     # TODO: Do a collapse of unused classes
     tot_cl = cm.shape[1]
     used_cl = np.flatnonzero(cm.sum(0) > 0)
     cm = sp.csr_matrix(cm[:,used_cl], dtype='int32')
-    pc = self.eventmodel.class_priors(fm, cm)
+    if self.class_prior == 'default':
+      pc = self.eventmodel.class_priors(fm, cm)
+    elif self.class_prior == 'uniform':
+      pc = np.log(np.ones((cm.shape[1],),dtype=cm.dtype))
+    else:
+      raise ValueError, "unknown class prior!"
     ptc = self.eventmodel.term_priors(fm, cm)
     return NaiveBayesC(pc, ptc, tot_cl, used_cl)
 
@@ -104,6 +113,4 @@ class NaiveBayesC(Classifier):
     cm[np.arange(cm.shape[0]), self.used_cl[np.array(cl)[:,0]]] = True
     return cm
 
-def multinomialL(): return NaiveBayesL(Multinomial())
-def multinomialBL(): return NaiveBayesL(MultinomialBoolean())
-
+def multinomialL(*args, **kwargs): return NaiveBayesL(Multinomial(), *args, **kwargs)
