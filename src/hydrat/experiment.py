@@ -59,9 +59,9 @@ class Experiment(TaskSetResult):
     return folds
 
   def run(self, add_args = None):
-    label = "Experiment: %s %s" % (self.learner.__name__, self.learner.params)
     results = []
-    for fold in ProgressIter(self.folds, label):
+    print "Experiment: %s %s" % (self.learner.__name__, self.learner.params)
+    for fold in ProgressIter(self.folds, ''):
       results.append(fold.result)
     self._results = results
     return results
