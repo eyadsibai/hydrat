@@ -139,7 +139,12 @@ class HydratCmdln(cmdln.Cmdln):
         del tsr.summaries[int_id]
         print "Deleted summary", int_id, "from", tsr
       else:
-        tsr.summarize(summary_fn, interpreter, force=opts.force)
+        try:
+          tsr.summarize(summary_fn, interpreter, force=opts.force)
+        except ValueError:
+          print "Deleting faulty result"
+          store.fileh.removeNode(tsr.node, recursive=True)
+          continue
         print "Added summary", int_id, "to", tsr
 
   # TODO: Refactor against frameworks.offline and browser.results
