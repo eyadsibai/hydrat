@@ -627,7 +627,7 @@ class Results(object):
     if 'eval_dataset' in result.metadata:
       dataset = result.metadata['eval_dataset']
     else:
-      dataset = result.metadata['dataset']
+      dataset = result.metadata['instance_space']
     docids = list(self.store.get_InstanceIds(dataset))
     pairs = result.overall_classpairs(self.interpreter)
 
