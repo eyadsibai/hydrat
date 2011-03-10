@@ -22,6 +22,9 @@ class Dataset(object):
     # Default fallback for datasets that don't declare an instance space
     if not hasattr(self, 'instance_space'):
       self.instance_space = self.__name__
+    # We need to avoid circularity in working out instance ids
+    self._checked_dep = set()
+    self._instance_ids = None
 
   def __str__(self):
     ret_strs = []
@@ -97,20 +100,23 @@ class Dataset(object):
     # Check with the class maps first as they are usually 
     # smaller and thus quicker to load. 
     # Then try fm and ts in that order.
-    try: 
-      names = self.classmap_names
-      ids = set(self.classmap(names.next()).keys())
-    except StopIteration:
-      try:
-        names = self.featuremap_names
-        ids = set(self.featuremap(names.next()).keys())
-      except StopIteration:
-        try:
-          names = self.tokenstream_names
-          ids = set(self.tokenstream(names.next()).keys())
-        except StopIteration:
-          raise NotImplementedError, "No tokenstreams, feature maps or class maps defined!"
-    return list(sorted(ids))
+    if self._instance_ids is not None:
+      return self._instance_ids
+
+    self.logger.debug("instance_ids %s %s", self.__name__, str(self._checked_dep))
+
+    prefixes = ['cm', 'fm', 'ts']
+    for p in prefixes:
+      for name in self.prefixed_names(p):
+        key = '_'.join((p, name))
+        if key not in self._checked_dep:
+          self._checked_dep.add(key)
+          method = getattr(self, key)
+          ids = method().keys()
+          if self._instance_ids is None:
+            self._instance_ids = list(sorted(ids))
+          return self._instance_ids
+    raise NotImplementedError, "No tokenstreams, feature maps or class maps defined!"
 
   def features(self, tsname, extractor):
     """
