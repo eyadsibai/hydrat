@@ -46,7 +46,7 @@ class Datasets(object):
     for dsname in self.store.list_Datasets():
       row = {}
       row['name']            = markup.oneliner.a(dsname, href=dsname)
-      row['instances']       = str(len(self.store.get_InstanceIds(dsname)))
+      row['instances']       = str(len(self.store.get_Space(dsname)))
       row['feature_spaces']  = str(len(self.store.list_FeatureSpaces(dsname)))
       row['class_spaces']    = str(len(self.store.list_ClassSpaces(dsname)))
       row['tokenstreams']    = str(len(self.store.list_TokenStreams(dsname)))
