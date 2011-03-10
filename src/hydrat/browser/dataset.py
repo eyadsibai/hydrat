@@ -4,6 +4,7 @@ import numpy
 import hydrat.display.markup as markup
 from common import page_config
 from display import list_as_html, dict_as_html, list_of_links, dict_table
+from hydrat.display.sparklines import histogram, barchart
 
 class Datasets(object):
   def __init__(self, store):
@@ -184,9 +185,19 @@ class Dataset(object):
 
     page = markup.page()
     page.init(**page_config)
+    
     if klass is None:
       # Show the distribution across all classes
-      page.h2('Class Distribution')
+      page.h2('Class Distribution - %s' % name)
+
+      md = dict()
+      md['# Instances'] = classmap.raw.shape[0]
+      md['# Classes'] = classmap.raw.shape[1]
+      md['# Classes nonzero'] = len(classmap.raw.sum(0).nonzero()[0])
+      class_vals = sorted(class_dist.values(), reverse=True)
+      md['Distribution'] = markup.oneliner.img(src=barchart(class_vals))
+
+      page.add(dict_as_html(md))
 
       def link(k):
         return markup.oneliner.a(k, href='%s/%s' % (name,k))
@@ -221,7 +232,6 @@ class Dataset(object):
 
     featuremap = self.store.get_FeatureMap(self.name, name)
 
-    from hydrat.display.sparklines import histogram
     md = featuremap.metadata
     md['num_docs'] = featuremap.raw.shape[0]
     md['num_features'] = featuremap.raw.shape[1]
