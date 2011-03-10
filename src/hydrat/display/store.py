@@ -11,17 +11,8 @@ def results2html(store, browser_config, tsr_metadata=None):
   int_id = interpreter.__name__
 
   summaries = []
-  for uuid in store._resolve_TaskSetResults(tsr_metadata):
-    summary = store.get_Summary(uuid, int_id)
-
-    # TODO: refactor this against summary in frameworks.offline
-    missing_keys = set(summary_fn.keys) - set(summary)
-    if len(missing_keys) > 0:
-      result = store._get_TaskSetResult(uuid)
-      summary_fn.init(result, interpreter)
-      new_values = dict( (key, summary_fn[key]) for key in missing_keys )
-      summary.update(new_values)
-
+  for tsr in store.get_TaskSetResults(tsr_metadata):
+    summary = tsr.summarize(summary_fn, interpreter)
     summaries.append(summary)
 
   io = StringIO()
