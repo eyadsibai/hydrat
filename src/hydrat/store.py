@@ -743,15 +743,21 @@ class Store(object):
     if dsname is None:
       return set(s._v_name for s in self.spaces if s._v_attrs.type == 'class')
     else:
-      ds = getattr(self.datasets, dsname)
-      return set(node._v_name for node in ds.class_data)
+      try:
+        ds = getattr(self.datasets, dsname)
+        return set(node._v_name for node in ds.class_data)
+      except tables.NoSuchNodeError:
+        return set()
 
   def list_FeatureSpaces(self, dsname = None):
     if dsname is None:
       return set(s._v_name for s in self.spaces if s._v_attrs.type == 'feature')
     else:
-      ds = getattr(self.datasets, dsname)
-      return set(node._v_name for node in ds.feature_data)
+      try:
+        ds = getattr(self.datasets, dsname)
+        return set(node._v_name for node in ds.feature_data)
+      except tables.NoSuchNodeError:
+        return set()
 
   def list_InstanceSpaces(self):
     return set(s._v_name for s in self.spaces if s._v_attrs.type == 'instance')
@@ -1181,8 +1187,11 @@ class Store(object):
     return list(t for t in tsnode)
 
   def list_TokenStreams(self, dsname):
-    dsnode = getattr(self.datasets, dsname)
-    return set(node._v_name for node in dsnode.tokenstreams)
+    try:
+      dsnode = getattr(self.datasets, dsname)
+      return set(node._v_name for node in dsnode.tokenstreams)
+    except tables.NoSuchNodeError:
+      return set()
 
   ###
   # Sequence
