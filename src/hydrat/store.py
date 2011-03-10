@@ -1418,19 +1418,27 @@ class Store(object):
     # TASKS & RESULTS
     def __merge(datum, check):
       logger.debug("Copying %s", datum)
-      for t in ProgressIter(list(getattr(other,datum)), label='Copying %s' % datum):
+      src_node = getattr(other, datum)
+      dst_node = getattr(self, datum)
+      for t in ProgressIter(list(src_node), label='Copying %s' % datum):
         logger.debug("Considering %s '%s'", datum, t._v_name)
-        md = get_metadata(t)
-        for i in ignored_md: 
-          if i in md: 
-            del md[i]
-        if not allow_duplicate and check(md):
-          logger.warn("Ignoring duplicate in %s: %s", datum, str(md))
+
+        # Check if the exact result has been previously copied
+        if t._v_name in dst_node:
+          logger.warn("Skipping previous %s: %s", datum, t._v_name)
         else:
-          try:
-            self.fileh.copyNode(t, newparent=getattr(self, datum), recursive=True)
-          except tables.NoSuchNodeError:
-            logger.critical("Damaged node skipped")
+          md = get_metadata(t)
+          for i in ignored_md: 
+            if i in md: 
+              del md[i]
+          # Check for equivalent metadata
+          if not allow_duplicate and check(md):
+            logger.warn("Ignoring duplicate in %s: %s", datum, str(md))
+          else:
+            try:
+              self.fileh.copyNode(t, newparent=dst_node, recursive=True)
+            except tables.NoSuchNodeError:
+              logger.critical("Damaged node skipped")
 
     if do_tasksets:
       __merge('tasksets', self.has_TaskSet)
