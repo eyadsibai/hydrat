@@ -1441,6 +1441,7 @@ class Store(object):
               logger.critical("Damaged node skipped")
 
     if do_tasksets:
+      # TODO: Need to merge weights
       __merge('tasksets', self.has_TaskSet)
     if do_results:
       __merge('results', self.has_TaskSetResult)
