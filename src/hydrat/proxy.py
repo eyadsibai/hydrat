@@ -290,7 +290,6 @@ class DataProxy(TaskSet):
     return self.store.new_TaskSet(self)
 
 class CrossDomainDataProxy(DataProxy):
-  metadata = {}
   def __init__(self, train_ds, eval_ds, store=None, feature_spaces=None,
         class_space=None, sequence_name=None, tokenstream_name=None):
     """
@@ -396,8 +395,8 @@ class CrossDomainDataProxy(DataProxy):
 
   @property
   def instance_space(self):
-    """ Returns a concatenation of the two instance spaces """
-    return '+'.join((self.train.instance_space, self.eval.instance_space))
+    """ We only return the eval space, since it is what the results will be over."""
+    return self.eval.instance_space
 
   @property
   def instancelabels(self):
