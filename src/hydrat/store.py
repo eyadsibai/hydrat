@@ -1319,6 +1319,8 @@ class Store(object):
     Merge the other store's contents into self.
     We can copy tasksets and results verbatim, but spaces and datasets need to 
     take into account a possible re-ordering of features.
+    Weights get another pass over tasksets
+    TODO: Second pass on results to copy summaries
     """
     #TODO: May need to organize a staging area to ensure this merge is atomic
     if self.mode == 'r': raise ValueError, "Cannot merge into read-only store"
@@ -1441,8 +1443,23 @@ class Store(object):
               logger.critical("Damaged node skipped")
 
     if do_tasksets:
-      # TODO: Need to merge weights
+      # Copy entire nodes
       __merge('tasksets', self.has_TaskSet)
+      # Now work our way through and check if any weights need updating
+      for src in ProgressIter(other.get_TaskSets({}), label='Copying weights'):
+        if src.node._v_name in self.tasksets:
+          dst = StoredTaskSet(self, getattr(self.tasksets, src.node._v_name))
+        else:
+          md = dict(src.metadata)
+          for i in ignored_md: 
+            if i in md: 
+              del md[i]
+          dst = self.get_TaskSet(md)
+        # TODO: sanity check for compatibility
+        assert len(src.tasks) == len(dst.tasks)
+        for i, task in enumerate(src.tasks):
+          dst.tasks[i].weights.update(src.tasks[i].weights)
+
     if do_results:
       __merge('results', self.has_TaskSetResult)
 
