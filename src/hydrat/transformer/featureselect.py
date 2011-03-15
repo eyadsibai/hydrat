@@ -19,6 +19,9 @@ class FeatureSelect(Transformer):
       self.logger.debug('Using learned weights')
 
     weights = self.weights[wf_name]
+    if len(weights) != feature_map.shape[1]:
+      raise ValueError, "weight length mismatch"
+
     self.keep_indices = self.keep_rule(weights)
 
   def apply(self, feature_map):
