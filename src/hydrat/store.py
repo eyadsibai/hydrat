@@ -138,6 +138,12 @@ def update_h5store(fileh):
   root._v_attrs['version'] = STORE_VERSION
   fileh.flush()
 
+def getnode(node, key):
+  if hasattr(node, key):
+    return getattr(node, key)
+  else:
+    raise NoData
+
 class Stored(object):
   def __init__(self, store, node):
     self.store = store
@@ -592,8 +598,8 @@ class Store(object):
   def add_FeatureDict(self, dsname, space_name, feat_map):
     self._check_writeable()
     logger.debug("Adding feature map to dataset '%s' in space '%s'", dsname, space_name)
-    ds = getattr(self.datasets, dsname)
-    space = getattr(self.spaces, space_name)
+    ds = getnode(self.datasets, dsname)
+    space = getnode(self.spaces, space_name)
 
     group = self.fileh.createGroup( ds.feature_data
                                   , space._v_name
@@ -642,8 +648,8 @@ class Store(object):
   def add_FeatureMap(self, dsname, space_name, feat_map):
     self._check_writeable()
     logger.debug("Adding feature map to dataset '%s' in space '%s'", dsname, space_name)
-    ds = getattr(self.datasets, dsname)
-    space = getattr(self.spaces, space_name)
+    ds = getnode(self.datasets, dsname)
+    space = getnode(self.spaces, space_name)
 
     group = self.fileh.createGroup( ds.feature_data
                                   , space._v_name
@@ -676,8 +682,8 @@ class Store(object):
   def add_ClassMap(self, dsname, space_name, class_map):
     self._check_writeable()
     logger.debug("Adding Class Map to dataset '%s' in space '%s'", dsname, space_name)
-    ds = getattr(self.datasets, dsname)
-    space = getattr(self.spaces, space_name)
+    ds = getnode(self.datasets, dsname)
+    space = getnode(self.spaces, space_name)
 
     num_inst = self.get_SpaceMetadata(ds._v_attrs['instance_space'])['size'] 
     num_classes = len(space)
@@ -732,9 +738,9 @@ class Store(object):
       retval = set(s._v_name for s in self.spaces if s._v_attrs.type == space_type)
     else:
       try:
-        ds = getattr(self.datasets, dsname)
+        ds = getnode(self.datasets, dsname)
         retval = set(node._v_name for node in ds.class_data)
-      except tables.NoSuchNodeError:
+      except NoData:
         retval = set()
     retval |= self.fallback.list_Spaces(space_type, dsname)
     return retval
@@ -758,7 +764,7 @@ class Store(object):
   ###
   def get_Metadata(self, parent, identifier):
     try:
-      node = getattr(getattr(self, parent), identifier)
+      node = getnode(getattr(self, parent), identifier)
       metadata = dict(   (key, getattr(node._v_attrs,key)) 
                     for  key 
                     in   node._v_attrs._v_attrnamesuser
@@ -789,8 +795,8 @@ class Store(object):
     @rtype: pytables array
     """
     try:
-      space = getattr(self.spaces, space_name)
-    except tables.exceptions.NoSuchNodeError:
+      space = getnode(self.spaces, space_name)
+    except NoData:
       if self.fallback is not None:
         return self.fallback.get_Space(space_name)
       else:
@@ -818,12 +824,12 @@ class Store(object):
 
   def has_Data(self, dsname, space_name):
     try:
-      ds = getattr(self.datasets, dsname)
-    except tables.exceptions.NoSuchNodeError:
+      ds = getnode(self.datasets, dsname)
+      return (  hasattr(ds.class_data,   space_name) 
+            or hasattr(ds.feature_data, space_name)
+            )
+    except NoData:
       return self.fallback.has_Data(dsname, space_name)
-    return (  hasattr(ds.class_data,   space_name) 
-           or hasattr(ds.feature_data, space_name)
-           )
 
   def get_ClassMap(self, dsname, space_name):
     """
@@ -832,9 +838,9 @@ class Store(object):
     @return: data corresponding to the given dataset in the given class space
     @rtype: pytables array
     """
-    ds = getattr(self.datasets, dsname)
+    ds = getnode(self.datasets, dsname)
     try:
-      class_node = getattr(ds.class_data, space_name) 
+      class_node = getnode(ds.class_data, space_name) 
       data = getattr(class_node, 'class_map')
     except AttributeError:
       return self.fallback.get_ClassMap(dsname, space_name)
@@ -853,10 +859,10 @@ class Store(object):
     @return: data corresponding to the given dataset in the given feature space
     @rtype: varies 
     """
-    ds = getattr(self.datasets, dsname)
+    ds = getnode(self.datasets, dsname)
     space = self.get_Space(space_name)
     try:
-      feature_node = getattr(ds.feature_data, space_name)
+      feature_node = getnode(ds.feature_data, space_name)
     except AttributeError:
       return self.fallback.get_FeatureMap(dsname, space_name)
 
@@ -955,7 +961,7 @@ class Store(object):
   def extend_Weights(self, taskset):
     # TODO: Do we need to perform a check for some kind of characteristic
     #       of the weight?
-    taskset_entry  = getattr(self.tasksets, str(taskset.metadata['uuid']))
+    taskset_entry  = getnode(self.tasksets, str(taskset.metadata['uuid']))
     for task in taskset.tasks:
       task_tag = str(task.metadata['uuid'])
       task_entry     = getattr(taskset_entry, task_tag)
@@ -991,7 +997,7 @@ class Store(object):
     try:
       fallback_tasks = self.fallback.get_TaskSets(desired_metadata)
     except NoData:
-      pass
+      fallback_tasks = []
     return [self._get_TaskSet(t) for t in tags] + fallback_tasks
   
   def _del_TaskSet(self, taskset_tag):
@@ -1001,7 +1007,7 @@ class Store(object):
 
   def _get_TaskSet(self, taskset_tag, weights = None):
     try:
-      taskset_entry  = getattr(self.tasksets, taskset_tag)
+      taskset_entry  = getnode(self.tasksets, taskset_tag)
     except AttributeError:
       raise KeyError, str(taskset_tag)
     return StoredTaskSet(self, taskset_entry)
@@ -1010,7 +1016,7 @@ class Store(object):
     """Returns all tags whose entries match the supplied metadata"""
     desired_keys = []
     for node in self.tasksets._v_groups:
-      attrs = getattr(self.tasksets,node)._v_attrs
+      attrs = getnode(self.tasksets,node)._v_attrs
       if metadata_matches(attrs, desired_metadata):
         desired_keys.append(node)
     return desired_keys
@@ -1040,10 +1046,10 @@ class Store(object):
   def get_TaskSetResults(self, desired_metadata):
     tags = self._resolve_TaskSetResults(desired_metadata)
     try:
-      fallback_tasks = self.fallback.get_TaskSetsResults(desired_metadata)
+      fallback_tasks = self.fallback.get_TaskSetResults(desired_metadata)
     except NoData:
-      pass
-    return [self._get_TaskSetResults(t) for t in tags] + fallback_tasks
+      fallback_tasks = []
+    return [self._get_TaskSetResult(t) for t in tags] + fallback_tasks
   
   def _del_TaskSetResult(self, tsr_tag):
     if not hasattr(self.results, tsr_tag):
@@ -1052,7 +1058,7 @@ class Store(object):
 
   def _get_TaskSetResult(self, tsr_tag):
     try:
-      tsr_entry  = getattr(self.results, tsr_tag)
+      tsr_entry  = getnode(self.results, tsr_tag)
     except AttributeError:
       raise KeyError, str(tsr_tag)
     return StoredTaskSetResult(self, tsr_entry)
@@ -1115,7 +1121,7 @@ class Store(object):
   ###
 
   def add_TokenStreams(self, dsname, stream_name, tokenstreams):
-    dsnode = getattr(self.datasets, dsname)
+    dsnode = getnode(self.datasets, dsname)
     stream_array = self.fileh.createVLArray( dsnode.tokenstreams
                                            , stream_name
                                            , tables.ObjectAtom()
@@ -1126,17 +1132,17 @@ class Store(object):
 
   def get_TokenStreams(self, dsname, stream_name):
     try:
-      dsnode = getattr(self.datasets, dsname)
-      tsnode = getattr(dsnode.tokenstreams, stream_name)
+      dsnode = getnode(self.datasets, dsname)
+      tsnode = getnode(dsnode.tokenstreams, stream_name)
       return list(t for t in tsnode)
-    except AttributeError:
+    except NoData:
       return self.fallback.get_TokenStreams(dsname, stream_name)
 
   def list_TokenStreams(self, dsname):
     try:
-      dsnode = getattr(self.datasets, dsname)
+      dsnode = getnode(self.datasets, dsname)
       retval = set(node._v_name for node in dsnode.tokenstreams)
-    except tables.NoSuchNodeError:
+    except NoData:
       retval = set()
     retval |= self.fallback.list_TokenStreams(dsname)
     return retval
@@ -1151,7 +1157,7 @@ class Store(object):
     if not sequence.shape[0] == sequence.shape[1]:
       raise ValueError, "sequence must be square"
 
-    dsnode = getattr(self.datasets, dsname)
+    dsnode = getnode(self.datasets, dsname)
     self._add_sparse_node( dsnode.sequence
                          , seq_name
                          , BoolFeature 
@@ -1161,8 +1167,8 @@ class Store(object):
 
   def get_Sequence(self, dsname, seq_name):
     try:
-      dsnode = getattr(self.datasets, dsname)
-      sqnode = getattr(dsnode.sequence, seq_name)
+      dsnode = getnode(self.datasets, dsname)
+      sqnode = getnode(dsnode.sequence, seq_name)
       # Should be reading each row of the array as a member of a sequence
       # e.g. a row is a thread, each index is the instance index in dataset representing posts
       # returns a list of arrays.
@@ -1171,8 +1177,11 @@ class Store(object):
       return self.fallback.get_Sequence(dsname, seq_name)
 
   def list_Sequence(self, dsname):
-    dsnode = getattr(self.datasets, dsname)
-    retval = set(node._v_name for node in dsnode.sequence)
+    if dsname in self.datasets:
+      dsnode = getnode(self.datasets, dsname)
+      retval = set(node._v_name for node in dsnode.sequence)
+    else:
+      retval = set()
     retval |= self.fallback.list_Sequence(dsname)
     return retval
 
@@ -1180,15 +1189,18 @@ class Store(object):
   # Splits
   ###
   def list_Split(self, dsname):
-    dsnode = getattr(self.datasets, dsname)
-    retval = set(node._v_name for node in dsnode.split)
+    if dsname in self.datasets:
+      dsnode = getnode(self.datasets, dsname)
+      retval = set(node._v_name for node in dsnode.split)
+    else:
+      retval = set()
     retval |= self.fallback.list_Split(dsname)
     return retval
 
   def add_Split(self, dsname, split_name, split):
     # TODO: Sanity checks
     self._check_writeable()
-    dsnode = getattr(self.datasets, dsname)
+    dsnode = getnode(self.datasets, dsname)
     sp_node = self.fileh.createCArray( dsnode.split
                                      , split_name
                                      , tables.BoolAtom()
@@ -1200,10 +1212,10 @@ class Store(object):
     sp_node.flush()
 
   def get_Split(self, dsname, split_name):
-    dsnode = getattr(self.datasets, dsname)
+    dsnode = getnode(self.datasets, dsname)
     try:
-      data = getattr(dsnode.split, split_name)
-    except AttributeError:
+      data = getnode(dsnode.split, split_name)
+    except NoData:
       return self.fallback.get_Split(dsname, split_name)
     return data.read()
 
