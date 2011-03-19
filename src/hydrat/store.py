@@ -283,10 +283,9 @@ class StoredWeights(NodeProxy):
 
   def __setitem__(self, key, value):
     if key in self.node:
-      # TODO: Do something at key replacement
-      raise NotImplementedError
-    else:
-      self.node._v_file.createArray(self.node, key, value)
+      # TODO: Work out if we need to do something fancy with updates
+      self.node._v_file.removeNode(getattr(self.node,key))
+    self.node._v_file.createArray(self.node, key, value)
 
   def __delitem__(self, key):
     # TODO: Implement deletion
@@ -1455,8 +1454,10 @@ class Store(object):
             if i in md: 
               del md[i]
           dst = self.get_TaskSet(md)
-        # TODO: sanity check for compatibility
-        assert len(src.tasks) == len(dst.tasks)
+        # sanity check for compatibility
+        if len(src.tasks) != len(dst.tasks):
+          logger.warning('number of tasks in src and dst do not match; skipping')
+          continue
         for i, task in enumerate(src.tasks):
           dst.tasks[i].weights.update(src.tasks[i].weights)
 
