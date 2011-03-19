@@ -364,8 +364,10 @@ class Store(object):
   """
   This is the master store class for hydrat. It manages all of the movement of data
   to and from disk.
+  The fallback argument can be used to provide references to additional stores to
+  attempt to read from, if the data requested is not present in this store.
   """
-  def __init__(self, path, mode='r'):
+  def __init__(self, path, mode='r', fallback=None):
     """
     The store object has four major nodes:
     # spaces
@@ -390,8 +392,29 @@ class Store(object):
     self.tasksets = self.root.tasksets
     self.results = self.root.results
 
+    if fallback is None:
+      # Open a 'null' store, which behaves like a store that contains no data
+      self.fallback = NullStore()
+    else:
+      if not isinstance(fallback, Store):
+        raise ValueError, "fallback argument must be a Store instance"
+      self.fallback = fallback
+
     if not 'version' in self.root._v_attrs or self.root._v_attrs['version'] != STORE_VERSION:
       raise ValueError, "Store format is outdated; please open the store as writeable to automatically update it"
+
+  @classmethod
+  def from_caller(cls, fallback=None):
+    """
+    Initialize a store, using the top-level calling module's name as the basis for the store filename.
+    """
+    # Open a store named after the top-level calling file
+    import inspect
+    stack = inspect.stack()
+    filename = os.path.basename(stack[-1][1])
+    store_path = os.path.splitext(filename)[0]+'.h5'
+    return cls(store_path, 'a', fallback=fallback)
+    
 
   
   def __str__(self):
@@ -454,15 +477,12 @@ class Store(object):
     least 'name' and 'type'.
     """
     self._check_writeable()
-    try:
-      self.resolve_Space(metadata)
-      raise AlreadyHaveData, "Already have space %s" % metadata
-    except NoData:
-      pass
     if 'type' not in metadata:
       raise InsufficientMetadata, "metadata must contain type"
     if 'name' not in metadata:
       raise InsufficientMetadata, "metadata must contain name"
+    if hasattr(self.spaces, metadata['name']):
+      raise AlreadyHaveData, "Already have space %s" % metadata
 
     logger.debug( "Adding a %s space '%s' of %d Features"
                     , metadata['type']
@@ -705,80 +725,55 @@ class Store(object):
     return taskset_entry_tag
 
   ###
-  # Resolve
-  ###
-  #TODO: Are these ever used?
-  def resolve_Space(self, desired_metadata):
-    """
-    Uniquely resolve a single space
-    """
-    spaces = self.resolve_Spaces(desired_metadata)
-    if spaces == []:
-      raise NoData, "No space matching given metadata"
-    elif len(spaces) > 1:
-      raise InsufficientMetadata, "%d spaces matching given metadata" % len(spaces)
-    else:
-      return spaces[0]
-
-  def resolve_Spaces(self, desired_metadata):
-    """
-    Linear search for matching spaces
-    @param desired_metadata: key-value pairs that the desired space must satisfy
-    @type desired_metadata: dict
-    @return: tags corresponding to spaces with the desired metadata
-    @rtype: list of strings
-    """
-    names = []
-    for space in self.spaces:
-      if metadata_matches(space.attrs, desired_metadata):
-        names.append(space._v_name)
-
-    return names 
-
-  ###
   # List
   ###
-  def list_ClassSpaces(self, dsname = None):
+  def list_Spaces(self, space_type, dsname = None):
     if dsname is None:
-      return set(s._v_name for s in self.spaces if s._v_attrs.type == 'class')
+      retval = set(s._v_name for s in self.spaces if s._v_attrs.type == space_type)
     else:
       try:
         ds = getattr(self.datasets, dsname)
-        return set(node._v_name for node in ds.class_data)
+        retval = set(node._v_name for node in ds.class_data)
       except tables.NoSuchNodeError:
-        return set()
+        retval = set()
+    retval |= self.fallback.list_Spaces(space_type, dsname)
+    return retval
+
+  def list_ClassSpaces(self, dsname = None):
+    return self.list_Spaces('class', dsname=dsname)
 
   def list_FeatureSpaces(self, dsname = None):
-    if dsname is None:
-      return set(s._v_name for s in self.spaces if s._v_attrs.type == 'feature')
-    else:
-      try:
-        ds = getattr(self.datasets, dsname)
-        return set(node._v_name for node in ds.feature_data)
-      except tables.NoSuchNodeError:
-        return set()
+    return self.list_Spaces('feature', dsname=dsname)
 
   def list_InstanceSpaces(self):
-    return set(s._v_name for s in self.spaces if s._v_attrs.type == 'instance')
+    return self.list_Spaces('instance')
 
   def list_Datasets(self):
-    return set( ds._v_attrs.name for ds in self.datasets)
+    retval = set( ds._v_attrs.name for ds in self.datasets)
+    retval |= self.fallback.list_Datasets()
+    return retval
 
   ###
   # Get
   ###
+  def get_Metadata(self, parent, identifier):
+    try:
+      node = getattr(getattr(self, parent), identifier)
+      metadata = dict(   (key, getattr(node._v_attrs,key)) 
+                    for  key 
+                    in   node._v_attrs._v_attrnamesuser
+                    )
+      return metadata
+    except AttributeError:
+      return self.fallback.get_Metadata(parent, identifier)
+
   def get_SpaceMetadata(self, space_name):
     """
     @param space_name: Identifier of the relevant space
     @type tag: string
     @rtype: dict of metadata key-value pairs
     """
-    space = getattr(self.spaces, space_name)
-    metadata = dict(   (key, getattr(space._v_attrs,key)) 
-                  for  key 
-                  in   space._v_attrs._v_attrnamesuser
-                  )
-    return metadata
+    return self.get_Metadata('spaces', space_name)
 
   def get_DatasetMetadata(self, dsname):
     """
@@ -786,12 +781,7 @@ class Store(object):
     @type dsname: string
     @rtype: dict of metadata key-value pairs
     """
-    ds = getattr(self.datasets, dsname)
-    metadata = dict(   (key, getattr(ds._v_attrs,key)) 
-                  for  key 
-                  in   ds._v_attrs._v_attrnamesuser
-                  )
-    return metadata
+    return self.get_Metadata('datasets', dsname)
 
   def get_Space(self, space_name):
     """
@@ -801,7 +791,10 @@ class Store(object):
     try:
       space = getattr(self.spaces, space_name)
     except tables.exceptions.NoSuchNodeError:
-      raise NoData, "Store does not have space '%s'" % space_name
+      if self.fallback is not None:
+        return self.fallback.get_Space(space_name)
+      else:
+        raise NoData, "Store does not have space '%s'" % space_name
     metadata = self.get_SpaceMetadata(space_name)
     data = space.read()
     try:
@@ -827,7 +820,7 @@ class Store(object):
     try:
       ds = getattr(self.datasets, dsname)
     except tables.exceptions.NoSuchNodeError:
-      return False
+      return self.fallback.has_Data(dsname, space_name)
     return (  hasattr(ds.class_data,   space_name) 
            or hasattr(ds.feature_data, space_name)
            )
@@ -844,7 +837,7 @@ class Store(object):
       class_node = getattr(ds.class_data, space_name) 
       data = getattr(class_node, 'class_map')
     except AttributeError:
-      raise NoData
+      return self.fallback.get_ClassMap(dsname, space_name)
 
     metadata = dict\
                  ( dataset=dsname
@@ -865,7 +858,7 @@ class Store(object):
     try:
       feature_node = getattr(ds.feature_data, space_name)
     except AttributeError:
-      raise NoData
+      return self.fallback.get_FeatureMap(dsname, space_name)
 
     data_type = feature_node._v_attrs.type
     logger.debug("Returning matrix of type %s", data_type)
@@ -879,48 +872,6 @@ class Store(object):
                  , instance_space=ds._v_attrs.instance_space
                  )
     return FeatureMap(m, metadata=metadata) 
-
-  @deprecated
-  def get_SizeData(self, dsname, space_name):
-    """
-    TODO: Generalize this to getInstanceWeightData, which is a vector we can use
-    to weight instances in a given feature space. For token-based spaces, this 
-    represents the number of tokens in the space.
-
-    @param dsname: Name of the dataset
-    @param space_name: Name of the feature space
-    @return: data corresponding to the size of each instance in this space
-    @rtype: pytables array
-    """
-    ds = getattr(self.datasets, dsname)
-    try:
-      feature_node = getattr(ds.feature_data, space_name) 
-      data = getattr(feature_node, 'instance_size')
-    except AttributeError:
-      raise NoData
-    return data.read()
-
-  # Deprecate get_data, since it doesn't make as much sense now that we have 
-  # removed a level of indirection by eliminating uuids for spaces
-  @deprecated
-  def get_Data(self, dsname, space_metadata):
-    """
-    Convenience method for data access which compiles relevant metadata
-    as well.
-    """
-    s_type = space_metadata['type']
-    s_name = space_metadata['name']
-
-    if s_type == 'class':
-      data = self.get_ClassMap(dsname, s_name)
-    elif s_type == 'feature':
-      data = self.get_FeatureMap(dsname, s_name)
-    else:
-      raise StoreError, "Unknown data type: %s" % s_type
-
-    logger.debug("Retrieved %s data for '%s' in space '%s'", s_type, dsname, s_name)
-    return data 
-
 
   def new_TaskSet(self, taskset):
     """Method which checks if a TaskSet is already in the Store. It will not
@@ -1019,35 +970,30 @@ class Store(object):
                 
   def has_TaskSet(self, desired_metadata):
     """ Check if any taskset matches the specified metadata """
-    return bool(self._resolve_TaskSet(desired_metadata))
+    return bool(self._resolve_TaskSet(desired_metadata)) or self.fallback.has_TaskSet(desired_metadata)
 
   def get_TaskSet(self, desired_metadata):
     """ Convenience function to bypass tag resolution """
     tags = self._resolve_TaskSet(desired_metadata)
-    if len(tags) == 0: raise NoData
-    elif len(tags) > 1: raise InsufficientMetadata
+    if len(tags) == 0: 
+      return self.fallback.get_TaskSet(desired_metadata)
+    elif len(tags) > 1: 
+      raise InsufficientMetadata
     try:
       return self._get_TaskSet(tags[0])
     except tables.NoSuchNodeError:
       logger.warning('Removing damaged TaskSet node with metadata %s', str(desired_metadata))
       self.fileh.removeNode(self.tasksets, tags[0], recursive=True)
-      raise NoData
+      return self.get_TaskSet(desired_metadata)
 
   def get_TaskSets(self, desired_metadata):
     tags = self._resolve_TaskSet(desired_metadata)
-    return [self._get_TaskSet(t) for t in tags]
-  
-  # No longer need this if we work with proxy-based store access: can just get the taskset
-  # itself as the actual expensive load of data only occurs on demand.
-  @deprecated
-  def _get_TaskSetMetadata(self, taskset_tag):
     try:
-      taskset_entry  = getattr(self.tasksets, taskset_tag)
-    except AttributeError:
-      raise KeyError, str(taskset_tag)
-    metadata = get_metadata(taskset_entry)
-    return metadata
-
+      fallback_tasks = self.fallback.get_TaskSets(desired_metadata)
+    except NoData:
+      pass
+    return [self._get_TaskSet(t) for t in tags] + fallback_tasks
+  
   def _del_TaskSet(self, taskset_tag):
     if not hasattr(self.tasksets, taskset_tag):
       raise KeyError, str(taskset_tag)
@@ -1080,31 +1026,29 @@ class Store(object):
 
   def has_TaskSetResult(self, desired_metadata):
     """ Check if the TaskSetResult already exists """
-    return bool(self._resolve_TaskSetResults(desired_metadata))
+    return bool(self._resolve_TaskSetResults(desired_metadata)) or self.fallback.has_TaskSetResult(desired_metadata)
 
   def get_TaskSetResult(self, desired_metadata):
     """ Convenience function to bypass tag resolution """
     tags = self._resolve_TaskSetResults(desired_metadata)
-    if len(tags) == 0: raise NoData
-    elif len(tags) > 1: raise InsufficientMetadata
+    if len(tags) == 0: 
+      return self.fallback.get_TaskSetResult(desired_metadata)
+    elif len(tags) > 1: 
+      raise InsufficientMetadata
     return self._get_TaskSetResult(tags[0])
 
   def get_TaskSetResults(self, desired_metadata):
     tags = self._resolve_TaskSetResults(desired_metadata)
-    return [ self._get_TaskSetResult(t) for t in tags ]
-
-  # TODO: Replace uses of this with a direct access to a StoredTaskSetResult, which does not
-  # load results until they are explicitly accessed.
-  @deprecated
-  def _get_TaskSetResultMetadata(self, tsr_tag):
-    tsr_entry  = getattr(self.results, tsr_tag)
-    return get_metadata(tsr_entry)
-
+    try:
+      fallback_tasks = self.fallback.get_TaskSetsResults(desired_metadata)
+    except NoData:
+      pass
+    return [self._get_TaskSetResults(t) for t in tags] + fallback_tasks
+  
   def _del_TaskSetResult(self, tsr_tag):
     if not hasattr(self.results, tsr_tag):
       raise KeyError, str(tsr_tag)
     self.fileh.removeNode(self.results, tsr_tag, True)
-
 
   def _get_TaskSetResult(self, tsr_tag):
     try:
@@ -1181,16 +1125,21 @@ class Store(object):
       stream_array.append(stream)
 
   def get_TokenStreams(self, dsname, stream_name):
-    dsnode = getattr(self.datasets, dsname)
-    tsnode = getattr(dsnode.tokenstreams, stream_name)
-    return list(t for t in tsnode)
+    try:
+      dsnode = getattr(self.datasets, dsname)
+      tsnode = getattr(dsnode.tokenstreams, stream_name)
+      return list(t for t in tsnode)
+    except AttributeError:
+      return self.fallback.get_TokenStreams(dsname, stream_name)
 
   def list_TokenStreams(self, dsname):
     try:
       dsnode = getattr(self.datasets, dsname)
-      return set(node._v_name for node in dsnode.tokenstreams)
+      retval = set(node._v_name for node in dsnode.tokenstreams)
     except tables.NoSuchNodeError:
-      return set()
+      retval = set()
+    retval |= self.fallback.list_TokenStreams(dsname)
+    return retval
 
   ###
   # Sequence
@@ -1211,23 +1160,30 @@ class Store(object):
                          )
 
   def get_Sequence(self, dsname, seq_name):
-    dsnode = getattr(self.datasets, dsname)
-    sqnode = getattr(dsnode.sequence, seq_name)
-    # Should be reading each row of the array as a member of a sequence
-    # e.g. a row is a thread, each index is the instance index in dataset representing posts
-    # returns a list of arrays.
-    return self._read_sparse_node(sqnode)
+    try:
+      dsnode = getattr(self.datasets, dsname)
+      sqnode = getattr(dsnode.sequence, seq_name)
+      # Should be reading each row of the array as a member of a sequence
+      # e.g. a row is a thread, each index is the instance index in dataset representing posts
+      # returns a list of arrays.
+      return self._read_sparse_node(sqnode)
+    except AttributeError:
+      return self.fallback.get_Sequence(dsname, seq_name)
 
   def list_Sequence(self, dsname):
     dsnode = getattr(self.datasets, dsname)
-    return set(node._v_name for node in dsnode.sequence)
+    retval = set(node._v_name for node in dsnode.sequence)
+    retval |= self.fallback.list_Sequence(dsname)
+    return retval
 
   ###
   # Splits
   ###
   def list_Split(self, dsname):
     dsnode = getattr(self.datasets, dsname)
-    return set(node._v_name for node in dsnode.split)
+    retval = set(node._v_name for node in dsnode.split)
+    retval |= self.fallback.list_Split(dsname)
+    return retval
 
   def add_Split(self, dsname, split_name, split):
     # TODO: Sanity checks
@@ -1248,67 +1204,8 @@ class Store(object):
     try:
       data = getattr(dsnode.split, split_name)
     except AttributeError:
-      raise NoData
+      return self.fallback.get_Split(dsname, split_name)
     return data.read()
-
-  ###
-  # Summary
-  ###
-
-  @deprecated
-  def add_Summary(self, tsr_id, interpreter_id, summary, overwrite=False):
-    """
-    Add a summary, pertaining to a particular interpreter over a 
-    particular tsr. Will create the summary node if needed, and
-    check for duplicate keys. Overwrite skips the duplicate check
-    and immediately updates the keys. 
-    """
-    tsr_node = getattr(self.results, str(tsr_id))
-    # TODO: creation of summary nodes should happen at TSR initialization
-    if not hasattr(tsr_node, 'summary'):
-      self.fileh.createGroup(tsr_node,'summary')
-    group_node = tsr_node.summary
-    if hasattr(group_node, interpreter_id):
-      summary_node = getattr(group_node, interpreter_id)
-      if not overwrite:
-        # Check for key collisions first 
-        old_keys = set(summary_node._v_attrs._v_attrnamesuser)
-        new_keys = set(summary.keys())
-        overlap = old_keys & new_keys
-        if len(overlap) != 0:
-          raise ValueError, "Already had the following keys: %s" % str(list(overlap))
-    else:
-      summary_node = self.fileh.createGroup(group_node, interpreter_id)
-    for k,v in summary.iteritems():
-      summary_node._v_attrs[k] = v
-
-  @deprecated
-  def get_Summary(self, tsr_id, interpreter_id):
-    """
-    Get a summary back from a tsr given an interpreter id
-    """
-    try:
-      group_node = getattr(self.results, str(tsr_id)).summary
-      attr_node = getattr(group_node, interpreter_id)._v_attrs
-      return dict( (k,attr_node[k]) for k in attr_node._v_attrnamesuser )
-    except tables.NoSuchNodeError:
-      return {}
-
-  @deprecated
-  def del_Summary(self, tsr_id, interpreter_id):
-    """
-    Delete the summary for a given tsr/interpreter combo.
-    """
-    tsr_node = getattr(self.results, str(tsr_id))
-    if not hasattr(tsr_node, 'summary'):
-      return False
-    group_node = tsr_node.summary
-    if hasattr(group_node, interpreter_id):
-      summary_node = getattr(group_node, interpreter_id)
-      self.fileh.removeNode(summary_node)
-      return True
-    else:
-      return False
 
   ###
   # Merge
@@ -1464,5 +1361,19 @@ class Store(object):
     if do_results:
       __merge('results', self.has_TaskSetResult)
 
+class NullStore(Store):
+  def __init__(self):
+    def null_list(*args, **kwargs): return set()
+    def null_has(*args, **kwargs): return False
+    def null_get(*args, **kwargs): raise NoData
+      
+    for key in dir(self.__class__):
+      if key.startswith('get_'):
+        setattr(self, key, null_get)
+      elif key.startswith('list_'):
+        setattr(self, key, null_list)
+      elif key.startswith('has_'):
+        setattr(self, key, null_has)
 
-
+  def __del__(self):
+    pass

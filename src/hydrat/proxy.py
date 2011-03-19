@@ -36,12 +36,7 @@ class DataProxy(TaskSet):
       self.store = store
       work_path = os.path.dirname(store.path)
     elif store is None:
-      # Open a store named after the top-level calling file
-      import inspect
-      stack = inspect.stack()
-      filename = os.path.basename(stack[-1][1])
-      store_path = os.path.splitext(filename)[0]+'.h5'
-      self.store = Store(store_path, 'a')
+      self.store = Store.from_caller()
     else:
       self.store = Store(store, 'a')
 
