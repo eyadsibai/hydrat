@@ -851,10 +851,10 @@ class Store(object):
     ds = getnode(self.datasets, dsname)
     try:
       class_node = getnode(ds.class_data, space_name) 
-      data = getattr(class_node, 'class_map')
-    except AttributeError:
+    except NoData:
       return self.fallback.get_ClassMap(dsname, space_name)
 
+    data = getattr(class_node, 'class_map')
     metadata = dict\
                  ( dataset=dsname
                  , class_space=space_name
@@ -873,7 +873,7 @@ class Store(object):
     space = self.get_Space(space_name)
     try:
       feature_node = getnode(ds.feature_data, space_name)
-    except AttributeError:
+    except NoData:
       return self.fallback.get_FeatureMap(dsname, space_name)
 
     data_type = feature_node._v_attrs.type
