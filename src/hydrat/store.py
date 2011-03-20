@@ -26,7 +26,7 @@ class NoData(StoreError): pass
 class AlreadyHaveData(StoreError): pass
 class InsufficientMetadata(StoreError): pass
 
-# TODO: Avoid leaking uuids out with tasksets and/or results.
+# TODO: Provide a datamodel abstraction for datasets 
 
 # Features are internally stored as sparse arrays, which are serialized at the
 # pytables level to tables of instance, feature, value triplets. We support
@@ -722,11 +722,16 @@ class Store(object):
     for key in md:
       setattr(taskset_entry_attrs, key, md[key])
 
-    logger.debug('Adding a taskset %s', str(md))
+    try:
+      logger.debug('Adding a taskset %s', str(md))
 
-    for i,task in enumerate(ProgressIter(taskset.tasks, label="Adding Tasks")):
-      self._add_Task(task, taskset_entry)
-    self.fileh.flush()
+      for i,task in enumerate(ProgressIter(taskset.tasks, label="Adding Tasks")):
+        self._add_Task(task, taskset_entry)
+      self.fileh.flush()
+    except Exception:
+      # Delete the node if any exceptions occur
+      self.fileh.removeNode(taskset_entry, recursive=True)
+      raise
 
     return taskset_entry_tag
 
@@ -739,7 +744,12 @@ class Store(object):
     else:
       try:
         ds = getnode(self.datasets, dsname)
-        retval = set(node._v_name for node in ds.class_data)
+        if space_type == 'feature':
+          retval = set(node._v_name for node in ds.feature_data)
+        elif space_type == 'class':
+          retval = set(node._v_name for node in ds.class_data)
+        else:
+          raise ValueError, "don't know about space type %s" % space_type
       except NoData:
         retval = set()
     retval |= self.fallback.list_Spaces(space_type, dsname)
@@ -979,26 +989,37 @@ class Store(object):
     return bool(self._resolve_TaskSet(desired_metadata)) or self.fallback.has_TaskSet(desired_metadata)
 
   def get_TaskSet(self, desired_metadata):
-    """ Convenience function to bypass tag resolution """
-    tags = self._resolve_TaskSet(desired_metadata)
-    if len(tags) == 0: 
-      return self.fallback.get_TaskSet(desired_metadata)
-    elif len(tags) > 1: 
+    """ Convenience function to ensure exactly one TaskSet is returned"""
+    tasksets = self.get_TaskSets(desired_metadata)
+    if len(tasksets) == 0: 
+      raise NoData
+    elif len(tasksets) > 1: 
       raise InsufficientMetadata
-    try:
-      return self._get_TaskSet(tags[0])
-    except tables.NoSuchNodeError:
-      logger.warning('Removing damaged TaskSet node with metadata %s', str(desired_metadata))
-      self.fileh.removeNode(self.tasksets, tags[0], recursive=True)
-      return self.get_TaskSet(desired_metadata)
+    return tasksets[0]
 
   def get_TaskSets(self, desired_metadata):
+    # NOTE: When working with tasksets from the fallback, it is possible that the
+    # primary is writeable but the fallback is not, so writing weights can be 
+    # an issue. The ideal solution would be a copy-on-write of the entire
+    # taskset, but it is a non-trivial task to implement and as such implementation
+    # is deferred until it is shown to be needed.
     tags = self._resolve_TaskSet(desired_metadata)
+    tasksets = []
+    for tag in tags:
+      try:
+        taskset = self._get_TaskSet(tag)
+      except tables.NoSuchNodeError:
+        logger.warning('Removing damaged TaskSet node with metadata %s', str(desired_metadata))
+        continue
+      tasksets.append(taskset)
+
     try:
       fallback_tasks = self.fallback.get_TaskSets(desired_metadata)
     except NoData:
       fallback_tasks = []
-    return [self._get_TaskSet(t) for t in tags] + fallback_tasks
+
+    tasksets.extend(fallback_tasks)
+    return tasksets
   
   def _del_TaskSet(self, taskset_tag):
     if not hasattr(self.tasksets, taskset_tag):
