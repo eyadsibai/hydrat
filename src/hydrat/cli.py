@@ -161,12 +161,7 @@ class HydratCmdln(cmdln.Cmdln):
     import tempfile
     import updatedir
     import shutil
-    sys.path.append('.')
-    try:
-      import browser_config
-    except ImportError:
-      # TODO: This has the side effect of failing if your browser_config fails with an importerror.
-      import hydrat.browser.browser_config as browser_config
+    from hydrat.configuration import browser_config
 
     store = Store(store_path)
     scratchP = tempfile.mkdtemp('output', dir=config.getpath('paths','scratch'))
@@ -207,12 +202,7 @@ class HydratCmdln(cmdln.Cmdln):
     from hydrat.store import Store
     from hydrat.browser import StoreBrowser
     store = Store(store_path, 'a' if opts.modify else 'r')
-    import sys
-    sys.path.append('.')
-    try:
-      import browser_config
-    except ImportError:
-      import hydrat.browser.browser_config as browser_config
+    from hydrat.configuration import browser_config
 
     # Try to determine local IP address
     # from http://stackoverflow.com/questions/166506/finding-local-ip-addresses-in-python
@@ -231,3 +221,25 @@ class HydratCmdln(cmdln.Cmdln):
       import webbrowser
       webbrowser.open('http://%s:%d'%(hostname, opts.port))
     cherrypy.engine.block()
+
+  def do_csv(self, subcmd, opts, store_path, output_path):
+    """${cmd_name}: produce output in csv format
+
+    ${cmd_usage} 
+    """
+    import csv
+    from hydrat.store import Store
+    from hydrat.display.tsr import project_compound
+    from hydrat.configuration import browser_config as bconfig
+    store = Store(store_path)
+    fieldnames = zip(*bconfig.relevant)[1]
+    with open(output_path, 'w') as outfile:
+      writer = csv.DictWriter(outfile, fieldnames, extrasaction='ignore' )
+      writer.writerow(dict( (x,x) for x in fieldnames ))
+
+      summaries = []
+      for tsr in store.get_TaskSetResults({}):
+        summaries.append( tsr.summarize(bconfig.summary_fn, bconfig.interpreter) )
+      summaries = project_compound(summaries, fieldnames)
+      writer.writerows(summaries)
+
