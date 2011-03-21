@@ -105,7 +105,7 @@ class page(markup.page):
             if row_headings is not None:
               self.th(row_headings[i])
             for c in cols:
-              self.td(rows[i][c] if c in rows[i] else 'UNKNOWN')
+              self.td(str(rows[i][c]) if c in rows[i] else 'UNKNOWN')
 
       if footer is not None:
         with self.tfoot:
