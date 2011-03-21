@@ -331,4 +331,12 @@ def load_configuration(config):
     # TODO: Test writable?
     raise HydratConfigError, "Scratch path '%s' does not exist" % scratchpath
    
-
+# Import of the browser configuration
+import sys
+sys.path.append('.')
+try:
+  import browser_config
+except ImportError:
+  logger.debug('did not find a local browser_config.py')
+  import hydrat.browser.browser_config as browser_config
+del sys.path[-1]
