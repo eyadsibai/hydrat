@@ -5,6 +5,12 @@ class Transform(TaskSet):
     self.taskset = taskset 
     self.transformer = transformer
 
+  def __getattr__(self, key):
+    if key in self.__dict__:
+      return self.__dict__[key]
+    else:
+      return getattr(self.taskset, key)
+
   @property
   def metadata(self):
     # TODO: how about parametrized transformers?
