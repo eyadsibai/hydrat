@@ -5,7 +5,6 @@ import cherrypy
 import urllib
 import StringIO
 import hydrat.common.markup as markup
-from hydrat.store import Store
 
 from common import page_config
 from spaces import Spaces
