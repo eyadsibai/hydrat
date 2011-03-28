@@ -184,6 +184,18 @@ class SpaceProxy(object):
 
 class StoredTaskSet(SpaceProxy, Stored, TaskSet):
   @property
+  def classlabels(self):
+    return self.store.get_Space(self.metadata['class_space'])
+
+  @property
+  def featurelabels(self):
+    feature_spaces = self.metadata['feature_desc']
+    labels = []
+    for feature_space in sorted(feature_spaces):
+      labels.extend(self.store.get_Space(feature_space))
+    return labels
+    
+  @property
   def tasks(self):
     tasks = []
     for task_node in self.node._v_groups.values():
@@ -473,6 +485,10 @@ class Store(object):
     inst, feat = data.nonzero()
     node.append(numpy.rec.fromarrays((inst.astype('uint64'), feat.astype('uint64'), data.data)))
     self.fileh.flush()
+
+
+  def has_Space(self, name):
+    return hasattr(self.spaces, name)
   
   ###
   # Add
@@ -841,6 +857,14 @@ class Store(object):
     except NoData:
       return self.fallback.has_Data(dsname, space_name)
 
+  def has_Dataset(self, dsname):
+    # TODO: Worry about consistency issues as a result of
+    # writing to a dataset that only exists in the fallback
+    if hasattr(self.datasets, dsname):
+      return True
+    else:
+      return self.fallback.has_Dataset(dsname)
+
   def get_ClassMap(self, dsname, space_name):
     """
     @param dsname: Name of the dataset
@@ -848,8 +872,8 @@ class Store(object):
     @return: data corresponding to the given dataset in the given class space
     @rtype: pytables array
     """
-    ds = getnode(self.datasets, dsname)
     try:
+      ds = getnode(self.datasets, dsname)
       class_node = getnode(ds.class_data, space_name) 
     except NoData:
       return self.fallback.get_ClassMap(dsname, space_name)
@@ -869,9 +893,9 @@ class Store(object):
     @return: data corresponding to the given dataset in the given feature space
     @rtype: varies 
     """
-    ds = getnode(self.datasets, dsname)
-    space = self.get_Space(space_name)
     try:
+      ds = getnode(self.datasets, dsname)
+      space = self.get_Space(space_name)
       feature_node = getnode(ds.feature_data, space_name)
     except NoData:
       return self.fallback.get_FeatureMap(dsname, space_name)
