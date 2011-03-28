@@ -108,7 +108,7 @@ class Task(object):
 
   def compute_weight(self, weight_function):
     if weight_function.__name__ not in self.weights:
-      self.weights[weight_function.__name__] = weight_function(t.train_vectors, t.train_classes)
+      self.weights[weight_function.__name__] = weight_function(self.train_vectors, self.train_classes)
     return self.weights[weight_function.__name__]
 
 class DataTask(Task):
