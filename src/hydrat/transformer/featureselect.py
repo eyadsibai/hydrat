@@ -12,7 +12,7 @@ class FeatureSelect(Transformer):
 
   def learn(self, feature_map, class_map):
     wf_name = self.weighting_function.__name__
-    if self.weights[wf_name] is None:
+    if wf_name not in self.weights or self.weights[wf_name] is None:
       self.logger.debug('Learning Weights')
       self.weights[wf_name] = self.weighting_function(feature_map, class_map)
     else:
