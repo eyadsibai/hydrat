@@ -41,7 +41,7 @@ class DatasetInducer(object):
     dsname = dataset.__name__
 
     # Work out if this is the first time we encounter this dataset
-    if hasattr(self.store.datasets, dsname):
+    if self.store.has_Dataset(dsname):
       logger.debug("Already had dataset '%s'", dsname)
     else:
       logger.debug("Adding new dataset '%s'", dsname)
@@ -75,11 +75,11 @@ class DatasetInducer(object):
     # Handle explicit class spaces 
     for key in set(dataset.classspace_names):
       logger.debug("Processing explicit class space '%s'", key)
-      try:
+      if self.store.has_Space(key):
+        logger.debug('Already have space %s', key)
+      else:
         c_metadata = {'type':'class','name':key}
         self.store.add_Space(dataset.classspace(key), c_metadata)
-      except AlreadyHaveData, e:
-        logger.debug(e)
 
     # Handle all the class maps
     for key in cms - present_cm:
