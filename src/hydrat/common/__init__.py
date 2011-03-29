@@ -54,14 +54,15 @@ def timed_report(seq, interval, callback):
       next_call = t + interval 
     yield x
     
-def entropy(v):
-  assert isinstance(v, numpy.ndarray)
-  s = v.sum()
-  if s == 0: return 0.0
-  p = v / float(s)
-  o = numpy.seterr(divide='ignore', invalid='ignore')
-  r = -1 * numpy.nansum( p * numpy.log2(p))
-  numpy.seterr(**o)
+def entropy(v, axis=0):
+  """
+  Optimized implementation of entropy. This version is faster than that in 
+  scipy.stats.distributions, particularly over long vectors.
+  """
+  v = numpy.array(v, dtype='float')
+  s = numpy.sum(v, axis=axis)
+  with numpy.errstate(divide='ignore', invalid='ignore'):
+    r = numpy.log(s) - numpy.nansum(v * numpy.log(v), axis=axis) / s
   return r
 
 def as_set(s):

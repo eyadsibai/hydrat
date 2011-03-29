@@ -76,35 +76,46 @@ class CavnarTrenkle94(WeightingFunction):
     return feature_weights
 
 class InfoGain(WeightingFunction):
-  def __init__(self, feature_discretizer):
+  def __init__(self, feature_discretizer, chunksize=150):
     self.__name__ = 'infogain-' + feature_discretizer.__name__
     WeightingFunction.__init__(self)
     self.feature_discretizer = feature_discretizer
-  
+    self.chunksize = chunksize
+ 
   def weight(self, feature_map, class_map):
-    overall_class_distribution = class_map.sum(axis=0)
-    total_instances = float(feature_map.shape[0])
+    num_inst, num_feat = feature_map.shape
+
+    # We can eliminate unused classes as they do not contribute to entropy
+    class_map = class_map[:,class_map.sum(0) > 0]
     
     # Calculate  the entropy of the class distribution over all instances 
-    H_P = entropy(overall_class_distribution)
+    H_P = entropy(class_map.sum(0))
     self.logger.debug("Overall entropy: %.2f", H_P)
       
-    feature_weights = numpy.zeros(feature_map.shape[1], dtype=float)
-    for i in ProgressIter(range(len(feature_weights)), 'InfoGain'):
-      H_i = 0.0
-      for f_mask in self.feature_discretizer(feature_map[:,i]):
-        f_count = len(f_mask) 
-        if f_count == 0: continue # Skip unused features
-        f_distribution = class_map[f_mask].sum(axis=0)
-        f_entropy = entropy(f_distribution)
-        f_weight = f_count / total_instances
-        H_i += f_weight * f_entropy
+    # unused features have 0 information gain, so we skip them
+    nz_index = numpy.array(feature_map.sum(0).nonzero())[1,0]
+    nz_fm = feature_map[:, nz_index]
+    nz_num = len(nz_index)
+    nz_fw = numpy.zeros(nz_num, dtype=float)
+    # TODO: detemine chunksize in terms of num instances as well, mem issues.
+    for chunkstart in ProgressIter(range(0, nz_num, self.chunksize), label=self.__name__):
+      chunkend = min(nz_num, chunkstart+self.chunksize)
+      f_masks = self.feature_discretizer(nz_fm[:,chunkstart:chunkend])
+      f_count = f_masks.sum(1) # sum across instances
+      f_weight = f_count / float(num_inst) 
+      f_entropy = numpy.empty((f_masks.shape[0], f_masks.shape[2]), dtype=float)
+      # TODO: This is the main cost. See if this can be made faster. 
+      for i, band in enumerate(f_masks):
+        f_entropy[i] = entropy((class_map[:,None,:] * band[...,None]).sum(0), axis=-1)
+      H_i = (f_weight * f_entropy).sum(0) #sum across discrete bands
+      nz_fw[chunkstart:chunkend] = H_P - H_i
+    # nans are introduced by features that are entirely in a single band
+    nz_fw[numpy.isnan(nz_fw)] = 0
 
-      feature_weights[i] =  H_P - H_i
-
+    # return 0 for unused features
+    feature_weights = numpy.zeros(num_feat, dtype=float)
+    feature_weights[nz_index] = nz_fw
     return feature_weights
 
-from discretize import bernoulli, UniformBand, EquisizeBand
+from discretize import bernoulli
 ig_bernoulli = InfoGain(bernoulli)
-ig_uniform5band = InfoGain(UniformBand(5))
-ig_equisize5band = InfoGain(EquisizeBand(5))

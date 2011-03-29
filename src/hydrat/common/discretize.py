@@ -5,14 +5,15 @@ Discretization functions
 import numpy
 
 def bernoulli(v):
-  nonzero = v.nonzero()[0]
-  zero = numpy.ones((v.shape[0],), dtype=bool)
-  zero[nonzero] = False
-  zero = numpy.flatnonzero(zero)
-  return [zero, nonzero]
+  nonzero = numpy.zeros(v.shape, dtype=bool)
+  nonzero[v.nonzero()] = True
+  zero = numpy.logical_not(nonzero)
+  retval = numpy.concatenate((zero[None], nonzero[None]))
+  return retval
 
 class UniformBand(object):
   def __init__(self, bands):
+    raise NotImplementedError, "need to update"
     self.__name__ = 'uniform%dband' % bands
     self.bands = bands
 
@@ -26,6 +27,7 @@ class UniformBand(object):
 
 class EquisizeBand(object):
   def __init__(self, bands):
+    raise NotImplementedError, "need to update"
     self.__name__ = 'equisize%dband' % bands
     self.bands = bands
 
