@@ -93,6 +93,7 @@ class InfoGain(WeightingFunction):
     self.logger.debug("Overall entropy: %.2f", H_P)
       
     # unused features have 0 information gain, so we skip them
+    # TODO: We could also skip features that have value 1, as these will also have no IG.
     nz_index = numpy.array(feature_map.sum(0).nonzero())[1,0]
     nz_fm = feature_map[:, nz_index]
     nz_num = len(nz_index)
@@ -107,10 +108,12 @@ class InfoGain(WeightingFunction):
       # TODO: This is the main cost. See if this can be made faster. 
       for i, band in enumerate(f_masks):
         f_entropy[i] = entropy((class_map[:,None,:] * band[...,None]).sum(0), axis=-1)
+      # nans are introduced by features that are entirely in a single band
+      # We must redefine this to 0 as otherwise we may lose information about other bands.
+      # TODO: Push this back into the definition of entropy?
+      f_entropy[numpy.isnan(f_entropy)] = 0
       H_i = (f_weight * f_entropy).sum(0) #sum across discrete bands
       nz_fw[chunkstart:chunkend] = H_P - H_i
-    # nans are introduced by features that are entirely in a single band
-    nz_fw[numpy.isnan(nz_fw)] = 0
 
     # return 0 for unused features
     feature_weights = numpy.zeros(num_feat, dtype=float)
