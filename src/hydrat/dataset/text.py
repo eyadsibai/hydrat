@@ -37,6 +37,29 @@ class SingleDir(TextDataset):
         instances[filename] = open(filepath).read()
     return instances
 
+class DirPerClass(TextDataset):
+  def data_path(self):
+    raise NotImplementedError, "Deriving class must implement this"
+
+  def ts_byte(self):
+    path = self.data_path()
+    ts = {}
+    for cl in os.listdir(path):
+      for file in os.listdir(os.path.join(path,cl)):
+        instance_id = '%s_%s'%(cl, file)
+        with open(os.path.join(path, cl, file)) as f:
+          ts[instance_id] = f.read()
+    return ts
+
+  def cm_dirname(self):
+    path = self.data_path()
+    cm = {}
+    for cl in os.listdir(path):
+      for file in os.listdir(os.path.join(path,cl)):
+        instance_id = '%s_%s'%(cl, file)
+        cm[instance_id] = [ cl ]
+    return cm 
+
 class FilePerClass(TextDataset):
   def data_path(self):
     raise NotImplementedError, "Deriving class must implement this"
