@@ -95,16 +95,10 @@ class Dataset(object):
   def sequence_names(self): 
     return self.prefixed_names('sq')
 
-  @property
-  def instance_ids(self):
+  def identifiers(self):
     # Check with the class maps first as they are usually 
     # smaller and thus quicker to load. 
     # Then try fm and ts in that order.
-    if self._instance_ids is not None:
-      return self._instance_ids
-
-    self.logger.debug("instance_ids %s %s", self.__name__, str(self._checked_dep))
-
     prefixes = ['cm', 'fm', 'ts']
     for p in prefixes:
       for name in self.prefixed_names(p):
@@ -113,10 +107,16 @@ class Dataset(object):
           self._checked_dep.add(key)
           method = getattr(self, key)
           ids = method().keys()
-          if self._instance_ids is None:
-            self._instance_ids = list(sorted(ids))
-          return self._instance_ids
     raise NotImplementedError, "No tokenstreams, feature maps or class maps defined!"
+
+  @property
+  def instance_ids(self):
+    if self._instance_ids is None:
+      self._instance_ids = list(sorted(self.identifiers()))
+    self.logger.debug("instance_ids %s %s", self.__name__, str(self._checked_dep))
+    return self._instance_ids
+
+
 
   def features(self, tsname, extractor):
     """
