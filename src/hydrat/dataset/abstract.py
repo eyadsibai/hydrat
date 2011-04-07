@@ -100,13 +100,15 @@ class Dataset(object):
     # smaller and thus quicker to load. 
     # Then try fm and ts in that order.
     prefixes = ['cm', 'fm', 'ts']
+    self.logger.debug('trying to get identifier set')
     for p in prefixes:
       for name in self.prefixed_names(p):
         key = '_'.join((p, name))
+        self.logger.debug('trying %s', key)
         if key not in self._checked_dep:
           self._checked_dep.add(key)
           method = getattr(self, key)
-          ids = method().keys()
+          return method().keys()
     raise NotImplementedError, "No tokenstreams, feature maps or class maps defined!"
 
   @property
@@ -126,10 +128,12 @@ class Dataset(object):
     tokenstream = self.tokenstream(tsname)
     # TODO: Instead of a dict, use a disk-backed data structure. Would be useful if there was some way
     # to avoid duplicating keys perhaps.
-    fm = {}
+    # fm = {}
+    from hydrat.common.diskdict import diskdict
+    fm = diskdict(config.getpath('paths','scratch'))
 
-    for instance_id in ProgressIter(tokenstream, label="Processing Documents"):
-      fm[instance_id] = extractor(tokenstream[instance_id])
+    for instance_id in ProgressIter(tokenstream, label="%s(%s)" % (extractor.__name__, tsname)):
+      fm[instance_id] = dict(extractor(tokenstream[instance_id]))
       if len(fm[instance_id]) == 0:
         msg =  "%s_%s has no tokens for '%s'" % (tsname, extractor.__name__, instance_id)
         if config.getboolean('debug','allow_empty_instance'):
