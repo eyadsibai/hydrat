@@ -186,7 +186,11 @@ class DatasetInducer(object):
     logger.debug("Computing feature map")
     # Build a list of triplets:
     # (instance#, feat#, value)
-    feat_map = []
+    # TODO: implement a disk-backed storage for the feature sequence
+    #feat_map = []
+    from hydrat.common.disklist import disklist
+    feat_map = disklist()
+
     for i, id in enumerate(ProgressIter(instance_ids,label='FeatureMap(%s)' % space_name)):
       d = feat_dict[id]
       for feat in d:
