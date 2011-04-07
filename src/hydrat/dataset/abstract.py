@@ -124,6 +124,8 @@ class Dataset(object):
     named tokenstream.
     """
     tokenstream = self.tokenstream(tsname)
+    # TODO: Instead of a dict, use a disk-backed data structure. Would be useful if there was some way
+    # to avoid duplicating keys perhaps.
     fm = {}
 
     for instance_id in ProgressIter(tokenstream, label="Processing Documents"):
