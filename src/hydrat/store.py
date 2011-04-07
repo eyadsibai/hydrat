@@ -621,6 +621,7 @@ class Store(object):
                                   , space._v_name
                                   , "Sparse Feature Map %s" % space._v_name
                                   )
+    # TODO: is this very expensive?
     group._v_attrs.type  = 'int' if all(isinstance(i[2], int) for i in feat_map) else 'float'
 
     fm_node = self.fileh.createTable( group
@@ -633,31 +634,20 @@ class Store(object):
 
     # Initialize space to store instance sizes.
     n_inst = len(self.get_Space(dsname))
-    # TODO: instance sizes makes no sense in the context of float features!
-    #       the whole notion of instance size should disappear, as it only makes sense for count features
-
-    instance_sizes = numpy.zeros(n_inst, dtype='uint64')
     
     attrs = fm_node._v_attrs
     setattr(attrs, 'dtype', group._v_attrs.type)
     setattr(attrs, 'shape', (n_inst, len(space)))
 
+    logger.debug("  writing table")
     # Add the features to the table
     feature = fm_node.row
+    #for i, j, v in ProgressIter(feat_map, label='write table'):
     for i, j, v in feat_map:
       feature['ax0'] = i
       feature['ax1'] = j
       feature['value'] = v
       feature.append()
-      if group._v_attrs.type == 'int':
-        instance_sizes[i] += v # Keep tally of instance size
-
-    # Store the instance sizes
-    fm_sizes = self.fileh.createArray( group
-                                     , 'instance_size'
-                                     , instance_sizes
-                                     , title = 'Instance Sizes'
-                                     )
 
     self.fileh.flush()
 
