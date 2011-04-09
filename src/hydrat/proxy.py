@@ -247,6 +247,8 @@ class DataProxy(TaskSet):
     Map a feature extractor onto a tokenstream and save the corresponding
     output into the backing store.
     """
+    if self.tokenstream_name is None:
+      raise ValueError, "tokenstream_name not set"
     # Definition of space name.
     space_name = '_'.join((self.tokenstream_name,extractor.__name__))
     if not self.store.has_Data(self.dsname, space_name):
