@@ -170,7 +170,10 @@ class Dataset(object):
     page.table()
     for i in present_features:
       page.tr()
-      page.td(space[i].encode(encoding))
+      try:
+        page.td(space[i].encode(encoding))
+      except UnicodeDecodeError:
+        page.td(repr(space[i]))
       page.td(str(instance[0,i]))
       page.tr.close()
     page.table.close()
