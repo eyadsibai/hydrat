@@ -1,5 +1,8 @@
 import numpy
 import logging
+
+from multiprocessing import Pool
+
 from hydrat.common import entropy, rankdata
 from hydrat.common.pb import ProgressIter
 
@@ -75,8 +78,24 @@ class CavnarTrenkle94(WeightingFunction):
     feature_weights = numpy.min(profiles, axis=0)
     return feature_weights
 
+def split_info(arg):
+  f_masks, class_map = arg
+  num_inst = f_masks.shape[1]
+  f_count = f_masks.sum(1) # sum across instances
+  f_weight = f_count / float(num_inst) 
+  f_entropy = numpy.empty((f_masks.shape[0], f_masks.shape[2]), dtype=float)
+  # TODO: This is the main cost. See if this can be made faster. 
+  for i, band in enumerate(f_masks):
+    f_entropy[i] = entropy((class_map[:,None,:] * band[...,None]).sum(0), axis=-1)
+  # nans are introduced by features that are entirely in a single band
+  # We must redefine this to 0 as otherwise we may lose information about other bands.
+  # TODO: Push this back into the definition of entropy?
+  f_entropy[numpy.isnan(f_entropy)] = 0
+  return (f_weight * f_entropy).sum(0) #sum across discrete bands
+  
 class InfoGain(WeightingFunction):
-  def __init__(self, feature_discretizer, chunksize=150):
+  def __init__(self, feature_discretizer, chunksize=50):
+    # TODO: detemine chunksize in terms of num instances as well, mem issues.
     self.__name__ = 'infogain-' + feature_discretizer.__name__
     WeightingFunction.__init__(self)
     self.feature_discretizer = feature_discretizer
@@ -93,27 +112,19 @@ class InfoGain(WeightingFunction):
     self.logger.debug("Overall entropy: %.2f", H_P)
       
     # unused features have 0 information gain, so we skip them
-    # TODO: We could also skip features that have value 1, as these will also have no IG.
     nz_index = numpy.array(feature_map.sum(0).nonzero())[1,0]
     nz_fm = feature_map[:, nz_index]
     nz_num = len(nz_index)
-    nz_fw = numpy.zeros(nz_num, dtype=float)
-    # TODO: detemine chunksize in terms of num instances as well, mem issues.
-    for chunkstart in ProgressIter(range(0, nz_num, self.chunksize), label=self.__name__):
-      chunkend = min(nz_num, chunkstart+self.chunksize)
-      f_masks = self.feature_discretizer(nz_fm[:,chunkstart:chunkend])
-      f_count = f_masks.sum(1) # sum across instances
-      f_weight = f_count / float(num_inst) 
-      f_entropy = numpy.empty((f_masks.shape[0], f_masks.shape[2]), dtype=float)
-      # TODO: This is the main cost. See if this can be made faster. 
-      for i, band in enumerate(f_masks):
-        f_entropy[i] = entropy((class_map[:,None,:] * band[...,None]).sum(0), axis=-1)
-      # nans are introduced by features that are entirely in a single band
-      # We must redefine this to 0 as otherwise we may lose information about other bands.
-      # TODO: Push this back into the definition of entropy?
-      f_entropy[numpy.isnan(f_entropy)] = 0
-      H_i = (f_weight * f_entropy).sum(0) #sum across discrete bands
-      nz_fw[chunkstart:chunkend] = H_P - H_i
+
+    # compute the information gain of nonzero features
+    pool = Pool()
+    def chunks():
+      for chunkstart in ProgressIter(range(0, nz_num, self.chunksize), label=self.__name__):
+        chunkend = min(nz_num, chunkstart+self.chunksize)
+        yield (self.feature_discretizer(nz_fm[:,chunkstart:chunkend]), class_map)
+    x = pool.imap(split_info, chunks())
+    nz_fw = H_P - numpy.hstack(x)
+
 
     # return 0 for unused features
     feature_weights = numpy.zeros(num_feat, dtype=float)
