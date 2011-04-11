@@ -2,6 +2,7 @@ import logging
 import os
 from hydrat import config
 from hydrat.common.pb import ProgressIter
+from hydrat.common.diskdict import diskdict
 
 # TODO: Automatically monkeypatch an instance when a particular ts/fm/cm is loaded, 
 #       so we don't try to load it from disk again.
@@ -129,7 +130,6 @@ class Dataset(object):
     # TODO: Instead of a dict, use a disk-backed data structure. Would be useful if there was some way
     # to avoid duplicating keys perhaps.
     # fm = {}
-    from hydrat.common.diskdict import diskdict
     fm = diskdict(config.getpath('paths','scratch'))
 
     for instance_id in ProgressIter(tokenstream, label="%s(%s)" % (extractor.__name__, tsname)):
