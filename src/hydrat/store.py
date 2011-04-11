@@ -415,6 +415,7 @@ class Store(object):
       self.fallback = NullStore()
     else:
       if not isinstance(fallback, Store):
+        # TODO: allow just a path to be specified
         raise ValueError, "fallback argument must be a Store instance"
       self.fallback = fallback
 
@@ -611,6 +612,9 @@ class Store(object):
     # Create a group for Splits
     self.fileh.createGroup(ds, "split")
 
+    # return the newly created ds node
+    return ds
+
   def add_FeatureDict(self, dsname, space_name, feat_map):
     self._check_writeable()
     logger.debug("Adding feature map to dataset '%s' in space '%s'", dsname, space_name)
@@ -786,7 +790,7 @@ class Store(object):
                     in   node._v_attrs._v_attrnamesuser
                     )
       return metadata
-    except AttributeError:
+    except (AttributeError, NoData):
       return self.fallback.get_Metadata(parent, identifier)
 
   def get_SpaceMetadata(self, space_name):
@@ -1235,7 +1239,15 @@ class Store(object):
   def add_Split(self, dsname, split_name, split):
     # TODO: Sanity checks
     self._check_writeable()
-    dsnode = getnode(self.datasets, dsname)
+
+    # Handle cases where the dsnode only exists in the fallback.
+    try:
+      dsnode = getnode(self.datasets, dsname)
+    except NoData:
+      md = self.get_DatasetMetadata(dsname)
+      ids = self.get_Space(md['instance_space'])
+      dsnode = self.add_Dataset(dsname, md['instance_space'], ids) 
+
     sp_node = self.fileh.createCArray( dsnode.split
                                      , split_name
                                      , tables.BoolAtom()
