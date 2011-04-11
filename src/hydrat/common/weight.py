@@ -39,7 +39,7 @@ class DocumentFrequency(WeightingFunction):
 
   def weight(self, feature_map, class_map):
     fm = feature_map.copy()
-    fm.data = (fm.data > self.threshold)
+    fm.data = (fm.data > self.threshold).astype(fm.dtype)
     raw = fm.sum(axis=0)
     return numpy.array(raw)[0]
 
