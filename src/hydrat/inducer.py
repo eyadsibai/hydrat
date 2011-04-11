@@ -7,6 +7,7 @@ from hydrat.common.pb import ProgressIter
 from hydrat.common import as_set
 from hydrat.common.sequence import sequence2matrix
 from hydrat.task.sampler import membership_vector
+from hydrat.common.disklist import disklist
 
 logger = logging.getLogger(__name__)
 
@@ -188,8 +189,7 @@ class DatasetInducer(object):
     # (instance#, feat#, value)
     # TODO: implement a disk-backed storage for the feature sequence
     #feat_map = []
-    from hydrat.common.disklist import disklist
-    feat_map = disklist()
+    feat_map = disklist(config.getpath('paths','scratch'))
 
     for i, id in enumerate(ProgressIter(instance_ids,label='FeatureMap(%s)' % space_name)):
       d = feat_dict[id]
