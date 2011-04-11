@@ -222,6 +222,8 @@ class DataProxy(TaskSet):
   @property 
   def classmap(self):
     self.inducer.process(self.dataset, cms=self.class_space)
+    if self.class_space is None:
+      raise ValueError, "class space not set"
     cm = self.store.get_ClassMap(self.dsname, self.class_space)
     return ClassMap(cm.raw, split=self.split, metadata=cm.metadata)
    
