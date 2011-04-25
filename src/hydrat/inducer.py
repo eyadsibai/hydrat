@@ -187,8 +187,6 @@ class DatasetInducer(object):
     logger.debug("Computing feature map")
     # Build a list of triplets:
     # (instance#, feat#, value)
-    # TODO: implement a disk-backed storage for the feature sequence
-    #feat_map = []
     feat_map = disklist(config.getpath('paths','scratch'))
 
     for i, id in enumerate(ProgressIter(instance_ids,label='FeatureMap(%s)' % space_name)):
