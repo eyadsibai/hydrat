@@ -847,6 +847,7 @@ class Store(object):
       ds = getnode(self.datasets, dsname)
       return (  hasattr(ds.class_data,   space_name) 
             or hasattr(ds.feature_data, space_name)
+            or self.fallback.has_Data(dsname, space_name)
             )
     except NoData:
       return self.fallback.has_Data(dsname, space_name)
