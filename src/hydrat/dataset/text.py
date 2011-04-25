@@ -44,7 +44,8 @@ class DirPerClass(TextDataset):
   def ts_byte(self):
     path = self.data_path()
     ts = {}
-    for cl in os.listdir(path):
+    cls = [ c for c in os.listdir(path) if os.path.isdir(os.path.join(path, c)) ]
+    for cl in cls:
       for file in os.listdir(os.path.join(path,cl)):
         instance_id = '%s_%s'%(cl, file)
         with open(os.path.join(path, cl, file)) as f:
@@ -54,7 +55,8 @@ class DirPerClass(TextDataset):
   def cm_dirname(self):
     path = self.data_path()
     cm = {}
-    for cl in os.listdir(path):
+    cls = [ c for c in os.listdir(path) if os.path.isdir(os.path.join(path, c)) ]
+    for cl in cls:
       for file in os.listdir(os.path.join(path,cl)):
         instance_id = '%s_%s'%(cl, file)
         cm[instance_id] = [ cl ]
