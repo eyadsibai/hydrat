@@ -12,7 +12,7 @@ from collections import defaultdict
 
 from hydrat import config
 from hydrat.dataset.iso639 import ISO639_1, ISO639_1_CODES
-from hydrat.dataset.text import ByteUBT
+from hydrat.dataset.text import ByteUBT, DirPerClass
 from hydrat.dataset.encoded import CodepointUBT
 from hydrat.common.decorators import replace_with_result
 from hydrat.configuration import Configurable, DIR
@@ -24,7 +24,7 @@ class DebianPOFiles(Configurable, ISO639_1, ByteUBT, CodepointUBT):
     }
 
   def data_path(self):
-    return config.getpath('corpora', 'debian-pofiles')
+    return os.path.join(config.getpath('corpora', 'debian-pofiles'), 'debian-unstable-po-v1', 'extracted')
 
   @replace_with_result
   def cm_iso639_1(self):
@@ -87,3 +87,37 @@ class DebianPOFiles(Configurable, ISO639_1, ByteUBT, CodepointUBT):
         if doc_id not in encodings:
           encodings[doc_id] = 'utf-8'
     return encodings
+
+class DebianLang10k(Configurable, DirPerClass, ISO639_1, ByteUBT, CodepointUBT):
+  requires={
+    ('corpora', 'debian-pofiles') : DIR('debian-pofiles'),
+    }
+
+  def data_path(self):
+    return os.path.join(config.getpath('corpora', 'debian-pofiles'), 'debian-unstable-po-v2', 'lang')
+
+  def cm_iso639_1(self):
+    return self.classmap('dirname')
+
+  def encodings(self):
+    path = self.data_path()
+    ids = set(self.instance_ids)
+    encodings = dict()
+
+    with open(os.path.join(path, 'metadata')) as enc_file:
+      reader = csv.reader(enc_file)
+      for doc_id, lang, enc in reader:
+        if doc_id in ids:
+          # TODO: push this codecs check further up
+          try:
+            codecs.lookup(enc)
+          except LookupError:
+            raise ValueError, "unknown encoding %s for %s" % (enc, doc_id)
+          encodings[doc_id] = enc
+
+      # We will pretend all of 'en' is utf-8 and hope for the best!
+      for doc_id in ids:
+        if doc_id not in encodings:
+          raise ValueError, "%s does not have an encoding" % doc_id
+    return encodings
+
