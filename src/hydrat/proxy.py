@@ -11,13 +11,18 @@ import logging
 import os
 import numpy
 import scipy.sparse
+import multiprocessing as mp
 
 from copy import deepcopy
+from itertools import izip
 
+from hydrat import config
+from hydrat.common.diskdict import diskdict
 from hydrat.common import as_set
 from hydrat.store import Store, StoreError, NoData, AlreadyHaveData
 from hydrat.inducer import DatasetInducer
 from hydrat.datamodel import FeatureMap, ClassMap, TaskSet, DataTask
+from hydrat.common.pb import ProgressIter
 
 class DataProxy(TaskSet):
   """
@@ -256,16 +261,21 @@ class DataProxy(TaskSet):
     if not self.store.has_Data(self.dsname, space_name):
       # Read the tokenstream
       tss = self.tokenstream
-      feat_dict = dict()
+      feat_dict = diskdict(config.getpath('paths','scratch'))
 
       # TODO: Backoff behaviour if multiprocessing fails
       #for i, id in enumerate(self.instancelabels):
       #  feat_dict[id] = extractor(tss[i])
-      import multiprocessing as mp
-      pool = mp.Pool(mp.cpu_count())
-      tokens = pool.map(extractor, tss)
-      for i, id in enumerate(self.instancelabels):
-        feat_dict[id] = tokens[i]
+      #  TODO manage number of CPUS used.
+      pool = mp.Pool(mp.cpu_count()-4)
+      def tokenstream():
+        # This hack is to avoid a bad interaction between multiprocessing, progressbar and signals.
+        for t in ProgressIter(tss, label=extractor.__name__):
+          yield t
+      tokens = pool.imap(extractor, tokenstream())
+      #for i, id in enumerate(self.instancelabels):
+      for id, inst_tokens in izip(self.instancelabels, tokens):
+        feat_dict[id] = dict(inst_tokens)
 
       self.inducer.add_Featuremap(self.dsname, space_name, feat_dict)
 
