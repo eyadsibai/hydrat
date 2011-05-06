@@ -11,6 +11,7 @@ import scipy.sparse as sp
 
 from hydrat.classifier.abstract import Learner, Classifier
 
+# TODO: memoize logfac
 def logfac(a):
   return np.sum(np.log(np.arange(1,a+1)))
 logfac = np.frompyfunc(logfac, 1, 1)
@@ -93,8 +94,8 @@ class NaiveBayesC(Classifier):
   __name__ = "naivebayes" 
   def __init__(self, pc, ptc, tot_cl, used_cl):
     """
-    pc: class priors
-    ptc: term priors
+    pc: class log priors (numpy matrix (1,num_class))
+    ptc: term log priors (numpy matrix ax0:term ax1:class)
     tot_cl: total number of classes in the larger class space
     used_cl: indexes of classes used in the larger class space
     """
