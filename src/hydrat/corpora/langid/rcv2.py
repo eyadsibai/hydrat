@@ -15,6 +15,10 @@ class RCV2lang10k(Configurable, DirPerClass, ByteUBT, CodepointUBT, UTF8, ISO639
   def cm_iso639_1(self):
     return self.classmap('dirname')
 
+class RCV2Domain10k(RCV2lang10k):
+  def data_path(self):
+    return os.path.join(config.getpath('corpora', 'rcv2-10k'), 'domain')
+
 if __name__ == "__main__":
   x = RCV2lang10k()
   print x

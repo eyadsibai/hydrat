@@ -19,6 +19,10 @@ class WikiRaw10k(Configurable, SingleDir, ByteUBT, CodepointUBT, UTF8, ISO639_1)
       cm[filename] = [ filename.split('_')[0] ]
     return cm
 
+class WikiRawDomain10k(WikiRaw10k):
+  def data_path(self):
+    return os.path.join(config.getpath('corpora', 'wikiraw'), 'domain')
+
 if __name__ == "__main__":
   x = WikiRaw10k()
   print x
