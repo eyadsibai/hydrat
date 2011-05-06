@@ -267,7 +267,7 @@ class DataProxy(TaskSet):
       #for i, id in enumerate(self.instancelabels):
       #  feat_dict[id] = extractor(tss[i])
       #  TODO manage number of CPUS used.
-      pool = mp.Pool(mp.cpu_count()-4)
+      pool = mp.Pool(mp.cpu_count())
       def tokenstream():
         # This hack is to avoid a bad interaction between multiprocessing, progressbar and signals.
         for t in ProgressIter(tss, label=extractor.__name__):
