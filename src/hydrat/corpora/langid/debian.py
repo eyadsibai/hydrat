@@ -121,3 +121,6 @@ class DebianLang10k(Configurable, DirPerClass, ISO639_1, ByteUBT, CodepointUBT):
           raise ValueError, "%s does not have an encoding" % doc_id
     return encodings
 
+class DebianDomain10k(DebianLang10k):
+  def data_path(self):
+    return os.path.join(config.getpath('corpora', 'debian-pofiles'), 'debian-unstable-po-v2', 'domain')
