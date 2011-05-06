@@ -13,14 +13,14 @@ from hydrat import config
 
 class LangidDomain(Configurable, ISO639_1, ByteUBT):
   """
-  Cross-domain langid corpus based on langdomain-v1, see readme for details:
+  Cross-domain langid corpus based on langdomain-v2, see readme for details:
 
   ..todo: Manage encodings
   """
-  requires={ ('corpora', 'langdomain-v1') : DIR('langdomain-v1') }
+  requires={ ('corpora', 'langdomain-v2') : DIR('langdomain-v2') }
   
   def identifiers(self):
-    dp = config.getpath('corpora', 'langdomain-v1')
+    dp = config.getpath('corpora', 'langdomain-v2')
     with open(join(dp, 'paths')) as pathlist:
       for line in pathlist:
         line = line.strip()
@@ -31,7 +31,7 @@ class LangidDomain(Configurable, ISO639_1, ByteUBT):
         yield '-'.join((domain, lang, instance))
     
   def ts_byte(self):
-    dp = config.getpath('corpora', 'langdomain-v1')
+    dp = config.getpath('corpora', 'langdomain-v2')
     ts = {}
     for i in self.instance_ids:
       domain, lang, instance = i.split('-',2)
