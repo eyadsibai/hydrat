@@ -507,6 +507,10 @@ class Store(object):
     if hasattr(self.spaces, metadata['name']):
       raise AlreadyHaveData, "Already have space %s" % metadata
 
+    # Check that labels are unique
+    if len(labels) != len(set(labels)):
+      raise ValueError, "labels are not unique!"
+
     logger.debug( "Adding a %s space '%s' of %d Features"
                     , metadata['type']
                     , metadata['name']
@@ -529,12 +533,15 @@ class Store(object):
                                       , metadata['name']
                                       , labels
                                       )
-    new_space.attrs.size = len(labels)
     for key in metadata:
       setattr(new_space.attrs, key, metadata[key])
-    assert metadata_matches(new_space._v_attrs, metadata)
+    new_space.attrs.size = len(labels)
 
   def extend_Space(self, space_name, labels):
+    # Check that labels are unique
+    if len(labels) != len(set(labels)):
+      raise ValueError, "labels are not unique!"
+
     # We do this by checking that the new space is a superset of the
     # old space, with the labels in the same order, then we delete the old 
     # space and add a new space.
@@ -660,15 +667,14 @@ class Store(object):
     logger.debug("Adding feature map to dataset '%s' in space '%s'", dsname, space_name)
     ds = getnode(self.datasets, dsname)
     space = getnode(self.spaces, space_name)
+    if feat_map.shape[1] != len(space):
+      raise ValueError, "feature map is the wrong shape for this feature space"
 
     group = self.fileh.createGroup( ds.feature_data
                                   , space._v_name
                                   , "Sparse Feature Map %s" % space._v_name
                                   )
     group._v_attrs.type  = int if issubclass(feat_map.dtype.type, numpy.int) else float
-
-    # Initialize space to store instance sizes.
-    instance_sizes = numpy.array(feat_map.sum(axis=1))[0]
 
     _typ = IntFeature if issubclass(feat_map.dtype.type,numpy.int) else RealFeature 
     fm_node = self._add_sparse_node\
@@ -679,13 +685,6 @@ class Store(object):
                   , filters = tables.Filters(complevel=5, complib='zlib') 
                   )
      
-    # Store the instance sizes
-    fm_sizes = self.fileh.createArray( group
-                                     , 'instance_size'
-                                     , instance_sizes
-                                     , title = 'Instance Sizes'
-                                     )
-
     self.fileh.flush()
 
 
