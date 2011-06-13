@@ -22,6 +22,8 @@ class HydratConfigError(Exception): pass
 # (http://www.richardmurri.com/projects/find/), or maybe DIY. Would be nice
 # to specify things like 'md5sum' in addition to the filename. Could also
 # look into gentoo portage for inspiration.
+#
+# TODO: Make .hydratrc behaviour cascade, so that local .hydratrc supercedes parent supercedes global
 
 
 class DIR(object):
