@@ -175,6 +175,8 @@ class DatasetInducer(object):
     # load up the existing space if any
     try:
       space = self.store.get_Space(space_name)
+      if len(space) != len(set(space)):
+        raise ValueError, "space %s was not unique!" % space_name
       logger.debug('existing space "%s" (%d feats)', space_name, len(space))
     except NoData:
       space = []
@@ -183,6 +185,8 @@ class DatasetInducer(object):
     # Enumerate the existing keys
     feat_index = defaultdict(Enumerator())
     [ feat_index[f] for f in space ]
+
+    assert (len(feat_index) == len(space))
 
     logger.debug("Computing feature map")
     # Build a list of triplets:
@@ -198,13 +202,12 @@ class DatasetInducer(object):
 
     # Store the extended space
     space = sorted(feat_index, key=feat_index.get)
-    try:
-      self.store.extend_Space(space_name, space)
+    if self.store.has_Space(space_name):
       logger.debug('  extending exisitng space "%s"', space_name)
-    except NoData:
+      self.store.extend_Space(space_name, space)
+    else:
       logger.debug('  saving new space "%s"', space_name)
-      metadata = {'type':'feature','name':space_name}
-      self.store.add_Space(space, metadata)
+      self.store.add_Space(space, {'type':'feature','name':space_name})
 
     logger.debug("adding map to store")
     self.store.add_FeatureDict(dsname, space_name, feat_map)
