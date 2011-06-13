@@ -1,5 +1,9 @@
 import logging
 import os
+import multiprocessing as mp
+
+from itertools import izip
+
 from hydrat import config
 from hydrat.common.pb import ProgressIter
 from hydrat.common.diskdict import diskdict
@@ -126,16 +130,21 @@ class Dataset(object):
     Generate feature map by applying an extractor to a
     named tokenstream.
     """
-    tokenstream = self.tokenstream(tsname)
-    # TODO: Instead of a dict, use a disk-backed data structure. Would be useful if there was some way
-    # to avoid duplicating keys perhaps.
-    # fm = {}
+    instancelabels, tss = zip(*self.tokenstream(tsname).iteritems())
     fm = diskdict(config.getpath('paths','scratch'))
 
-    for instance_id in ProgressIter(tokenstream, label="%s(%s)" % (extractor.__name__, tsname)):
-      fm[instance_id] = dict(extractor(tokenstream[instance_id]))
-      if len(fm[instance_id]) == 0:
-        msg =  "%s_%s has no tokens for '%s'" % (tsname, extractor.__name__, instance_id)
+    # TODO: refactor against proxy
+    pool = mp.Pool(mp.cpu_count())
+    def tokenstream():
+      # This hack is to avoid a bad interaction between multiprocessing, progressbar and signals.
+      for t in ProgressIter(tss, label="%s(%s)" % (extractor.__name__, tsname)):
+        yield t 
+
+    tokens = pool.imap(extractor, tokenstream())
+    for id, inst_tokens in izip(instancelabels, tokens):
+      fm[id] = dict(inst_tokens)
+      if len(fm[id]) == 0:
+        msg =  "%s_%s has no tokens for '%s'" % (tsname, extractor.__name__, id)
         if config.getboolean('debug','allow_empty_instance'):
           self.logger.warning(msg)
         else:
