@@ -254,6 +254,11 @@ class DataProxy(TaskSet):
     Map a feature extractor onto a tokenstream and save the corresponding
     output into the backing store.
     """
+    # Ensure the top-level store has this dataset node.
+    # TODO: Refactor this to avoid breaking the abstraction.
+    if not hasattr(self.store.datasets, self.dsname):
+      self.store.add_Dataset(self.dsname, self.dataset.instance_space, self.dataset.instance_ids)
+      
     if self.tokenstream_name is None:
       raise ValueError, "tokenstream_name not set"
     # Definition of space name.
