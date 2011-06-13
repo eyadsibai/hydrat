@@ -159,6 +159,17 @@ class TextCat(Configurable, textcat.TextCat):
         callback(i)
     return retval
 
+  def load_model(self, model, classlabel_map=None):
+    """
+    Load a pre-trained model.
+    """
+    self.model = model
+
+    if classlabel_map is None:
+      self.classlabel_map = identity 
+    else:
+      self.classlabel_map = classlabel_map
+
 
 from hydrat.datamodel import TaskSetResult, Result
 class TextCatExperiment(TaskSetResult):

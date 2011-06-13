@@ -40,7 +40,43 @@ class TextCat(object):
 
     # Mark as trained
     self.trained = True
-    
+
+  @property
+  def model(self):
+    if self.model_path == None:
+      raise ValueError, "no models"
+
+    model = {}
+    for key in os.listdir(self.model_path):
+      with open(os.path.join(self.model_path, key)) as f:
+        model[key] = f.read()
+
+    return (self.metadata, model)
+
+  @model.setter
+  def model(self, model):
+    # Separate model and metadata
+    metadata, model = model
+
+    # Delete old trained model if any
+    if self.trained:
+      shutil.rmtree(self.model_path)
+
+    # Create a temporary directory to store models
+    self.model_path = tempfile.mkdtemp(prefix='textcat', dir=self.scratch)
+
+    # Output the model
+    for key in model:
+      with open(os.path.join(self.model_path, key), 'w') as f:
+        f.write(model[key])
+
+    # Mark as trained
+    self.trained = True
+
+    # Update metadata
+    self.metadata.update(metadata)
+
+
 
   def classify_single(self, text):
     p = Popen\
