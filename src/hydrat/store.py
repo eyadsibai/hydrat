@@ -489,7 +489,7 @@ class Store(object):
 
 
   def has_Space(self, name):
-    return hasattr(self.spaces, name)
+    return (hasattr(self.spaces, name) or self.fallback.has_Space(name))
   
   ###
   # Add
@@ -506,10 +506,6 @@ class Store(object):
       raise InsufficientMetadata, "metadata must contain name"
     if hasattr(self.spaces, metadata['name']):
       raise AlreadyHaveData, "Already have space %s" % metadata
-
-    # Check that labels are unique
-    if len(labels) != len(set(labels)):
-      raise ValueError, "labels are not unique!"
 
     logger.debug( "Adding a %s space '%s' of %d Features"
                     , metadata['type']
@@ -528,20 +524,27 @@ class Store(object):
       encoding = 'ascii'
 
     metadata['encoding'] = encoding
+
+    # NOTE:
+    # We set a default label representation. This is needed because of issues
+    # in numpy with storing strings terminating in a null byte. The null byte
+    # gets truncated, which prevents proper round-trip behaviour. We thus
+    # have to encode labels before storing them, and decode them when retireving.
+    metadata['repr'] = 'base64'
       
-    new_space = self.fileh.createArray( self.fileh.root.spaces
-                                      , metadata['name']
-                                      , labels
-                                      )
+    # Check that labels are unique
+    if len(labels) != len(set(labels)):
+      raise ValueError, "labels are not unique!"
+
+    repr_enc = metadata['repr']
+    labels = [l.encode(repr_enc) for l in labels]
+    new_space = self.fileh.createArray(self.spaces, metadata['name'], labels)
+
     for key in metadata:
       setattr(new_space.attrs, key, metadata[key])
     new_space.attrs.size = len(labels)
 
   def extend_Space(self, space_name, labels):
-    # Check that labels are unique
-    if len(labels) != len(set(labels)):
-      raise ValueError, "labels are not unique!"
-
     # We do this by checking that the new space is a superset of the
     # old space, with the labels in the same order, then we delete the old 
     # space and add a new space.
@@ -558,17 +561,25 @@ class Store(object):
     logger.debug("Extending '%s' from %d to %d features", space_name, len(space), len(labels))
     metadata = self.get_SpaceMetadata(space_name)
 
+    # Set default label representation
+    if 'repr' not in metadata:
+      metadata['repr'] = 'base64'
+
     encoding = metadata['encoding']
     if encoding != 'ascii':
       labels = [l.encode(encoding) for l in labels]
 
+    # Check that labels are unique
+    if len(labels) != len(set(labels)):
+      raise ValueError, "labels are not unique!"
+
     # Delete the old node
-    self.fileh.removeNode( getattr(self.spaces, space_name) )
+    self.fileh.removeNode(getattr(self.spaces, space_name))
+
     # Create the new node
-    new_space = self.fileh.createArray( self.fileh.root.spaces
-                                      , space_name
-                                      , labels
-                                      )
+    labels = [l.encode(metadata['repr']) for l in labels]
+    new_space = self.fileh.createArray(self.spaces, space_name, labels)
+
     # Transfer the metadata
     for key in metadata:
       setattr(new_space.attrs, key, metadata[key])
@@ -580,6 +591,7 @@ class Store(object):
 
   def add_Dataset(self, name, instance_space, instance_ids):
     self._check_writeable()
+    logger.debug("Adding dataset '%s'", name)
     if hasattr(self.datasets, name):
       raise AlreadyHaveData, "Already have dataset by name %s", name
 
@@ -822,6 +834,10 @@ class Store(object):
         raise NoData, "Store does not have space '%s'" % space_name
     metadata = self.get_SpaceMetadata(space_name)
     data = space.read()
+    if 'repr' in metadata:
+      # Undo any represenation-level encoding
+      repr_enc = metadata['repr']
+      data = [ d.decode(repr_enc) for d in data ]
     try:
       encoding = metadata['encoding']
     except KeyError:
@@ -829,6 +845,8 @@ class Store(object):
       encoding = 'nil'
     if encoding != 'nil' and encoding != 'ascii':
       data = [ d.decode(encoding) for d in data ]
+    if len(space) != len(set(space)):
+      raise ValueError, "space is not unique!"
     return data
 
   # Deprecated upon introduction of instance spaces. use get_Space instead.
