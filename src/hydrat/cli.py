@@ -243,3 +243,39 @@ class HydratCmdln(cmdln.Cmdln):
       summaries = project_compound(summaries, fieldnames)
       writer.writerows(summaries)
 
+  # TODO: print info about a specific dataset
+  @cmdln.option("-s", "--spaces",   action="store_true", default=False, help="additional info for spaces")
+  @cmdln.option("-d", "--datasets", action="store_true", default=False, help="additional info for datasets")
+  @cmdln.option("-t", "--tasksets", action="store_true", default=False, help="additional info for tasksets")
+  @cmdln.option("-r", "--results",  action="store_true", default=False, help="additional info for  results")
+  def do_info(self, subcmd, opts, store_path):
+    """${cmd_name}: print information about a Store 
+
+    ${cmd_usage} 
+    """
+    from hydrat.store import Store
+    store = Store(store_path)
+    print "Store @", store_path
+    print "  spaces:"
+    if opts.spaces:
+      print "    instance:", len(store.list_InstanceSpaces())
+      for s in sorted(store.list_InstanceSpaces()):
+        print "       ", s
+      print "    feature:", len(store.list_FeatureSpaces())
+      for s in sorted(store.list_FeatureSpaces()):
+        print "       ", s
+      print "    class:", len(store.list_ClassSpaces())
+      for s in sorted(store.list_ClassSpaces()):
+        print "       ", s
+    else:
+      print "    instance:%d feature:%d class:%d" % (
+        len(store.list_InstanceSpaces()), len(store.list_FeatureSpaces()), len(store.list_ClassSpaces()))
+    print "  datasets:", len(store.list_Datasets())
+    if opts.datasets:
+      for ds in sorted(store.list_Datasets()):
+        num_fs = len(store.list_FeatureSpaces(ds))
+        num_cs = len(store.list_ClassSpaces(ds)) 
+        print "    %s features:%d classes:%d"% (ds, num_fs, num_cs)
+    print "  tasksets:", len(store.get_TaskSets({}))
+    print "  results:", len(store.get_TaskSetResults({}))
+
