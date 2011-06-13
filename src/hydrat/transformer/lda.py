@@ -3,6 +3,8 @@ from hydrat.transformer import Transformer
 from hydrat import config as config
 from hydrat.configuration import Configurable, EXE
 
+import hydrat.common.pb as pb
+
 class GibbsLDATransformer(Configurable, Transformer):
   requires=\
     { ('tools','gibbslda') : EXE('lda')
