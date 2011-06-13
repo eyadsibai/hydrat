@@ -1,6 +1,8 @@
 """tokenizer module contains tokenizer functions that take a string and return
 a token generator or a list of tokens."""
 
+from hydrat.common.counter import Counter
+
 def whiteSpace(string):
   return string.split()
 
@@ -125,6 +127,7 @@ class NGram(Tokenizer):
       # Handle generators
       return ngram(self.n, seq)
 
+import array
 class Scanner(Tokenizer):
   alphabet = map(chr, range(1<<8))
   """
@@ -202,24 +205,24 @@ class Scanner(Tokenizer):
     # than set iteration
     self.output = dict((k, tuple(output[k])) for k in output)
 
-  def __getstate__(self):
-    """
-    Compiled nextmove and output.
-    Next move encoded as a single array. The index of the next state
-    is located at current state * alphabet size  + ord(c).
-    The choice of 'H' array typecode limits us to 64k states.
-    """
-    import array
+    # Next move encoded as a single array. The index of the next state
+    # is located at current state * alphabet size  + ord(c).
+    # The choice of 'H' array typecode limits us to 64k states.
     def nextstate_iter():
       for state in xrange(len(set(self.nextmove.values()))):
         for letter in self.alphabet:
           yield self.nextmove[(state, letter)]
+    self.nm_arr = array.array('H', nextstate_iter())
 
-    retval = (array.array('H', nextstate_iter()), self.output)
-    return retval
+  def __getstate__(self):
+    """
+    Compiled nextmove and output.
+    """
+    return (self.nm_arr, self.output)
 
   def __setstate__(self, value):
     nm_array, output = value
+    self.nm_arr = nm_array
     self.output = output
     self.nextmove = {}
     for i, next_state in enumerate(nm_array):
@@ -228,9 +231,18 @@ class Scanner(Tokenizer):
       self.nextmove[(state, letter)] = next_state 
 
   def search(self, string):
+    # TODO: update to using nm_arr
     state = 0
     for letter in string:
       state = self.nextmove[(state, letter)]
       for key in self.output.get(state, []):
         yield key
+
+  def tokenize(self, text):
+    c = Counter()
+    state = 0
+    for letter in map(ord,text):
+      state = self.nm_arr[(state << 8) + letter]
+      c.update( self.output.get(state, []) )
+    return c
 
