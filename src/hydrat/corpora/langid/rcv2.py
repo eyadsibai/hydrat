@@ -19,6 +19,10 @@ class RCV2Domain10k(RCV2lang10k):
   def data_path(self):
     return os.path.join(config.getpath('corpora', 'rcv2-10k'), 'domain')
 
+class RCV2LangLynx10k(RCV2lang10k):
+  def data_path(self):
+    return os.path.join(config.getpath('corpora', 'rcv2-10k'), 'lang-lynx')
+
 if __name__ == "__main__":
   x = RCV2lang10k()
   print x

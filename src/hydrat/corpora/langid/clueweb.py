@@ -15,14 +15,13 @@ class ClueWeb10k(Configurable, DirPerClass, ByteUBT, CodepointUBT, UTF8, ISO639_
   def cm_iso639_1(self):
     return self.classmap('dirname')
 
-class ClueWebDomain10k(Configurable, DirPerClass, ByteUBT, CodepointUBT, UTF8, ISO639_1):
-  requires={ ('corpora', 'clueweb-10k-v1') : DIR('clueweb-10k-v1') }
-
+class ClueWebDomain10k(ClueWeb10k):
   def data_path(self):
     return os.path.join(config.getpath('corpora', 'clueweb-10k-v1'), 'domain')
 
-  def cm_iso639_1(self):
-    return self.classmap('dirname')
+class ClueWebLangLynx10k(ClueWeb10k):
+  def data_path(self):
+    return os.path.join(config.getpath('corpora', 'clueweb-10k-v1'), 'lang-lynx')
 
 if __name__ == "__main__":
   x = ClueWeb10k()
