@@ -110,6 +110,7 @@ class DatasetInducer(object):
       try:
         self.add_TokenStreams(dsname, key, dataset.tokenstream(key))
       except AlreadyHaveData,e :
+        # TODO: I don't think this is actually raised by anything.
         logger.warning(e)
 
     # Handle all the sequences
