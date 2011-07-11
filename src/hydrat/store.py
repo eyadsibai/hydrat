@@ -1177,7 +1177,12 @@ class Store(object):
   # TokenStream
   ###
 
+  def has_TokenStreams(self, dsname, stream_name):
+    dsnode = getnode(self.datasets, dsname)
+    return hasattr(dsnode.tokenstreams, stream_name)
+
   def add_TokenStreams(self, dsname, stream_name, tokenstreams):
+    # TODO: Handle trying to create a stream that already exists
     dsnode = getnode(self.datasets, dsname)
     stream_array = self.fileh.createVLArray( dsnode.tokenstreams
                                            , stream_name
