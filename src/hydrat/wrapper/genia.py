@@ -20,6 +20,9 @@ class GeniaTagger(object):
     # Close stderr to avoid deadlocks due to a full buffer.
     self.genia_instance.stderr.close()
 
+  def __del__(self):
+    self.genia_instance.terminate()
+
   def process(self, text):
     # Strip off newlines, as genia uses them to delimit blocks to process
     proc_text = RE_NEWLINE.sub('', text)
