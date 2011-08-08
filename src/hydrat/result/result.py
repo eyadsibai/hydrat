@@ -34,7 +34,7 @@ def classpairs(gs, cl):
   assert gs.shape == cl.shape
   mapping = dict()
 
-  relevant = numpy.flatnonzero(numpy.logical_and(gs.sum(0), cl.sum(0)))
+  relevant = numpy.flatnonzero(numpy.logical_or(gs.sum(0), cl.sum(0)))
   for gs_i in relevant:
     for cl_i in relevant:
       gs_c = gs[:,gs_i]
