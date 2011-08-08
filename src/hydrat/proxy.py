@@ -204,7 +204,7 @@ class DataProxy(TaskSet):
       if not isinstance(value, str):
         raise TypeError, "Invalid tokenstream identifier: %s" % str(value)
       present_tokenstream=set(self.dataset.tokenstream_names)
-      if value not in present_tokenstream:
+      if value not in present_tokenstream and not self.store.has_TokenStreams(self.dsname, value):
         raise ValueError, "Unknown tokenstream: %s" % value
 
       self._tokenstream_name = value
@@ -248,6 +248,36 @@ class DataProxy(TaskSet):
     fm = FeatureMap.union(*featuremaps)
     fm.split = self.split
     return fm
+
+  def process_tokenstream(self, processor):
+    """
+    Apply a function to each tokenstream and create a new tokenstream
+    with the output.
+    """
+    # Ensure the top-level store has this dataset node.
+    # TODO: Refactor this to avoid breaking the abstraction.
+    if not hasattr(self.store.datasets, self.dsname):
+      self.store.add_Dataset(self.dsname, self.dataset.instance_space, self.dataset.instance_ids)
+
+    if self.tokenstream_name is None:
+      raise ValueError, "tokenstream_name not set"
+
+    tokenstream_name = processor.__name__
+    if not self.store.has_TokenStreams(self.dsname, tokenstream_name):
+      # Read the basis tokenstream
+      basis_ts = self.tokenstream
+      ids = self.instancelabels
+      ts = diskdict(config.getpath('paths','scratch'))
+
+      # Build the new tokenstream
+      for i, bts in enumerate(basis_ts):
+        ts[ids[i]] = processor(bts)
+      
+      # Save the new tokenstream
+      self.inducer.add_TokenStreams(self.dsname, tokenstream_name, ts)
+
+    # Set the new tokenstream name
+    self.tokenstream_name = tokenstream_name
 
   def tokenize(self, extractor):
     """
