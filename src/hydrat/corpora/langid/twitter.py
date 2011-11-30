@@ -3,7 +3,7 @@ hydrat dataset interface to datasets based on twitter data
 """
 import csv
 from hydrat import config
-from hydrat.dataset.text import ByteUBT
+from hydrat.dataset.text import ByteUBT, DirPerClass
 from hydrat.dataset.encoded import CodepointUBT, UTF8
 from hydrat.dataset.iso639 import ISO639_1
 from hydrat.configuration import Configurable, DIR
@@ -30,6 +30,16 @@ class TwitterZHENJA5k(UTF8, ISO639_1, Configurable, ByteUBT, CodepointUBT):
         row = row.split('\t')
         retval[row[0]] = row[2] 
     return retval
+
+class TwitterSCarter(UTF8, ISO639_1, Configurable, ByteUBT, CodepointUBT):
+  requires={ ('corpora', 'scarter-twitter') : DIR('scarter-twitter') }
+
+  def data_path(self):
+    return config.getpath('corpora', 'scarter-twitter')
+
+  def cm_iso639_1(self):
+    return self.classmap('dirname')
+
 
 if __name__ == "__main__":
   x = TwitterZHENJA5k()

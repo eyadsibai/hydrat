@@ -20,6 +20,17 @@ class TextDataset(Dataset):
     """
     raise NotImplementedError
 
+  def from_byte(self, fn):
+    """
+    Return a dictionary from instance identifiers to
+    a bytestream after fn has been applied to the bytestream.
+    """
+    text = self.tokenstream('byte')
+    u = {}
+    for instance_id in text:
+      u[instance_id] = fn(text[instance_id])
+    return u
+
 class SingleDir(TextDataset):
   """ Mixin for a dataset that has all of its source text files
   in a single directory. Requires that the deriving class
