@@ -31,7 +31,7 @@ class TwitterZHENJA5k(UTF8, ISO639_1, Configurable, ByteUBT, CodepointUBT):
         retval[row[0]] = row[2] 
     return retval
 
-class TwitterSCarter(UTF8, ISO639_1, Configurable, ByteUBT, CodepointUBT):
+class TwitterSCarter(UTF8, ISO639_1, DirPerClass, Configurable, ByteUBT, CodepointUBT):
   requires={ ('corpora', 'scarter-twitter') : DIR('scarter-twitter') }
 
   def data_path(self):
