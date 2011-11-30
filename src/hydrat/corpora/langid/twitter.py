@@ -40,6 +40,14 @@ class TwitterSCarter(UTF8, ISO639_1, DirPerClass, Configurable, ByteUBT, Codepoi
   def cm_iso639_1(self):
     return self.classmap('dirname')
 
+class TwitterBenelearn11(UTF8, ISO639_1, DirPerClass, Configurable, ByteUBT, CodepointUBT):
+  requires={ ('corpora', 'benelearn11-twitter') : DIR('benelearn11-twitter') }
+
+  def data_path(self):
+    return config.getpath('corpora', 'benelearn11-twitter')
+
+  def cm_iso639_1(self):
+    return self.classmap('dirname')
 
 if __name__ == "__main__":
   x = TwitterZHENJA5k()
