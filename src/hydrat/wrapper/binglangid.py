@@ -38,7 +38,7 @@ class BingLangid(object):
       try:
         search_results = urllib2.urlopen(req)
         response = search_results.read()
-      except (urllib2.URLError, httplib.BadStatusLine),e:
+      except (urllib2.URLError, urllib2.HTTPError, httplib.BadStatusLine),e:
         logger.warning(e)
         response = ''
         
@@ -49,11 +49,12 @@ class BingLangid(object):
       logger.warning("retrying in %d seconds", retry)
       time.sleep(retry)
       retry *= 2
-      search_results = urllib2.urlopen(req)
       try:
+        search_results = urllib2.urlopen(req)
         response = search_results.read()
-      except (ValueError, urllib2.URLError),e:
-        logger.warning(e, response)
+      except (ValueError, urllib2.URLError, urllib2.HTTPError),e:
+        logger.warning(e)
+        logger.warning("response: %s", response)
         response = ''
 
     response_node = etree.fromstring(response)
