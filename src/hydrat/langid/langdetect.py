@@ -29,7 +29,7 @@ class LangDetect(Configurable, langdetect.LangDetect):
     )
 
 
-  def __init__(self, batchsize=100):
+  def __init__(self, batchsize=100, versionID=None):
     langdetect.LangDetect.__init__(self,
       config.getpath('tools','java-bin'), 
       config.getpath('tools','langdetect'), 
@@ -37,6 +37,8 @@ class LangDetect(Configurable, langdetect.LangDetect):
       config.getpath('paths','scratch'),
       batchsize = batchsize,
     )
+    if versionID is not None:
+      self.metadata['dataset'] = versionID
 
   def classify_batch(self, texts, callback=None):
     cl = langdetect.LangDetect.classify_batch(self, texts, callback)
