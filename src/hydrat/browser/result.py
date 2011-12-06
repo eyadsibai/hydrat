@@ -337,7 +337,7 @@ class Results(object):
         if goldstandard is None or goldstandard == label:
           with page.tr:
             with page.th:
-              link = '../datasets/'+md[ds_key]+'/instances?'+urllib.urlencode({'id':instance_id})
+              link = '../datasets/'+md[ds_key]+'/instances/'+instance_id
               page.a(instance_id, href= link)
 
             with page.td:
