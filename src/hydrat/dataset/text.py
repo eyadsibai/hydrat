@@ -1,4 +1,4 @@
-import os
+import os, gzip
 from hydrat.dataset import Dataset
 import hydrat.common.extractors as ext
 
@@ -25,11 +25,7 @@ class TextDataset(Dataset):
     Return a dictionary from instance identifiers to
     a bytestream after fn has been applied to the bytestream.
     """
-    text = self.tokenstream('byte')
-    u = {}
-    for instance_id in text:
-      u[instance_id] = fn(text[instance_id])
-    return u
+    return self.ts2ts('byte', fn)
 
 class SingleDir(TextDataset):
   """ Mixin for a dataset that has all of its source text files
@@ -81,20 +77,28 @@ class FilePerClass(TextDataset):
     path = self.data_path()
     ts = {}
     for cl in os.listdir(path):
-      with open(os.path.join(path, cl)) as f:
-        for i,instance in enumerate(f):
-          instance_id = '%s%d'%(cl, i)
-          ts[instance_id] = instance
+      if cl.lower().endswith('.gz'):
+        f = gzip.open(os.path.join(path, cl))
+      else:
+        f = open(os.path.join(path, cl))
+      for i,instance in enumerate(f):
+        instance_id = '%s%d'%(cl, i)
+        ts[instance_id] = instance
+      f.close()
     return ts
 
   def cm_filename(self):
     path = self.data_path()
     cm = {}
     for cl in os.listdir(path):
-      with open(os.path.join(path, cl)) as f:
-        for i,instance in enumerate(f):
-          instance_id = '%s%d'%(cl, i)
-          cm[instance_id] = [cl]
+      if cl.lower().endswith('.gz'):
+        f = gzip.open(os.path.join(path, cl))
+      else:
+        f = open(os.path.join(path, cl))
+      for i,instance in enumerate(f):
+        instance_id = '%s%d'%(cl, i)
+        cm[instance_id] = [cl]
+      f.close()
     return cm
 
 class ByteUnigram(TextDataset):
