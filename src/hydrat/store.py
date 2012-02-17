@@ -1190,13 +1190,16 @@ class Store(object):
                                            , filters = tables.Filters(complevel=5, complib='zlib') 
                                            )
     for stream in ProgressIter(tokenstreams, label="Adding TokenStreams '%s'" % stream_name):
+      # TODO: don't allow lists of lists. For some reason storing lists is
+      # substantially slower than storing tuples or strings. Looks to be a
+      # cPickle issue.
       stream_array.append(stream)
 
   def get_TokenStreams(self, dsname, stream_name):
     try:
       dsnode = getnode(self.datasets, dsname)
       tsnode = getnode(dsnode.tokenstreams, stream_name)
-      return list(t for t in tsnode)
+      return iter(tsnode)
     except NoData:
       return self.fallback.get_TokenStreams(dsname, stream_name)
 
