@@ -484,7 +484,18 @@ class Store(object):
     setattr(attrs, 'shape', data.shape)
     # Add the features to the table
     inst, feat = data.nonzero()
-    node.append(numpy.rec.fromarrays((inst.astype('uint64'), feat.astype('uint64'), data.data)))
+    import itertools
+    CHUNKSIZE = 1000000
+    inst_i = iter(inst)
+    feat_i = iter(feat)
+    data_i = iter(data.data)
+    while True:
+      inst_c = numpy.fromiter(itertools.islice(inst_i, CHUNKSIZE), 'uint64')
+      feat_c = numpy.fromiter(itertools.islice(feat_i, CHUNKSIZE), 'uint64')
+      data_c = numpy.fromiter(itertools.islice(data_i, CHUNKSIZE), 'uint64')
+      if len(inst_c) == 0:
+        break
+      node.append(numpy.rec.fromarrays((inst_c, feat_c, data_c)))
     self.fileh.flush()
 
 
