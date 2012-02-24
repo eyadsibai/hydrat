@@ -183,14 +183,18 @@ class HydratCmdln(cmdln.Cmdln):
                     help="allow the store to be modified")
   @cmdln.option("-p", "--port", type='int', default=8080,
                     help="listen on port number")
-  def do_browse(self, subcmd, opts, store_path):
+  def do_browse(self, subcmd, opts, *paths):
     """${cmd_name}: browse an existing hdf5 store
 
     ${cmd_usage} 
 
     For example, given a store called 'store.h5', we call ${cmd_name} as follows:
 
-      ${name} ${cmd_name} store.h5
+      ${name} ${cmd_name} store.h5 [fallback1.h5] [fallback2.h5]
+
+    The fallbacks specify additional stores that will be opened in read-only
+    mode and will appear as a single logical store. This allows analysis 
+    of multiple stores together.
 
     The browser is configured via a python module called 'browser_config.py'. 
     If present in the working directory, this module will supersede the default
@@ -201,7 +205,13 @@ class HydratCmdln(cmdln.Cmdln):
     import cherrypy
     from hydrat.store import Store
     from hydrat.browser import StoreBrowser
-    store = Store(store_path, 'a' if opts.modify else 'r')
+    fallback = None 
+    if len(paths) == 0:
+      raise ValueError, "at least one store path must be specified"
+    else:
+      for path in paths[-1:0:-1]:
+        fallback = Store(path, fallback=fallback)
+    store = Store(paths[0], 'a' if opts.modify else 'r', fallback=fallback)
     from hydrat.configuration import browser_config
 
     # Try to determine local IP address
