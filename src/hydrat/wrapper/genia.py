@@ -50,11 +50,12 @@ class GeniaTagger(object):
         start, end = re.search(re.escape(word), proc_text[range_start:]).span()
         token_start = range_start + start
         token_end = range_start + end
+        range_start = range_start + end
       else:
         token_start, token_end = 0,0
+
       token = GeniaToken._make(data+[token_start,token_end])
       token_stream.append(token)
-      range_start = range_start + end
       line = self.genia_instance.stdout.readline().rstrip()
     return token_stream 
 
