@@ -76,6 +76,11 @@ class ASCII(EncodedTextDataset):
   def encodings(self):
     return defaultdict(lambda:'ascii')
 
+class Latin1(EncodedTextDataset):
+  """mixin for a dataset that is entirely latin1-encoded"""
+  def encodings(self):
+    return defaultdict(lambda:'iso8859-1')
+
 try:
   import chardet
   class AutoEncoding(EncodedTextDataset):
