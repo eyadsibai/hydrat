@@ -431,8 +431,10 @@ class Store(object):
     import inspect
     stack = inspect.stack()
     filename = os.path.basename(stack[-1][1])
-    store_path = os.path.splitext(filename)[0]+'.h5'
-    return cls(store_path, 'a', fallback=fallback)
+    store_path = config.getpath('paths','store') 
+    path = os.path.join(store_path, os.path.splitext(filename)[0]+'.h5')
+    logger.debug("from_caller: %s", path)
+    return cls(path, 'a', fallback=fallback)
     
 
   
@@ -1461,7 +1463,7 @@ class NullStore(Store):
   def __init__(self):
     def null_list(*args, **kwargs): return set()
     def null_has(*args, **kwargs): return False
-    def null_get(*args, **kwargs): raise NoData
+    def null_get(*args, **kwargs): raise NoData, "args: %s kwargs: %s" % (repr(args), repr(kwargs))
       
     for key in dir(self.__class__):
       if key.startswith('get_'):
