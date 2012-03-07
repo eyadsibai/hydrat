@@ -37,7 +37,7 @@ class Genia(Configurable, EncodedTextDataset):
       for i in ProgressIter(keys,'GENIA Tagger'):
         yield text[i].encode('utf8')
 
-    pool = mp.Pool(mp.cpu_count())
+    pool = mp.Pool(config.getint('parameters','cpu_count'))
     vals = pool.imap(process, text_iter())
     streams = dict(zip(keys, vals))
     return streams
