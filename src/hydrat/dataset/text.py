@@ -101,6 +101,56 @@ class FilePerClass(TextDataset):
       f.close()
     return cm
 
+class DomainCategory(TextDataset):
+  def data_path(self):
+    raise NotImplementedError, "Deriving class must implement this"
+
+  def ts_byte(self):
+    path = self.data_path()
+    ts = {}
+    for dirpath, dirnames, filenames in os.walk(path):
+      for filename in filenames:
+        domain = os.path.basename(os.path.dirname(dirpath))
+        category = os.path.basename(dirpath)
+        with open(os.path.join(dirpath, filename)) as f:
+          instance_id = "-".join((domain, category, filename))
+          ts[instance_id] = f.read()
+    return ts
+
+  def cm_domain(self):
+    path = self.data_path()
+    cm = {}
+    for dirpath, dirnames, filenames in os.walk(path):
+      for filename in filenames:
+        domain = os.path.basename(os.path.dirname(dirpath))
+        category = os.path.basename(dirpath)
+        instance_id = "-".join((domain, category, filename))
+        cm[instance_id] = [domain]
+    return cm
+  
+  def cm_category(self):
+    path = self.data_path()
+    cm = {}
+    for dirpath, dirnames, filenames in os.walk(path):
+      for filename in filenames:
+        domain = os.path.basename(os.path.dirname(dirpath))
+        category = os.path.basename(dirpath)
+        instance_id = "-".join((domain, category, filename))
+        cm[instance_id] = [category]
+    return cm
+
+  def cm_domaincategory(self):
+    path = self.data_path()
+    cm = {}
+    for dirpath, dirnames, filenames in os.walk(path):
+      for filename in filenames:
+        domain = os.path.basename(os.path.dirname(dirpath))
+        category = os.path.basename(dirpath)
+        instance_id = "-".join((domain, category, filename))
+        cm[instance_id] = ['-'.join((domain, category))]
+    return cm
+
+
 class ByteUnigram(TextDataset):
   def fm_byte_unigram(self):   return self.features('byte', ext.unigram)
 
