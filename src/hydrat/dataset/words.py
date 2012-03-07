@@ -12,3 +12,15 @@ class WhitespaceWords(TextDataset):
 
 class BagOfWords(WhitespaceWords):
   def fm_word_unigram(self): return self.features('word', ext.unigram)
+
+import nltk.tokenize as tk
+def nltkword(text):
+  # built-in assumption that words do not exceed 100 characters in length
+  return tuple(t for t in tk.word_tokenize(text) if len(t) <= 100)
+
+class NLTKWord(TextDataset):
+  def ts_nltkword(self):
+    return self.from_byte(nltkword)
+
+  def fm_nltkword_unigram(self):
+    return self.features('nltkword', ext.unigram)
