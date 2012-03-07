@@ -8,12 +8,14 @@ instance being tagged.
 """
 import subprocess
 import re
+from collections import namedtuple
 
 RE_NEWLINE = re.compile(r'\n')
+GENIA_TOKENFIELDS = ['word', 'base', 'POStag', 'chunktag', 'NEtag']
+
+GeniaToken = namedtuple('GeniaToken', GENIA_TOKENFIELDS + ['start', 'end'])
 
 class GeniaTagger(object):
-  TAGS = ['word', 'base', 'POStag', 'chunktag', 'NEtag']
-
   def __init__(self, tagger_exe=None, genia_path=None):
     # TODO: Handle paths not specified
     self.genia_instance = subprocess.Popen([tagger_exe], cwd=genia_path, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -23,7 +25,7 @@ class GeniaTagger(object):
   def __del__(self):
     self.genia_instance.terminate()
 
-  def process(self, text):
+  def process(self, text, find_span=True):
     # Strip off newlines, as genia uses them to delimit blocks to process
     proc_text = RE_NEWLINE.sub('', text)
     # Write the text to genia's stdin, terminating with a newline
@@ -33,17 +35,24 @@ class GeniaTagger(object):
     line = self.genia_instance.stdout.readline().rstrip()
     range_start = 0
     while line:
-      token = dict(zip(self.TAGS, line.split('\t')))
+      data = line.split('\t')
+
       # Extract the raw word
-      word = token['word']
+      word = data[0]
       # Clean up genia's mangling of some tokens.
       if word == '``': word = '"'
       if word == "''": word = '"'
+      # Rewrite cleaned token
+      data[0] = word
 
-      # Compute where this token starts and ends in the stream
-      start, end = re.search(re.escape(word), proc_text[range_start:]).span()
-      token['start'] = range_start + start
-      token['end'] = range_start + end
+      if find_span:
+        # Compute where this token starts and ends in the stream
+        start, end = re.search(re.escape(word), proc_text[range_start:]).span()
+        token_start = range_start + start
+        token_end = range_start + end
+      else:
+        token_start, token_end = 0,0
+      token = GeniaToken._make(data+[token_start,token_end])
       token_stream.append(token)
       range_start = range_start + end
       line = self.genia_instance.stdout.readline().rstrip()
