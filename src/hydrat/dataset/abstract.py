@@ -131,7 +131,7 @@ class Dataset(object):
     ts = diskdict(config.getpath('paths','scratch'))
 
     # TODO: refactor against proxy
-    pool = mp.Pool(mp.cpu_count())
+    pool = mp.Pool(config.getint('parameters','job_count'))
     def tokenstream():
       # This hack is to avoid a bad interaction between multiprocessing, progressbar and signals.
       for t in ProgressIter(tss, label="%s(%s)" % (fn.__name__, tsname)):
@@ -159,7 +159,7 @@ class Dataset(object):
     fm = diskdict(config.getpath('paths','scratch'))
 
     # TODO: refactor against proxy
-    pool = mp.Pool(mp.cpu_count())
+    pool = mp.Pool(config.getint('parameters','job_count'))
     def tokenstream():
       # This hack is to avoid a bad interaction between multiprocessing, progressbar and signals.
       for t in ProgressIter(tss, label="%s(%s)" % (extractor.__name__, tsname)):
