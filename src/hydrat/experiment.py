@@ -59,6 +59,7 @@ class Experiment(TaskSetResult):
     return folds
 
   def run(self, add_args = None):
+    # TODO: parallelize over folds?
     results = []
     print "Experiment: %s %s" % (self.learner.__name__, self.learner.params)
     for fold in ProgressIter(self.folds, ''):
