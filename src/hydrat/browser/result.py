@@ -646,7 +646,7 @@ class Results(object):
         with page.tr:
           id = docids[i]
           with page.th:
-            page.a(id, href='../datasets/%s/instances?' % dataset + urllib.urlencode({'id':id}))
+            page.a(id, href='../datasets/%s/instances/%s' % (dataset, id))
           for ts in tokenstreams:
             with page.td:
               page.a(ts,href='../datasets/%s/tokenstream/%s/%s' % (dataset, ts, id))
