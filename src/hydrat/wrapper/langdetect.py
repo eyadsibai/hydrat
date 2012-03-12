@@ -42,7 +42,7 @@ class LangDetect(object):
     out = p.communicate()[0]
     if p.returncode == 0:
       return out.split(':')[1][1:]
-    raise ValueError, "Error in underlying library"
+    raise ValueError, "library returned retcode: %d" % p.returncode
 
   def classify_batch(self, texts, callback=None):
     retval = []
@@ -71,7 +71,7 @@ class LangDetect(object):
           if match:
             cm[match.group('file')] = match.group('class')
       else:
-        raise ValueError, "Error in underlying library"
+        raise ValueError, "library returned retcode: %d" % p.returncode
       
       retval.extend(cm.get(name, 'UNKNOWN') for name in tf_names)
 
