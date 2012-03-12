@@ -123,8 +123,33 @@ class Dataset(object):
     self.logger.debug("instance_ids %s %s", self.__name__, str(self._checked_dep))
     return self._instance_ids
 
+  def ts2ts(self, tsname, fn):
+    """
+    Generate tokenstream by applying a function to a given tokenstream.
+    """
+    instancelabels, tss = zip(*self.tokenstream(tsname).iteritems())
+    ts = diskdict(config.getpath('paths','scratch'))
 
+    # TODO: refactor against proxy
+    pool = mp.Pool(config.getint('parameters','job_count'))
+    def tokenstream():
+      # This hack is to avoid a bad interaction between multiprocessing, progressbar and signals.
+      for t in ProgressIter(tss, label="%s(%s)" % (fn.__name__, tsname)):
+        yield t 
 
+    tokens = pool.imap(fn, tokenstream())
+    for id, inst_tokens in izip(instancelabels, tokens):
+      ts[id] = inst_tokens
+      if len(inst_tokens) == 0:
+        msg =  "%s(%s) has no tokens for '%s'" % (tsname, fn.__name__, id)
+        if config.getboolean('debug','allow_empty_instance'):
+          self.logger.warning(msg)
+        else:
+          raise ValueError, msg
+
+    return ts 
+
+  # TODO: rename as ts2fm?
   def features(self, tsname, extractor):
     """
     Generate feature map by applying an extractor to a
@@ -134,7 +159,7 @@ class Dataset(object):
     fm = diskdict(config.getpath('paths','scratch'))
 
     # TODO: refactor against proxy
-    pool = mp.Pool(mp.cpu_count())
+    pool = mp.Pool(config.getint('parameters','job_count'))
     def tokenstream():
       # This hack is to avoid a bad interaction between multiprocessing, progressbar and signals.
       for t in ProgressIter(tss, label="%s(%s)" % (extractor.__name__, tsname)):

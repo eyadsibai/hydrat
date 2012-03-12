@@ -3,6 +3,7 @@ import logging
 import os
 import sys
 import numpy
+import multiprocessing as mp
 
 logger = logging.getLogger(__name__)
 
@@ -163,10 +164,14 @@ def default_configuration():
   """
   default_config = HydratConfigParser()
 
+  default_config.add_section('parameters')
+  default_config.set('parameters', 'job_count', str(mp.cpu_count()))
+
   default_config.add_section('paths')
   default_config.set('paths', 'scratch', '/tmp')
   default_config.set('paths', 'output', './output')
   default_config.set('paths', 'corpora', '~/data')
+  default_config.set('paths', 'store', '.')
 
   default_config.add_section('tools')
   default_config.set('tools', 'rainbow', '/usr/bin/rainbow')

@@ -1,4 +1,4 @@
-import os
+import os, gzip
 from hydrat.dataset import Dataset
 import hydrat.common.extractors as ext
 
@@ -25,11 +25,7 @@ class TextDataset(Dataset):
     Return a dictionary from instance identifiers to
     a bytestream after fn has been applied to the bytestream.
     """
-    text = self.tokenstream('byte')
-    u = {}
-    for instance_id in text:
-      u[instance_id] = fn(text[instance_id])
-    return u
+    return self.ts2ts('byte', fn)
 
 class SingleDir(TextDataset):
   """ Mixin for a dataset that has all of its source text files
@@ -81,21 +77,79 @@ class FilePerClass(TextDataset):
     path = self.data_path()
     ts = {}
     for cl in os.listdir(path):
-      with open(os.path.join(path, cl)) as f:
-        for i,instance in enumerate(f):
-          instance_id = '%s%d'%(cl, i)
-          ts[instance_id] = instance
+      if cl.lower().endswith('.gz'):
+        f = gzip.open(os.path.join(path, cl))
+      else:
+        f = open(os.path.join(path, cl))
+      for i,instance in enumerate(f):
+        instance_id = '%s%d'%(cl, i)
+        ts[instance_id] = instance
+      f.close()
     return ts
 
   def cm_filename(self):
     path = self.data_path()
     cm = {}
     for cl in os.listdir(path):
-      with open(os.path.join(path, cl)) as f:
-        for i,instance in enumerate(f):
-          instance_id = '%s%d'%(cl, i)
-          cm[instance_id] = [cl]
+      if cl.lower().endswith('.gz'):
+        f = gzip.open(os.path.join(path, cl))
+      else:
+        f = open(os.path.join(path, cl))
+      for i,instance in enumerate(f):
+        instance_id = '%s%d'%(cl, i)
+        cm[instance_id] = [cl]
+      f.close()
     return cm
+
+class DomainCategory(TextDataset):
+  def data_path(self):
+    raise NotImplementedError, "Deriving class must implement this"
+
+  def ts_byte(self):
+    path = self.data_path()
+    ts = {}
+    for dirpath, dirnames, filenames in os.walk(path):
+      for filename in filenames:
+        domain = os.path.basename(os.path.dirname(dirpath))
+        category = os.path.basename(dirpath)
+        with open(os.path.join(dirpath, filename)) as f:
+          instance_id = "-".join((domain, category, filename))
+          ts[instance_id] = f.read()
+    return ts
+
+  def cm_domain(self):
+    path = self.data_path()
+    cm = {}
+    for dirpath, dirnames, filenames in os.walk(path):
+      for filename in filenames:
+        domain = os.path.basename(os.path.dirname(dirpath))
+        category = os.path.basename(dirpath)
+        instance_id = "-".join((domain, category, filename))
+        cm[instance_id] = [domain]
+    return cm
+  
+  def cm_category(self):
+    path = self.data_path()
+    cm = {}
+    for dirpath, dirnames, filenames in os.walk(path):
+      for filename in filenames:
+        domain = os.path.basename(os.path.dirname(dirpath))
+        category = os.path.basename(dirpath)
+        instance_id = "-".join((domain, category, filename))
+        cm[instance_id] = [category]
+    return cm
+
+  def cm_domaincategory(self):
+    path = self.data_path()
+    cm = {}
+    for dirpath, dirnames, filenames in os.walk(path):
+      for filename in filenames:
+        domain = os.path.basename(os.path.dirname(dirpath))
+        category = os.path.basename(dirpath)
+        instance_id = "-".join((domain, category, filename))
+        cm[instance_id] = ['-'.join((domain, category))]
+    return cm
+
 
 class ByteUnigram(TextDataset):
   def fm_byte_unigram(self):   return self.features('byte', ext.unigram)

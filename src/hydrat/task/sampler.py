@@ -138,7 +138,8 @@ class Sampler(object):
     raise NotImplementedError
 
 def membership_vector(superset, subset):
-  return numpy.fromiter((s in subset for s in superset), dtype=bool)
+  subset_set = set(subset)
+  return numpy.fromiter((s in subset_set for s in superset), dtype=bool)
   
 class PresetSplit(Sampler):
   def __init__(self, split, metadata={}, rng=None):

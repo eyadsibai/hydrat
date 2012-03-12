@@ -431,8 +431,10 @@ class Store(object):
     import inspect
     stack = inspect.stack()
     filename = os.path.basename(stack[-1][1])
-    store_path = os.path.splitext(filename)[0]+'.h5'
-    return cls(store_path, 'a', fallback=fallback)
+    store_path = config.getpath('paths','store') 
+    path = os.path.join(store_path, os.path.splitext(filename)[0]+'.h5')
+    logger.debug("from_caller: %s", path)
+    return cls(path, 'a', fallback=fallback)
     
 
   
@@ -484,7 +486,18 @@ class Store(object):
     setattr(attrs, 'shape', data.shape)
     # Add the features to the table
     inst, feat = data.nonzero()
-    node.append(numpy.rec.fromarrays((inst.astype('uint64'), feat.astype('uint64'), data.data)))
+    import itertools
+    CHUNKSIZE = 1000000
+    inst_i = iter(inst)
+    feat_i = iter(feat)
+    data_i = iter(data.data)
+    while True:
+      inst_c = numpy.fromiter(itertools.islice(inst_i, CHUNKSIZE), 'uint64')
+      feat_c = numpy.fromiter(itertools.islice(feat_i, CHUNKSIZE), 'uint64')
+      data_c = numpy.fromiter(itertools.islice(data_i, CHUNKSIZE), 'uint64')
+      if len(inst_c) == 0:
+        break
+      node.append(numpy.rec.fromarrays((inst_c, feat_c, data_c)))
     self.fileh.flush()
 
 
@@ -1190,13 +1203,16 @@ class Store(object):
                                            , filters = tables.Filters(complevel=5, complib='zlib') 
                                            )
     for stream in ProgressIter(tokenstreams, label="Adding TokenStreams '%s'" % stream_name):
+      # TODO: don't allow lists of lists. For some reason storing lists is
+      # substantially slower than storing tuples or strings. Looks to be a
+      # cPickle issue.
       stream_array.append(stream)
 
   def get_TokenStreams(self, dsname, stream_name):
     try:
       dsnode = getnode(self.datasets, dsname)
       tsnode = getnode(dsnode.tokenstreams, stream_name)
-      return list(t for t in tsnode)
+      return iter(tsnode)
     except NoData:
       return self.fallback.get_TokenStreams(dsname, stream_name)
 
@@ -1447,7 +1463,7 @@ class NullStore(Store):
   def __init__(self):
     def null_list(*args, **kwargs): return set()
     def null_has(*args, **kwargs): return False
-    def null_get(*args, **kwargs): raise NoData
+    def null_get(*args, **kwargs): raise NoData, "args: %s kwargs: %s" % (repr(args), repr(kwargs))
       
     for key in dir(self.__class__):
       if key.startswith('get_'):
