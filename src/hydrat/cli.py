@@ -253,6 +253,39 @@ class HydratCmdln(cmdln.Cmdln):
       summaries = project_compound(summaries, fieldnames)
       writer.writerows(summaries)
 
+  @cmdln.option("-q", "--quiet",   action="store_true", default=False, help="quiet (suppress output)")
+  @cmdln.option("-d", "--dryrun",  action="store_true", default=False, help="dry run only")
+  def do_delete(self, subcmd, opts, item_type, item_name, store_path):
+     """${cmd_name}: delete something from a store
+
+     ${cmd_usage}
+
+     This command is a general interface to deleting items from a store.
+     """
+     from store import Store
+     if item_type == 'cs':
+       if opts.dryrun:
+         print "DRY RUN ONLY - these are the actions to be taken"
+       store = Store(store_path, 'r' if opts.dryrun else 'a')
+       if store.has_Space(item_name):
+         # TODO: Decouple this from the store implementation by having it as 
+         # methods on the store
+         for ds in store.datasets:
+           if hasattr(ds.class_data, item_name):
+             if not opts.quiet:
+               print "remove '{0}' from '{1}'".format(item_name, ds._v_name)
+             if not opts.dryrun:
+               store.fileh.removeNode(ds.class_data, name=item_name, recursive=True)
+         if not opts.quiet:
+           print "remove '{0}' from spaces".format(item_name)
+         if not opts.dryrun:
+           store.fileh.removeNode(store.spaces, name=item_name, recursive=True)
+       else:
+         print "'{0}': no such class space".format(item_name)
+
+     else:
+       raise NotImplementedError, "Cannot delete {0} {1}".format(item_type, item_name)
+
   # TODO: print info about a specific dataset
   @cmdln.option("-s", "--spaces",   action="store_true", default=False, help="additional info for spaces")
   @cmdln.option("-d", "--datasets", action="store_true", default=False, help="additional info for datasets")
