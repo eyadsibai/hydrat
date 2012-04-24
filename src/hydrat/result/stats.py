@@ -36,3 +36,32 @@ def mcnemar(interpreter, tsr_a, tsr_b, perclass = False):
     ec_a = np.nansum(tsr_a.overall_correct(interpreter),axis=2).all(axis=1).astype(bool)
     ec_b = np.nansum(tsr_b.overall_correct(interpreter),axis=2).all(axis=1).astype(bool)
     return mcnemar_test(ec_a, ec_b)
+    
+# Added by Li Wang (li@liwang.info)
+def randomisation(interpreter, tsr_a, tsr_b, N = 10000):
+  import random
+  ''' Randomisation test or Randomised Estimation based on:
+  Alexander Yeh. 2000. More accurate tests for the statistical significance of result differences. In Proceedings of the 18th International Conference on Computational Linguistics (COLING 2000), pages 947--953, Saarbrucken, Germany.'''
+  ec_a = np.nansum(tsr_a.overall_correct(interpreter),axis=2).all(axis=1).astype(bool)
+  ec_b = np.nansum(tsr_b.overall_correct(interpreter),axis=2).all(axis=1).astype(bool)
+  assert len(ec_a) ==  len(ec_b)
+  acc_a = float(ec_a.sum())/float(len(ec_a))
+  acc_b = float(ec_b.sum())/float(len(ec_b))
+  assert acc_a != acc_b
+  ec_better, ec_worse = (ec_a, ec_b) if acc_a>acc_b else (ec_b, ec_a)
+  acc_better = acc_a if acc_a>acc_b else acc_b
+  n = 0
+  for i in xrange(N):
+    ecbetter = []
+    ecworse = []
+    for j, v in enumerate(ec_better):
+      if random.random() >= 0.5:
+        ecbetter.append(v)
+        ecworse.append(ec_worse[j])
+      else:
+        ecbetter.append(ec_worse[j])
+        ecworse.append(v)
+    acc_random = float(sum(ecbetter))/float(len(ecbetter)) 
+    if acc_random >= acc_better:
+      n += 1
+  return float(n+1)/float(N+1)

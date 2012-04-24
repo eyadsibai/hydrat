@@ -273,6 +273,10 @@ class Results(object):
         page.add(dict_as_html({goldstandard:mcnemar_pc[gs_i]}))
       else:
         page.add(dict_as_html(dict(zip(clabels, mcnemar_pc))))
+        
+      # Added by Li Wang (li@liwang.info)
+      randomisation_result = stats.randomisation(self.interpreter, results[0], results[1])
+      page.add(dict_as_html(dict(randomisation=randomisation_result)))
     else:
       page.p("ANOVA")
 
