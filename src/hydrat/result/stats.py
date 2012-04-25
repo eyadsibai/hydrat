@@ -39,7 +39,7 @@ def mcnemar(interpreter, tsr_a, tsr_b, perclass = False):
     
 # Added by Li Wang (li@liwang.info)
 def randomisation(interpreter, tsr_a, tsr_b, N = 10000):
-  import random
+  from hydrat import rng
   ''' Randomisation test or Randomised Estimation based on:
   Alexander Yeh. 2000. More accurate tests for the statistical significance of result differences. In Proceedings of the 18th International Conference on Computational Linguistics (COLING 2000), pages 947--953, Saarbrucken, Germany.'''
   ec_a = np.nansum(tsr_a.overall_correct(interpreter),axis=2).all(axis=1).astype(bool)
@@ -55,7 +55,7 @@ def randomisation(interpreter, tsr_a, tsr_b, N = 10000):
     ecbetter = []
     ecworse = []
     for j, v in enumerate(ec_better):
-      if random.random() >= 0.5:
+      if rng.rand() >= 0.5:
         ecbetter.append(v)
         ecworse.append(ec_worse[j])
       else:
