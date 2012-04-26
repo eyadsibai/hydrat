@@ -69,6 +69,13 @@ class DirPerClass(TextDataset):
         cm[instance_id] = [ cl ]
     return cm 
 
+  def dirname2class(self, mapping):
+    cm_filename = self.classmap('dirname')
+    retval = {}
+    for key in cm_filename:
+      retval[key] = [ mapping[v] for v in cm_filename[key] ]
+    return retval
+
 class FilePerClass(TextDataset):
   def data_path(self):
     raise NotImplementedError, "Deriving class must implement this"
@@ -100,6 +107,14 @@ class FilePerClass(TextDataset):
         cm[instance_id] = [cl]
       f.close()
     return cm
+
+  def filename2class(self, mapping):
+    cm_filename = self.classmap('filename')
+    retval = {}
+    for key in cm_filename:
+      retval[key] = [ mapping[v] for v in cm_filename[key] ]
+    return retval
+
 
 class DomainCategory(TextDataset):
   def data_path(self):
