@@ -162,6 +162,8 @@ class DatasetInducer(object):
 
   def add_TokenStreams(self, dsname, stream_name, tokenstreams):
     metadata = dict()
+    # TODO: This is wrong. instance ids is based on the instance space of a ds,
+    # which may not correspond to the ds name.
     instance_ids = self.store.get_Space(dsname)
 
     tslist = [tokenstreams[i] for i in instance_ids]
