@@ -13,10 +13,9 @@ from hydrat.dataset.iso639 import ISO639_1_CODES
 logger = logging.getLogger(__name__)
 
 def bing2iso639_1(lang):
-  if lang == 'zh-CHS': return 'zh'
   if lang == 'fil-PH': return 'tl'
-  elif lang in ISO639_1_CODES:  
-    return lang
+  elif lang is None: return 'UNKNOWN'
+  elif lang[:2] in ISO639_1_CODES:  return lang
   else:                         
     raise ValueError, "Unknown language: %s" % lang 
 
