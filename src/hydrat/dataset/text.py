@@ -48,6 +48,16 @@ class DirPerClass(TextDataset):
   def data_path(self):
     raise NotImplementedError, "Deriving class must implement this"
 
+  def identifiers(self):
+    path = self.data_path()
+    ids = []
+    cls = [ c for c in os.listdir(path) if os.path.isdir(os.path.join(path, c)) ]
+    for cl in cls:
+      for file in os.listdir(os.path.join(path,cl)):
+        instance_id = '%s_%s'%(cl, file)
+        ids.append(instance_id)
+    return ids
+
   def ts_byte(self):
     path = self.data_path()
     ts = {}
