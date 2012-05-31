@@ -30,6 +30,7 @@ class Transform(TaskSet):
       add_args['indices'] = task.train_indices
 
       # Patch transformer with our known weights
+      # TODO: Why can't weights just be an argument?
       weights = self.transformer.weights
       self.transformer.weights = task.weights
 

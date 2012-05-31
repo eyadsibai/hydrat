@@ -1,5 +1,6 @@
 import numpy
 from hydrat.transformer import Transformer
+from hydrat.common import rankdata
 
 class FeatureSelect(Transformer):
   def __init__(self, weighting_function, keep_rule):
@@ -14,7 +15,7 @@ class FeatureSelect(Transformer):
     wf_name = self.weighting_function.__name__
     if wf_name not in self.weights or self.weights[wf_name] is None:
       self.logger.debug('Learning Weights')
-      self.weights[wf_name] = self.weighting_function(feature_map, class_map)
+      self.weights[wf_name] = self.weighting_function(feature_map, class_map, self.weights)
     else:
       self.logger.debug('Using learned weights')
 
@@ -30,6 +31,51 @@ class FeatureSelect(Transformer):
     
     selected_map = feature_map[:,self.keep_indices]
     return selected_map 
+
+class LangDomain(FeatureSelect):
+  """
+  Implementation of LD feature weighting. See
+  
+  Cross-domain Feature Selection for Language Identification, Marco Lui, Timothy Baldwin (2011) 
+  In Proceedings of the 5th International Joint Conference on Natural Language Processing (IJCNLP 2011), Chiang Mai, Thailand. 
+  """
+  def __init__(self, domain_map, num_feat = 400):
+    """
+    domain_map is a 2d boolean array (instances, domains)
+    It is used for the IG computation for domain.
+    """
+    Transformer.__init__(self)
+    self.domain_map = domain_map
+    self.keep_rule = LessThan(num_feat)
+    self.keep_indices = None
+
+  def learn(self, feature_map, class_map, indices):
+    if 'LD' not in self.weights:
+      reduced_dm = self.domain_map[indices]
+      if 'ig_domain' not in self.weights:
+        # IG over all domains
+        self.weights['ig_domain'] = weight.ig_bernoulli(feature_map, reduced_dm)
+      d_w = self.weights['ig_domain']
+
+      cl_prof = []
+      for cl in range(class_map.shape[1]):
+        # binarized IG over classes
+        cl_id = 'ig_cl{0}'.format(cl)
+        if cl_id not in self.weights:
+          pos = class_map[:,cl]
+          reduced_cm = numpy.hstack((numpy.logical_not(pos)[:,None], pos[:,None]))
+          self.weights[cl_id] = weight.ig_bernoulli(feature_map, reduced_cm)
+
+        cl_w = self.weights[cl_id]
+
+        cl_ld_w = cl_w - d_w
+        cl_ld_r = rankdata(cl_ld_w, reverse=True)
+        cl_prof.append(cl_ld_r)
+
+      self.weights['LD'] = numpy.min(cl_prof, axis=0)
+    ld_w = self.weights['LD']
+    self.keep_indices = self.keep_rule(ld_w)
+
 
 class KeepRule(object):
   # TODO: These are nearly identical to ResultInterpreter. Should refactor them together
