@@ -41,7 +41,8 @@ def barchart(values, height = 20, width = 5, gap = 1, color='black'):
   return 'data:image/png,' + urllib.quote(f.getvalue())
 
 def histogram(values, bins = 100, height = 20, width = 1, gap = 1, color = 'black'):
-  hist,bounds = numpy.histogram(values, bins = bins, new=True)
+  #hist,bounds = numpy.histogram(values, bins = bins, new=True)
+  hist,bounds = numpy.histogram(values, bins = bins)
   return barchart(hist, height, width, gap, color)
 
 def boxplot(values, width=300, height=20, range=None):
