@@ -18,6 +18,7 @@ from hydrat.datamodel import Result, TaskSetResult
 from hydrat.common.pb import ProgressIter
 
 from hydrat.common.decorators import deprecated
+from hydrat.common.filelock import FileLock, FileLockException
 
 logger = logging.getLogger(__name__)
 
@@ -395,6 +396,23 @@ class Store(object):
     """
     self.path = path
     logger.debug("Opening Store at '%s', mode '%s'", self.path, mode)
+    dirname, basename = os.path.split(self.path)
+    lockpath = os.path.join(dirname, '.'+basename+'.lockfile')
+    self.filelock = FileLock(lockpath, timeout=0)
+
+    # The locking behaviour we need is a bit odd. We can open for reading mutliple 
+    # times, and we can open for reading a file that is being appended to, but we 
+    # cannot append to a file that is open for reading. We implement this behaviour
+    # by always trying to lock. If we are unable to, we allow reads to proceed but
+    # block any appends.
+
+    try:
+      self.filelock.acquire()
+    except FileLockException:
+      # just ignore the lock if we only want to read
+      if mode in 'wa':
+        raise StoreError("Store at '{0}' is locked".format(self.path))
+      
     self.fileh = tables.openFile(self.path, mode=mode)
     self.mode = mode
 
@@ -442,7 +460,9 @@ class Store(object):
     return "<Store mode '%s' @ '%s'>" % (self.mode, self.path)
 
   def __del__(self):
-    self.fileh.close()
+    if hasattr(self, 'fileh'):
+      self.fileh.close()
+    self.filelock.release()
 
   ###
   # Utility Methods
