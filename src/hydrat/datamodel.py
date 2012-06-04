@@ -82,13 +82,43 @@ class FeatureMap(SplitArray):
     metadata['feature_desc'] = feature_desc
 
     return FeatureMap(fm.tocsr(), split=fms[0].split, metadata=metadata)
+
+  @staticmethod
+  def stack(*fms):
+    """
+    stacking of instances
+    """
+    if len(fms) == 1: return fms[0]
+
+    fm = scipy.sparse.vstack([f[:] for f in fms])
+    metadata = dict()
+    feature_desc = tuple()
+
+    metadata.update(deepcopy(fms[0].metadata))
+    metadata['instance_space'] = tuple(f.metadata['instance_space'] for f in fms) 
+
+    return FeatureMap(fm.tocsr(), metadata=metadata)
     
 
 class ClassMap(SplitArray): 
   """
   Represents a ClassMap. The underling raw array is a numpy.ndarray with bool dtype by convention
   """
-  pass
+  @staticmethod
+  def stack(*cms):
+    """
+    stacking of instances
+    """
+    if len(cms) == 1: return cms[0]
+
+    cm = numpy.vstack([c[:] for c in cms])
+    metadata = dict()
+    feature_desc = tuple()
+
+    metadata.update(deepcopy(cms[0].metadata))
+    metadata['instance_space'] = tuple(c.metadata['instance_space'] for c in cms) 
+
+    return ClassMap(cm, metadata=metadata)
 
 ###
 # Task

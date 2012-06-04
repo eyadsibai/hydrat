@@ -48,6 +48,16 @@ class DirPerClass(TextDataset):
   def data_path(self):
     raise NotImplementedError, "Deriving class must implement this"
 
+  def identifiers(self):
+    path = self.data_path()
+    ids = []
+    cls = [ c for c in os.listdir(path) if os.path.isdir(os.path.join(path, c)) ]
+    for cl in cls:
+      for file in os.listdir(os.path.join(path,cl)):
+        instance_id = '%s_%s'%(cl, file)
+        ids.append(instance_id)
+    return ids
+
   def ts_byte(self):
     path = self.data_path()
     ts = {}
@@ -68,6 +78,13 @@ class DirPerClass(TextDataset):
         instance_id = '%s_%s'%(cl, file)
         cm[instance_id] = [ cl ]
     return cm 
+
+  def dirname2class(self, mapping):
+    cm_filename = self.classmap('dirname')
+    retval = {}
+    for key in cm_filename:
+      retval[key] = [ mapping[v] for v in cm_filename[key] ]
+    return retval
 
 class FilePerClass(TextDataset):
   def data_path(self):
@@ -100,6 +117,14 @@ class FilePerClass(TextDataset):
         cm[instance_id] = [cl]
       f.close()
     return cm
+
+  def filename2class(self, mapping):
+    cm_filename = self.classmap('filename')
+    retval = {}
+    for key in cm_filename:
+      retval[key] = [ mapping[v] for v in cm_filename[key] ]
+    return retval
+
 
 class DomainCategory(TextDataset):
   def data_path(self):

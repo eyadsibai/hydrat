@@ -474,6 +474,145 @@ class CrossDomainDataProxy(DataProxy):
     # TODO: How does this broadcast?
     raise NotImplementedError
 
+
+class InductiveLOO(DataProxy):
+  """
+  Inductive transfer learning. 
+  We do this as leave-one-out over the set of domains.
+  This is similar to DomainCrossValidation, but is initialized with
+  a list of proxies rather than a list of datasets.
+  """
+
+  def __init__(self, proxies):
+    for proxy in proxies:
+      if not isinstance(proxy, DataProxy):
+        raise TypeError, "all proxies must be DataProxy instances"
+      if not proxy.feature_desc == proxies[0].feature_desc:
+        raise ValueError, "all proxies must share a single feature desc"
+      if not proxy.class_space == proxies[0].class_space:
+        raise ValueError, "all proxies must share a single class space"
+      if proxy.sequence is not None:
+        raise ValueError, "no support for dealing with sequencing"
+      if proxy.split is not None:
+        raise ValueError, "no support for dealing with splits"
+      self.proxies  = proxies
+
+  @property
+  def metadata(self):
+    md = dict()
+    md['dataset'] = self.dsname
+    md['instance_space'] = self.instance_space
+    md['split'] = self.split_name
+    md['sequence'] = self.sequence_name
+    md['feature_desc'] = self.feature_desc
+    md['class_space'] = self.class_space
+    return md
+
+  @property
+  def dsname(self):
+    return "InductiveLOO"
+
+  @property
+  def sequence(self):
+    return None
+
+  @property
+  def sequence_name(self):
+    return None
+
+  @property
+  def featurelabels(self):
+    return self.proxies[0].featurelabels
+
+  @property
+  def feature_desc(self):
+    return self.proxies[0].feature_desc
+
+  @property
+  def class_space(self):
+    return self.proxies[0].class_space
+
+  @property
+  def classlabels(self):
+    return self.proxies[0].classlabels
+  
+  @property
+  def instance_space(self):
+    return tuple(p.instance_space for p in self.proxies) 
+
+  @property
+  def instancelabels(self):
+    retval = []
+    for p in self.proxies:
+      dsname = p.dsname
+      retval.extend('{0}-{1}'.format(dsname,l) for l in p.instancelabels)
+    assert len(set(retval)) == len(retval), "duplicate instancelabels"
+    return retval
+
+  @property
+  def split_name(self):
+    return "InductiveLOO"
+
+  @property
+  def split(self):
+    # we need this to implement featuremap and classmap
+    num_inst = len(self.instancelabels)
+    num_fold = len(self.proxies)
+    test_inst = numpy.zeros((num_inst, num_fold), dtype=bool)
+
+    start = 0
+    for i,p in enumerate(self.proxies):
+      end = start + len(p.instancelabels)
+      test_inst[numpy.arange(start, end), i, :] = True
+      start = end
+
+    train_inst = numpy.logical_not(test_inst)
+    retval = numpy.dstack((train_inst, test_inst))
+    return retval
+
+  @property
+  def domainmap(self):
+    """
+    ClassMap over domains.
+    """
+    retval = ClassMap(self.split[...,1], self.split)
+    return retval
+
+  @property 
+  def classmap(self):
+    retval = ClassMap.stack(*(p.classmap for p in self.proxies))
+    retval.split = self.split
+    return retval
+
+  @property
+  def featuremap(self):
+    retval = FeatureMap.stack(*(p.featuremap for p in self.proxies))
+    retval.split = self.split
+    return retval
+
+  @property
+  def tasks(self):
+    # TODO: refactor against dataproxy
+    fm = self.featuremap
+    cm = self.classmap
+    sq = self.sequence
+
+    tasklist = []
+    domains = [ p.dsname for p in self.proxies ]
+    for i,fold in enumerate(fm.folds):
+      metadata = dict()
+      metadata['index'] = i
+      metadata['domain.train'] = tuple(d for j,d in enumerate(domains) if i != j)
+      metadata['domain.test'] = domains[i],
+      t = DataTask(fm.raw, cm.raw, fold.train_ids, fold.test_ids, 
+          metadata, sequence=sq)
+      tasklist.append(t)
+    return tasklist
+
+
+    
+
+
 class DomainCrossValidation(DataProxy):
   """
   Cross-validate across a set of domains.

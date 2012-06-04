@@ -3,6 +3,7 @@ from collections import defaultdict
 from hydrat.dataset.text import TextDataset
 from hydrat.common.pb import ProgressIter
 import hydrat.common.extractors as ext
+from hydrat import config
 
 PYTHON_ENCODINGS = [
 'UNKNOWN', 'ascii', 'big5', 'big5hkscs', 'cp037', 'cp1006', 'cp1026', 
@@ -62,8 +63,11 @@ class EncodedTextDataset(TextDataset):
         u[instance_id] = text[instance_id].decode(e)
       except UnicodeDecodeError:
         self.logger.warning("Error decoding '%s' with codec '%s'", instance_id, e)
-        self.logger.warning("Replacing undecodable characters")
-        u[instance_id] = unicode(text[instance_id], encoding=e, errors='replace')
+        if config.getboolean('debug','allow_decode_error'):
+          self.logger.warning("Replacing undecodable characters")
+          u[instance_id] = unicode(text[instance_id], encoding=e, errors='replace')
+        else:
+          raise
     return u
 
 class UTF8(EncodedTextDataset):
