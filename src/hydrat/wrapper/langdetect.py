@@ -64,8 +64,11 @@ class LangDetect(object):
             )
       out = p.communicate()[0]
 
+
       # Add the new results into the classmap
       if p.returncode == 0:
+        if out.startswith("ERROR: Not found profile:"):
+          raise ValueError, out
         for row in out.split('\n'):
           match = RE_LANGDETECT_OUTPUT.match(row)
           if match:
