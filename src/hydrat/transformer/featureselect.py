@@ -15,7 +15,7 @@ class FeatureSelect(Transformer):
     wf_name = self.weighting_function.__name__
     if wf_name not in self.weights or self.weights[wf_name] is None:
       self.logger.debug('Learning Weights')
-      self.weights[wf_name] = self.weighting_function(feature_map, class_map, self.weights)
+      self.weights[wf_name] = self.weighting_function(feature_map, class_map)
     else:
       self.logger.debug('Using learned weights')
 
