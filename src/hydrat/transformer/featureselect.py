@@ -50,30 +50,33 @@ class LangDomain(FeatureSelect):
     self.keep_indices = None
 
   def learn(self, feature_map, class_map, indices):
-    if 'LD' not in self.weights:
-      reduced_dm = self.domain_map[indices]
-      if 'ig_domain' not in self.weights:
-        # IG over all domains
-        self.weights['ig_domain'] = weight.ig_bernoulli(feature_map, reduced_dm)
-      d_w = self.weights['ig_domain']
+    """
+    Note: we don't keep the LD rankings cached, because they are not absolute.
+    The depend on the exact feature set, and thus will vary under composition
+    with other feature sets.
+    """
+    reduced_dm = self.domain_map[indices]
+    if 'ig_domain' not in self.weights:
+      # IG over all domains
+      self.weights['ig_domain'] = weight.ig_bernoulli(feature_map, reduced_dm)
+    d_w = self.weights['ig_domain']
 
-      cl_prof = []
-      for cl in range(class_map.shape[1]):
-        # binarized IG over classes
-        cl_id = 'ig_cl{0}'.format(cl)
-        if cl_id not in self.weights:
-          pos = class_map[:,cl]
-          reduced_cm = numpy.hstack((numpy.logical_not(pos)[:,None], pos[:,None]))
-          self.weights[cl_id] = weight.ig_bernoulli(feature_map, reduced_cm)
+    cl_prof = []
+    for cl in range(class_map.shape[1]):
+      # binarized IG over classes
+      cl_id = 'ig_cl{0}'.format(cl)
+      if cl_id not in self.weights:
+        pos = class_map[:,cl]
+        reduced_cm = numpy.hstack((numpy.logical_not(pos)[:,None], pos[:,None]))
+        self.weights[cl_id] = weight.ig_bernoulli(feature_map, reduced_cm)
 
-        cl_w = self.weights[cl_id]
+      cl_w = self.weights[cl_id]
 
-        cl_ld_w = cl_w - d_w
-        cl_ld_r = rankdata(cl_ld_w, reverse=True)
-        cl_prof.append(cl_ld_r)
+      cl_ld_w = cl_w - d_w
+      cl_ld_r = rankdata(cl_ld_w, reverse=True)
+      cl_prof.append(cl_ld_r)
 
-      self.weights['LD'] = numpy.min(cl_prof, axis=0)
-    ld_w = self.weights['LD']
+    ld_w = numpy.min(cl_prof, axis=0)
     self.keep_indices = self.keep_rule(ld_w)
 
 
