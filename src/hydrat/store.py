@@ -396,9 +396,9 @@ class Store(object):
     """
     self.path = path
     logger.debug("Opening Store at '%s', mode '%s'", self.path, mode)
-    dirname, basename = os.path.split(self.path)
-    lockpath = os.path.join(dirname, '.'+basename+'.lockfile')
-    self.filelock = FileLock(lockpath, timeout=0)
+    self.filelock = FileLock(self.path, timeout=0)
+    # TODO: Extend filelock so it stores the pid of the locking process,
+    #       and implement a lock-breaking mechanism that is aware of this.
 
     # The locking behaviour we need is a bit odd. We can open for reading mutliple 
     # times, and we can open for reading a file that is being appended to, but we 
