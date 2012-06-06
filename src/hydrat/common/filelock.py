@@ -40,6 +40,8 @@ class FileLock(object):
                 if (time.time() - start_time) >= self.timeout:
                     raise FileLockException("Timeout occured.")
                 time.sleep(self.delay)
+        os.write(self.fd, str(os.getpid()))
+        os.fsync(self.fd)
         self.is_locked = True
  
  
