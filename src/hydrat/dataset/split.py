@@ -66,7 +66,45 @@ class CrossValidation(Dataset):
                      , probabilistic = False
                      , rng=rng
                      ) 
-    parts = numpy.dstack((numpy.logical_not(parts), parts))
+
     fold_labels = [ 'fold%d' % i for i in xrange(folds) ]
-    mapping = matrix2map(parts[:,:,1].transpose(), fold_labels, ids)
+    mapping = matrix2map(parts.transpose(), fold_labels, ids)
     return mapping
+
+class LearnCurve(Dataset):
+  @replace_with_result
+  def sp_learncurve(self):
+    """
+    Default learning curve. Splits off 10% of the data for test, and
+    splits the training data into 10 patitions randomly
+    """
+    return self.learncurve(list(self.classmap_names)[0], 0.1, 10, hydrat.rng)
+
+  def learncurve(self, cm_name, test_prop, train_parts, rng):
+    """
+    NOTE: that this learning curve is stratified according to a class map, and this
+    can result in uneven partition sizes, especially when dealing with small numbers
+    of instances.
+    """
+    if not (0.0 < test_prop < 1.0):
+      raise ValueError("invalid value for test_prop: {0}".format(test_prop))
+
+    classmap = self.classmap(cm_name)
+
+    # Convert into a matrix representation to facilitate stratification
+    ids = classmap.keys()
+    matrix = map2matrix(classmap, instance_ids = ids)
+
+    # Stratify and allocate to partitions
+    strata_map = stratify(matrix)
+    partition_proportions = numpy.array([test_prop] + [(1.0-test_prop)/train_parts] * train_parts )
+    parts  = allocate( strata_map
+                     , partition_proportions
+                     , probabilistic = False
+                     , rng=rng
+                     ) 
+    
+    fold_labels = ['learncurveT'] + [ 'learncurve%d' % i for i in xrange(train_parts) ]
+    mapping = matrix2map(parts.transpose(), fold_labels, ids)
+    return mapping
+

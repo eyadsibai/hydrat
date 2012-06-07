@@ -131,13 +131,29 @@ class DatasetInducer(object):
       test_ids = membership_vector(instance_ids, split['test'])
       spmatrix = numpy.dstack((train_ids, test_ids)).swapaxes(0,1)
 
-    elif any(key.startswith('fold') for key in split):
+    elif all(key.startswith('fold') for key in split):
       # Cross-validation folds
-      folds_present = sorted(key for key in split if key.startswith('fold'))
+      folds_present = sorted(split)
       partitions = []
       for fold in folds_present:
         test_ids = membership_vector(instance_ids, split[fold])
         train_docids = sum((split[f] for f in folds_present if f is not fold), [])
+        train_ids = membership_vector(instance_ids, train_docids)
+        partitions.append( numpy.dstack((train_ids, test_ids)).swapaxes(0,1) )
+      spmatrix = numpy.hstack(partitions)
+
+    elif all(key.startswith('learncurve') for key in split):
+      # Learning curve. learncurve0 ... learncurve(N) are the training
+      # portions, where (N) is a number. There will be N+1 tasks, where 
+      # task m has training data learncurve0 ... learncurve(m). The test
+      # data is marked with a special key, learncurveT, using just the
+      # capital letter T.
+      if 'learncurveT' not in split:
+        raise ValueError("missing test data for learning curves")
+      test_ids = membership_vector(instance_ids, split['learncurveT'])
+      partitions = []
+      for i in range(1,len(split)):
+        train_docids = sum((split["learncurve{0}".format(j)] for j in range(i)), [])
         train_ids = membership_vector(instance_ids, train_docids)
         partitions.append( numpy.dstack((train_ids, test_ids)).swapaxes(0,1) )
       spmatrix = numpy.hstack(partitions)
