@@ -90,6 +90,8 @@ class FeatureMap(SplitArray):
     """
     if len(fms) == 1: return fms[0]
 
+    # The problem is that this can MemoryError out - it tries to allocate
+    # enough memory to build the stacked version.
     fm = scipy.sparse.vstack([f[:] for f in fms])
     metadata = dict()
     feature_desc = tuple()
