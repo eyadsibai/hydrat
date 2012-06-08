@@ -180,6 +180,13 @@ class SVMClassifier(Classifier):
 
     return classifications
 
+  @property
+  def theta(self):
+    """
+    Read the parameter vector from the model file
+    """
+    return numpy.genfromtxt(self.model_path, skip_header=6)
+
   def _classify(self, feature_map):
     test  = tempfile.NamedTemporaryFile(delete=self.clear_temp)
     self.logger.debug("writing test file: %s", test.name)
