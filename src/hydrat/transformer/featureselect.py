@@ -1,4 +1,5 @@
 import numpy
+from hydrat.classifier.liblinear import liblinearL
 from hydrat.transformer import Transformer
 from hydrat.common import rankdata
 
@@ -79,6 +80,34 @@ class LangDomain(FeatureSelect):
     ld_w = numpy.min(cl_prof, axis=0)
     self.keep_indices = self.keep_rule(ld_w)
 
+class SVM(FeatureSelect):
+  """
+  Feature selection based SVM parameter weights in a linear kernel
+  We use liblinear to compute the underlying weights. For multiclass
+  settings the weights computed are one-vs-all, so we take the
+  maximum weight across all classes.
+  """
+  def __init__(self, num_feat):
+    Transformer.__init__(self)
+    self.keep_rule = HighestN(num_feat)
+    self.keep_indices = None
+
+  def learn(self, feature_map, class_map):
+    num_class = class_map.shape[1]
+    w_labels = ['svm_cl{0}'.format(i) for i in xrange(1 if num_class == 2 else num_class)]
+    if any(w_l not in self.weights for w_l in w_labels):
+      # Missing a weight, must compute
+      l = liblinearL()
+      c = l(feature_map, class_map)
+      for cl_i, cl_w in enumerate(c.theta.T):
+        self.weights['svm_cl{0}'.format(cl_i)] = cl_w
+
+    # reconstruct theta
+    theta = numpy.vstack(self.weights[w_l] for w_l in w_labels)
+    # TODO: Do we want abs here or not?
+    w = numpy.abs(theta).max(axis=0)
+    self.keep_indices = self.keep_rule(w)
+    
 
 class KeepRule(object):
   # TODO: These are nearly identical to ResultInterpreter. Should refactor them together
