@@ -185,7 +185,7 @@ class SVMClassifier(Classifier):
     """
     Read the parameter vector from the model file
     """
-    return numpy.genfromtxt(self.model_path, skip_header=6)
+    return numpy.loadtxt(self.model_path, skiprows=6)
 
   def _classify(self, feature_map):
     test  = tempfile.NamedTemporaryFile(delete=self.clear_temp)
