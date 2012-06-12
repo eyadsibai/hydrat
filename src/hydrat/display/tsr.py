@@ -22,7 +22,10 @@ def project_compound(summaries, cols):
         v = s
         try:
           for k in keys:
-            v = v[k]
+            try:
+              v = v[k]
+            except TypeError:
+              v = v[int(k)]
         except (KeyError,TypeError):
           v = None
         s[col] = v
