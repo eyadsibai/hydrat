@@ -304,6 +304,7 @@ class StoredWeights(NodeProxy):
     if key in self.node:
       # TODO: Work out if we need to do something fancy with updates
       self.node._v_file.removeNode(getattr(self.node,key))
+    # TODO: Work out if we can handle sparse arrays better
     self.node._v_file.createArray(self.node, key, value)
 
   def __delitem__(self, key):
