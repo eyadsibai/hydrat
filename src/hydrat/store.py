@@ -446,6 +446,13 @@ class Store(object):
     if not 'version' in self.root._v_attrs or self.root._v_attrs['version'] != STORE_VERSION:
       raise ValueError, "Store format is outdated; please open the store as writeable to automatically update it"
 
+    # http://docs.python.org/reference/datamodel.html states that:
+    # It is not guaranteed that __del__() methods are called for objects that still exist when the interpreter exits.
+    #
+    # We need to ensure that __del__ is called as it is used to release the file lock, so we
+    # use an exitfunc to ensure this happens.
+    import atexit; atexit.register(lambda: self.__del__())
+
   @classmethod
   def from_caller(cls, fallback=None):
     """
@@ -459,8 +466,6 @@ class Store(object):
     path = os.path.join(store_path, os.path.splitext(filename)[0]+'.h5')
     logger.debug("from_caller: %s", path)
     return cls(path, 'a', fallback=fallback)
-    
-
   
   def __str__(self):
     return "<Store mode '%s' @ '%s'>" % (self.mode, self.path)
