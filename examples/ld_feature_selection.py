@@ -24,7 +24,7 @@ if __name__ == "__main__":
 
   ts = store.new_TaskSet(proxy)
   tss = Transform(ts, LangDomain(proxy.domainmap))
-  x = tss.tasks
+  x = list(tss)
 
   import pdb;pdb.set_trace()
 

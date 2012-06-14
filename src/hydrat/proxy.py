@@ -316,18 +316,18 @@ class DataProxy(TaskSet):
 
     self.feature_spaces = space_name
 
-  @property
-  def tasks(self):
+  def __len__(self):
+    return len(self.featuremap.folds)
+
+  def __getitem__(self, key):
     fm = self.featuremap
     cm = self.classmap
     sq = self.sequence
 
-    tasklist = []
-    for i,fold in enumerate(fm.folds):
-      t = DataTask(fm.raw, cm.raw, fold.train_ids, fold.test_ids, 
-          {'index':i}, sequence=sq)
-      tasklist.append(t)
-    return tasklist
+    fold = fm.folds[key]
+    t = DataTask(fm.raw, cm.raw, fold.train_ids, fold.test_ids, 
+        {'index':key}, sequence=sq)
+    return t
 
   @property
   def taskset(self):
@@ -590,24 +590,20 @@ class InductiveLOO(DataProxy):
     retval.split = self.split
     return retval
 
-  @property
-  def tasks(self):
-    # TODO: refactor against dataproxy
+  def __getitem__(self, key):
     fm = self.featuremap
     cm = self.classmap
     sq = self.sequence
 
-    tasklist = []
     domains = [ p.dsname for p in self.proxies ]
-    for i,fold in enumerate(fm.folds):
-      metadata = dict()
-      metadata['index'] = i
-      metadata['domain.train'] = tuple(d for j,d in enumerate(domains) if i != j)
-      metadata['domain.test'] = domains[i],
-      t = DataTask(fm.raw, cm.raw, fold.train_ids, fold.test_ids, 
-          metadata, sequence=sq)
-      tasklist.append(t)
-    return tasklist
+    fold = fm.folds[key]
+    metadata = dict()
+    metadata['index'] = key
+    metadata['domain.train'] = tuple(d for j,d in enumerate(domains) if key != j)
+    metadata['domain.test'] = domains[key],
+    t = DataTask(fm.raw, cm.raw, fold.train_ids, fold.test_ids, 
+        metadata, sequence=sq)
+    return t
 
 
     

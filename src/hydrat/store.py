@@ -196,13 +196,18 @@ class StoredTaskSet(SpaceProxy, Stored, TaskSet):
       labels.extend(self.store.get_Space(feature_space))
     return labels
     
-  @property
-  def tasks(self):
-    tasks = []
-    for task_node in self.node._v_groups.values():
-      tasks.append(StoredTask(self.store, task_node))
-    tasks.sort(key=lambda r:r.metadata['index'])
-    return tasks
+  def __len__(self):
+    return len(self.node._v_groups)
+
+  def __getitem__(self, key):
+    g = self.node._v_groups
+    task_node = None
+    for node in g.values():
+      if node._v_attrs.index == key:
+        task_node = node
+    if task_node is None:
+      raise IndexError(key)
+    return StoredTask(self.store, task_node)
 
 class StoredTask(Stored, Task):
   @property
@@ -764,6 +769,12 @@ class Store(object):
                                
   def add_TaskSet(self, taskset):
     # TODO: Find some way to make this atomic! Otherwise, we can write incomplete tasksets!!
+    #       The best way to do this is probably to introduce a top-level 'pending'
+    #       node. A hardlink to the new node will be attached when we create the new
+    #       node but before we start writing to it. This hardlink is removed when
+    #       writing is complete. Thus, if we open up a store and find anything attached
+    #       to the pending node, we know that the item is incomplete and should be
+    #       deleted.
     self._check_writeable()
     
     # Copy the metadata as we are not allowed to modify it directly
@@ -780,7 +791,7 @@ class Store(object):
     try:
       logger.debug('Adding a taskset %s', str(md))
 
-      for i,task in enumerate(ProgressIter(taskset.tasks, label="Adding Tasks")):
+      for i,task in enumerate(ProgressIter(taskset, label="Adding Tasks")):
         self._add_Task(task, taskset_entry)
       self.fileh.flush()
     except Exception:

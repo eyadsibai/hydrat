@@ -38,9 +38,11 @@ class ConcatTaskSet(TaskSet):
   def metadata(self):
     return dict(self._metadata)
 
-  @property
-  def tasks(self):
-    return [ConcatTask(x) for x in zip(*(t.tasks for t in self.tasksets))]
+  def __len__(self):
+    return len(self.tasksets[0])
+
+  def __getitem__(self, key):
+    return ConcatTask([t[key] for t in self.tasksets])
 
 class ConcatTask(Task):
   """
@@ -50,7 +52,6 @@ class ConcatTask(Task):
   from the first task. vectors is what needs concatting. Also
   need to track the metadata correctly.
   """
-  pass
   def __init__(self, tasks):
     assert len(tasks) >= 2, "not enough tasks"
     m_0 = tasks[0].metadata

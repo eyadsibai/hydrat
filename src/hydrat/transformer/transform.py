@@ -5,11 +5,14 @@ class Transform(TaskSet):
     self.taskset = taskset 
     self.transformer = transformer
 
+  """
+  # TODO: figure out why this is here in the first place.
   def __getattr__(self, key):
     if key in self.__dict__:
       return self.__dict__[key]
     else:
       return getattr(self.taskset, key)
+  """
 
   @property
   def metadata(self):
@@ -17,40 +20,40 @@ class Transform(TaskSet):
     metadata = dict(self.taskset.metadata)
     metadata['feature_desc'] += (self.transformer.__name__,)
     return metadata
-    
-  @property
-  def tasks(self):
+
+  def __len__(self):
+    return len(self.taskset)
+
+  def __getitem__(self, key):
     # TODO: Work out why we needed add_args, and what to do with it now
     # TODO: Timing of the component parts
-    tasks = []
-    for task in self.taskset.tasks:
-      # Transform each task
-      add_args = {}
-      add_args['sequence'] = task.train_sequence
-      add_args['indices'] = task.train_indices
+    task = self.taskset[key]
+    # Transform each task
+    add_args = {}
+    add_args['sequence'] = task.train_sequence
+    add_args['indices'] = task.train_indices
 
-      # Patch transformer with our known weights
-      # TODO: Why can't weights just be an argument?
-      weights = self.transformer.weights
-      self.transformer.weights = task.weights
+    # Patch transformer with our known weights
+    # TODO: Why can't weights just be an argument?
+    weights = self.transformer.weights
+    self.transformer.weights = task.weights
 
-      self.transformer._learn(task.train_vectors, task.train_classes, add_args)
+    self.transformer._learn(task.train_vectors, task.train_classes, add_args)
 
-      t = Task()
-      for slot in Task.__slots__:
-        if slot.endswith('vectors'):
-          if slot.startswith('train'):
-            add_args['sequence'] = task.train_sequence
-            add_args['indices'] = task.train_indices
-          elif slot.startswith('test'):
-            add_args['sequence'] = task.test_sequence
-            add_args['indices'] = task.test_indices
-          setattr(t, slot, self.transformer._apply(getattr(task, slot), add_args))
-        else:
-          setattr(t, slot, getattr(task, slot))
-      t.metadata      = dict(task.metadata)
+    t = Task()
+    for slot in Task.__slots__:
+      if slot.endswith('vectors'):
+        if slot.startswith('train'):
+          add_args['sequence'] = task.train_sequence
+          add_args['indices'] = task.train_indices
+        elif slot.startswith('test'):
+          add_args['sequence'] = task.test_sequence
+          add_args['indices'] = task.test_indices
+        setattr(t, slot, self.transformer._apply(getattr(task, slot), add_args))
+      else:
+        setattr(t, slot, getattr(task, slot))
+    t.metadata      = dict(task.metadata)
 
-      # Copy weights back into task
-      self.transformer.weights = weights
-      tasks.append(t)
-    return tasks
+    # Copy weights back into task
+    self.transformer.weights = weights
+    return t
