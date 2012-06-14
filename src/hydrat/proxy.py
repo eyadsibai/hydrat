@@ -274,7 +274,7 @@ class DataProxy(TaskSet):
         ts[ids[i]] = processor(bts)
       
       # Save the new tokenstream
-      self.inducer.add_TokenStreams(self.dsname, tokenstream_name, ts)
+      self.inducer.add_TokenStreams(self.dsname, self.instance_space, tokenstream_name, ts)
 
     # Set the new tokenstream name
     self.tokenstream_name = tokenstream_name
@@ -287,7 +287,7 @@ class DataProxy(TaskSet):
     # Ensure the top-level store has this dataset node.
     # TODO: Refactor this to avoid breaking the abstraction.
     if not hasattr(self.store.datasets, self.dsname):
-      self.store.add_Dataset(self.dsname, self.dataset.instance_space, self.dataset.instance_ids)
+      self.store.add_Dataset(self.dsname, self.instance_space, self.dataset.instance_ids)
       
     if self.tokenstream_name is None:
       raise ValueError, "tokenstream_name not set"
@@ -312,7 +312,7 @@ class DataProxy(TaskSet):
       for id, inst_tokens in izip(self.instancelabels, tokens):
         feat_dict[id] = dict(inst_tokens)
 
-      self.inducer.add_Featuremap(self.dsname, space_name, feat_dict)
+      self.inducer.add_Featuremap(self.dsname, self.instance_space, space_name, feat_dict)
 
     self.feature_spaces = space_name
 
