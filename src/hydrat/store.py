@@ -689,7 +689,7 @@ class Store(object):
                                     )
 
     # Initialize space to store instance sizes.
-    n_inst = len(self.get_Space(dsname))
+    n_inst = ds._v_attrs['num_instances']
     
     attrs = fm_node._v_attrs
     setattr(attrs, 'dtype', group._v_attrs.type)
@@ -737,7 +737,7 @@ class Store(object):
     self._check_writeable()
     logger.debug("Adding Class Map to dataset '%s' in space '%s'", dsname, space_name)
     ds = getnode(self.datasets, dsname)
-    space = getnode(self.spaces, space_name)
+    space = self.get_Space(space_name)
 
     num_inst = self.get_SpaceMetadata(ds._v_attrs['instance_space'])['size'] 
     num_classes = len(space)
@@ -747,8 +747,8 @@ class Store(object):
       raise StoreError, "Wrong shape for class map!"
 
     group =  self.fileh.createGroup( ds.class_data
-                                   , space._v_name
-                                   , "Data for %s" % space._v_name
+                                   , space_name
+                                   , "Data for %s" % space_name
                                    )
 
     cm_node = self.fileh.createCArray( group
