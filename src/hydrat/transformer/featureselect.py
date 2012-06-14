@@ -99,7 +99,18 @@ class SVM(FeatureSelect):
       # Missing a weight, must compute
       l = liblinearL()
       c = l(feature_map, class_map)
-      for cl_i, cl_w in enumerate(c.theta.T):
+      theta = c.theta.T
+      # Quick sanity check for theta
+      # The number of parameters may be less than number of features,
+      # as libsvm uses a sparse feature representation, so the number
+      # of features is equal to the index of the highest nonzero 
+      # feature.
+      # Number of classes also might not match. This is due to no class
+      # labels being emitted for classes with no instances. Need to be more clever
+      # about this.
+      #assert theta.shape[0] == (1 if num_class == 2 else num_class)
+      #assert theta.shape[1] <= feature_map.shape[1]
+      for cl_i, cl_w in enumerate(theta):
         self.weights['svm_cl{0}'.format(cl_i)] = cl_w
 
     # reconstruct theta
