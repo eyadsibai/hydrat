@@ -98,6 +98,9 @@ class liblinearL(Configurable, Learner):
      #Create and write the training file
     train = tempfile.NamedTemporaryFile(delete=self.clear_temp)
     self.logger.debug("writing training file: %s", train.name)
+    # TODO: There is a potential speedup from reordering features,
+    # such that we omit all non-zero features. The outcome should
+    # be the same, the only difference is in obtaining theta.
     SVMFileWriter.write(train, feature_map, class_map)
     train.flush()
 
@@ -185,7 +188,10 @@ class SVMClassifier(Classifier):
     """
     Read the parameter vector from the model file
     """
-    return numpy.loadtxt(self.model_path, skiprows=6)
+    retval = numpy.loadtxt(self.model_path, skiprows=6)
+    if len(retval.shape) == 1:
+      retval = retval[:,None]
+    return retval
 
   def _classify(self, feature_map):
     test  = tempfile.NamedTemporaryFile(delete=self.clear_temp)
