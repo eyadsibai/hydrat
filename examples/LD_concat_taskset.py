@@ -59,7 +59,7 @@ if __name__ == "__main__":
     p = InductiveLOO(proxies)
     dm = p.domainmap
     ts = store.new_TaskSet(p)
-    Transform(ts, LangDomain(dm)).tasks
+    list(Transform(ts, LangDomain(dm)))
     x.append(ts)
 
   y = ConcatTaskSet(x)

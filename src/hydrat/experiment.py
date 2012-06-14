@@ -54,7 +54,7 @@ class Experiment(TaskSetResult):
   @property
   def folds(self):
     folds = []
-    for task in self.taskset.tasks:
+    for task in self.taskset:
       folds.append(ExperimentFold(task, self.learner))
     return folds
 
