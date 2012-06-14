@@ -488,7 +488,7 @@ class Store(object):
     ax0 = node.read(field='ax0')
     ax1 = node.read(field='ax1')
     values = node.read(field='value')
-    m = coo_matrix((values,numpy.vstack((ax0,ax1))), shape=shape)
+    m = coo_matrix((values,(ax0,ax1)), shape=shape)
     m = m.tocsr()
     return m
 
