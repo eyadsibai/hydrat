@@ -129,25 +129,113 @@ class ClassMap(SplitArray):
 # Task
 ###
 class Task(object):
-  __slots__ = [ 'train_vectors'
-              , 'train_classes'
-              , 'train_sequence'
-              , 'test_vectors'
-              , 'test_classes'
-              , 'test_sequence'
-              , 'metadata'
-              , 'train_indices'
-              , 'test_indices'
-              , 'weights'
-              ]
+  __metaclass__ = abc.ABCMeta
+  train_sequence = None
+  test_sequence = None
 
-  def compute_weight(self, weight_function):
-    if weight_function.__name__ not in self.weights:
-      self.weights[weight_function.__name__] = weight_function(self.train_vectors, self.train_classes)
-    return self.weights[weight_function.__name__]
+  @abc.abstractproperty
+  def train_vectors(self): 
+    pass
 
+  @abc.abstractproperty
+  def train_classes(self): 
+    pass
+
+  @abc.abstractproperty
+  def train_indices(self): 
+    pass
+
+  @abc.abstractproperty
+  def test_vectors(self): 
+    pass
+
+  @abc.abstractproperty
+  def test_classes(self): 
+    pass
+
+  @abc.abstractproperty
+  def test_indices(self): 
+    pass
+
+  @abc.abstractproperty
+  def metadata(self): 
+    pass
+
+  @abc.abstractproperty
+  def weights(self): 
+    pass
+
+class BasicTask(Task):
+  def __init__( self, 
+      train_vectors, train_classes, train_indices,
+      test_vectors, test_classes, test_indices,
+      train_sequence = None, test_sequence=None,
+      weights = None, metadata=None):
+    self._train_vectors = train_vectors
+    self._train_classes = train_classes
+    self._train_indices = train_indices
+    self._test_vectors = test_vectors
+    self._test_classes = test_classes
+    self._test_indices = test_indices
+    self._train_sequence = train_sequence
+    self._test_sequence = test_sequence
+    self._weights = weights if weights else {}
+    self._metadata = dict(metadata) if metadata else {}
+
+  @classmethod
+  def from_task(cls, task):
+    """
+    Convenience method to "materialize" a task
+    """
+    return cls( task.train_vectors, task.train_classes, task.train_indices,
+      task.test_vectors, task.test_classes, task.test_indices,
+      task.train_sequence, task.test_sequence, task.weights, task.metadata)
+
+  @property
+  def train_vectors(self): 
+    return self._train_vectors
+
+  @property
+  def train_classes(self): 
+    return self._train_classes
+
+  @property
+  def train_indices(self): 
+    return self._train_indices
+
+  @property
+  def train_sequence(self): 
+    return self._train_sequence
+
+  @property
+  def test_vectors(self): 
+    return self._test_vectors
+
+  @property
+  def test_classes(self): 
+    return self._test_classes
+
+  @property
+  def test_indices(self): 
+    return self._test_indices
+
+  @property
+  def test_sequence(self): 
+    return self._test_sequence
+
+  @property
+  def metadata(self): 
+    return self._metadata
+
+  @property
+  def weights(self): 
+    return self._weights
+
+  @weights.setter
+  def weights(self, value):
+    self._weights = value
+  
 class DataTask(Task):
-  __slots__ = Task.__slots__ + [ 'class_map', 'feature_map', 'sequence']
   def __init__( self
               , feature_map
               , class_map
@@ -163,14 +251,33 @@ class DataTask(Task):
 
     self.class_map = class_map
     self.feature_map = feature_map
-    self.train_indices = train_indices
-    self.test_indices = test_indices
+    self._train_indices = train_indices
+    self._test_indices = test_indices
     # TODO: Sanity check on the partitioning of the sequence. There shouldn't be sequences
     #       that span train & test
     self.sequence = sequence
-    self.metadata = dict(metadata)
-    self.weights = {}
+    self._metadata = dict(metadata)
+    self._weights = {}
+  
+  @property
+  def weights(self):
+    return self._weights
 
+  @weights.setter
+  def weights(self, value):
+    self._weights = value
+
+  @property
+  def train_indices(self):
+    return self._train_indices
+
+  @property
+  def test_indices(self):
+    return self._test_indices
+
+  @property
+  def metadata(self):
+    return self._metadata
     
   @property
   def train_vectors(self):

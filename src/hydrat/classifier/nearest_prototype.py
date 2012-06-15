@@ -28,6 +28,18 @@ class NProtLearner(Learner):
   def _check_installed(self):
     pass
 
+  def __getstate__(self):
+    # Marking this as unpickleable for now because of the compositional
+    # implementation of the subelements. The main issue appears to be
+    # with the logging system. Many of the subelements have a logger 
+    # instance, which contains an unpickleable lock. However, the logger
+    # is obviously not needed to preserve the state. We need to work out
+    # how to make the logger available without making it part of the
+    # object, such that the default pickling behaviour will work without
+    # problems.
+    from cPickle import UnpickleableError
+    raise UnpickleableError
+
   def _params(self):
     params = dict( distance_metric = self.distance_metric.params
                  , NN_strategy = self.NN_strategy.params

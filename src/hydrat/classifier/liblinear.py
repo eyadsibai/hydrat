@@ -81,6 +81,12 @@ class liblinearL(Configurable, Learner):
                         , additional=additional
                         )
 
+  def __getstate__(self):
+    return (self.output_probability, self.svm_type, self.cost, self.additional)
+
+  def __setstate__(self, value):
+    self.__init__(*value)
+
   def __del__(self):
     if self.clear_temp:
       if self.model_path is not None: os.remove(self.model_path)
