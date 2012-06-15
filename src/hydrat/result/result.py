@@ -79,13 +79,13 @@ class Result(RichComparisonMixin):
                           axis 1: class
   @type classifications: 2-d array
   """
+  logger = logging.getLogger("hydrat.result.Result")
   def __init__( self
               , goldstandard
               , classifications
               , instance_indices
               , metadata = {} 
               ):
-    self.logger = logging.getLogger("hydrat.result.Result")
     self.goldstandard     = goldstandard
     self.classifications  = classifications
     self.instance_indices = instance_indices
@@ -95,6 +95,11 @@ class Result(RichComparisonMixin):
 
     self.metadata = {}
     self.metadata.update(metadata)
+
+  def __getstate__(self):
+    return {'goldstandard':self.goldstandard, 'classifications':self.classifications,
+            'instance_indices': self.instance_indices, 'metadata':self.metadata}
+
 
   def __repr__(self):
     return "<result " + str(self.metadata) + ">"
@@ -112,17 +117,18 @@ class Result(RichComparisonMixin):
     and the same classifier outputs
     """
     try:
-      return self._eq_metadata(other) and self._eq_data(other)
+      return self.eq_metadata(other) and self.eq_data(other)
     except AttributeError:
       return False
 
-  def _eq_metadata(self, other):
-    """
-    Test for equality over the metadata
-    """
-    return metadata_matches(self.metadata, other.metadata)
+  def eq_metadata(self, other):
+    EXCL_KEYS = set(('learn_time', 'classify_time'))
+    m_s = self.metadata
+    m_o = other.metadata
+    keys = set(m_s.keys()) - EXCL_KEYS
+    return all(m_s[k] == m_o[k] for k in keys)
 
-  def _eq_data(self, other):
+  def eq_data(self, other):
     """
     Test for equality over the data itself
     """
