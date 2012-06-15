@@ -25,6 +25,7 @@ def value_matches(v1, v2):
       return False
 
 def metadata_matches(attrs, desired_metadata):
+  # TODO: When do we ever need this?
   for key in desired_metadata:
     try:
       value = getattr(attrs, key)
