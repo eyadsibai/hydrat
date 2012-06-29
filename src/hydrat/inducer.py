@@ -212,12 +212,33 @@ class DatasetInducer(object):
     # (instance#, feat#, value)
     feat_map = disklist(config.getpath('paths','scratch'))
 
+    # TODO: Implement top-n feature thresholding here. The motivation for this is 
+    #       that the low-frequency features generally have little to no impact
+    #       on the final outcome, and are problematic to deal with for very
+    #       large feature spaces.
+    max_feats = config.getint('parameters','max_feats')
+    feat_sum = defaultdict(int)
+
     for i, id in enumerate(ProgressIter(instance_ids,label='FeatureMap(%s)' % space_name)):
       d = feat_dict[id]
       for feat in d:
         j = feat_index[feat]
+        feat_sum[j] += d[feat]
         feat_map.append((i,j,d[feat]))
     logger.debug(' space "%s" now has %d unique features', space_name, len(feat_index))
+
+    if len(feat_index) > max_feats:
+      logger.debug("culling features, keeping top %d features", max_feats)
+      selected = set(sorted(feat_sum, key=feat_sum.get, reverse=True)[:max_feats])
+      fm = feat_map
+      feat_map = disklist(config.getpath('paths','scratch'))
+      for t in fm:
+        if t[1] in selected:
+          feat_map.append(t)
+      culled_count = len(fm) - len(feat_map)
+      prop = float(culled_count) / len(fm)
+      logger.debug("eliminated %d triplets (%.1f%%)", culled_count, prop)
+
 
     # Store the extended space
     space = sorted(feat_index, key=feat_index.get)
