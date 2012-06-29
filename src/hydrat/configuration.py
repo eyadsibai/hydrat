@@ -167,6 +167,7 @@ def default_configuration():
   default_config.add_section('parameters')
   default_config.set('parameters', 'job_count', str(mp.cpu_count()))
   default_config.set('parameters', 'parallel_classify', 'True')
+  default_config.set('parameters', 'max_feats', '50000')
 
   default_config.add_section('paths')
   default_config.set('paths', 'scratch', '/tmp')
