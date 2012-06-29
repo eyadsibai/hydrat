@@ -7,7 +7,7 @@ import logging
 import UserDict 
 import numpy
 warnings.simplefilter("ignore", tables.NaturalNameWarning)
-from scipy.sparse import lil_matrix, coo_matrix
+from scipy.sparse import lil_matrix, csr_matrix
 
 from hydrat import config
 from hydrat.common import progress
@@ -493,8 +493,14 @@ class Store(object):
     ax0 = node.read(field='ax0')
     ax1 = node.read(field='ax1')
     values = node.read(field='value')
-    m = coo_matrix((values,(ax0,ax1)), shape=shape)
-    m = m.tocsr()
+    # TODO: This is turning out to be a blocker as it
+    #       basically requires double memory to do the
+    #       conversion. The options at this point are:
+    #       1) change how sparse nodes are stored, so we
+    #          can read back the sparse matrix without
+    #          conversion
+    #       2) use a disk-backed data structure somewhere
+    m = csr_matrix((values,(ax0,ax1)), shape=shape)
     return m
 
   def _add_sparse_node( self
