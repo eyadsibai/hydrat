@@ -1,4 +1,4 @@
-from hydrat.datamodel import TaskSet, Task
+from hydrat.datamodel import TaskSet, BasicTask
 
 class Transform(TaskSet):
   def __init__(self, taskset, transformer):
@@ -40,19 +40,30 @@ class Transform(TaskSet):
 
     self.transformer._learn(task.train_vectors, task.train_classes, add_args)
 
-    t = Task()
-    for slot in Task.__slots__:
-      if slot.endswith('vectors'):
-        if slot.startswith('train'):
-          add_args['sequence'] = task.train_sequence
-          add_args['indices'] = task.train_indices
-        elif slot.startswith('test'):
-          add_args['sequence'] = task.test_sequence
-          add_args['indices'] = task.test_indices
-        setattr(t, slot, self.transformer._apply(getattr(task, slot), add_args))
-      else:
-        setattr(t, slot, getattr(task, slot))
-    t.metadata      = dict(task.metadata)
+    # Transform train vectors
+    add_args = {}
+    add_args['sequence'] = task.train_sequence
+    add_args['indices'] = task.train_indices
+    train_vectors = self.transformer._apply(task.train_vectors, add_args)
+
+    # Transform test vectors
+    add_args = {}
+    add_args['sequence'] = task.test_sequence
+    add_args['indices'] = task.test_indices
+    test_vectors = self.transformer._apply(task.test_vectors, add_args)
+
+
+    t = BasicTask(
+      train_vectors, 
+      task.train_classes, 
+      task.train_indices,
+      test_vectors, 
+      task.test_classes, 
+      task.test_indices,
+      task.train_sequence, 
+      task.test_sequence,
+      metadata= dict(task.metadata)
+      )
 
     # Copy weights back into task
     self.transformer.weights = weights
