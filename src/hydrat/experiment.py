@@ -5,14 +5,22 @@
 # and the udnerlying store at the level of managing tasks and results. The dataset abstraction is
 # delegated to the DataProxy object.
 
-from hydrat.datamodel import TaskSetResult, Result
+from hydrat import config
+from hydrat.datamodel import TaskSetResult, Result, BasicTask
 from hydrat.common.pb import ProgressIter
+import cPickle
+import multiprocessing as mp
 
 class ExperimentFold(object):
   def __init__(self, task, learner, add_args={}):
     self.task = task
     self.learner = learner
     self.add_args = add_args
+
+  def __getstate__(self):
+    # TODO: Potentially use a disk-backed implementation of tasks
+    task = BasicTask.from_task(self.task)
+    return {'task':task, 'learner':self.learner, 'add_args':self.add_args}
 
   @property
   def classifier(self):
@@ -30,12 +38,20 @@ class ExperimentFold(object):
 
     return Result.from_task(self.task, classifications, dict(classifier.metadata))
 
+def get_result(fold):
+  """
+  Needed for parallelized implementation, as we need a top-level function to pickle.
+  """
+  return fold.result
+
 # TODO: Refactor in a way that allows access to per-fold classifiers
 class Experiment(TaskSetResult):
-  def __init__(self, taskset, learner=None):
+  def __init__(self, taskset, learner=None, parallel=None):
+    # TODO: Why is learner optional?
     self.taskset = taskset
     self.learner = learner
     self._results = None
+    self.parallel = parallel if parallel is not None else config.getboolean('parameters', 'parallel_classify')
 
   @property
   def metadata(self):
@@ -54,7 +70,7 @@ class Experiment(TaskSetResult):
   @property
   def folds(self):
     folds = []
-    for task in self.taskset.tasks:
+    for task in self.taskset:
       folds.append(ExperimentFold(task, self.learner))
     return folds
 
@@ -62,8 +78,18 @@ class Experiment(TaskSetResult):
     # TODO: parallelize over folds?
     results = []
     print "Experiment: %s %s" % (self.learner.__name__, self.learner.params)
-    for fold in ProgressIter(self.folds, ''):
-      results.append(fold.result)
+    try:
+      if not self.parallel:
+        # TODO: Should we define a custom exception for this?
+        raise cPickle.UnpickleableError
+      cPickle.dumps(self.learner)
+      pool = mp.Pool(config.getint('parameters','job_count'))
+      for result in ProgressIter(pool.imap_unordered(get_result, self.folds), 'PARALLEL', maxval=len(self.taskset)):
+        results.append(result)
+      results.sort(key=lambda x:x.metadata['index'])
+    except cPickle.UnpickleableError:
+      for fold in ProgressIter(self.folds, 'SERIES'):
+        results.append(fold.result)
     self._results = results
     return results
 

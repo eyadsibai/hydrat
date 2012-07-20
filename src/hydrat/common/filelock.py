@@ -2,6 +2,7 @@
 import os
 import time
 import errno
+import platform
  
 class FileLockException(Exception):
     pass
@@ -40,6 +41,9 @@ class FileLock(object):
                 if (time.time() - start_time) >= self.timeout:
                     raise FileLockException("Timeout occured.")
                 time.sleep(self.delay)
+        content = "{0}:{1}".format(platform.node(), os.getpid())
+        os.write(self.fd, content) 
+        os.fsync(self.fd)
         self.is_locked = True
  
  

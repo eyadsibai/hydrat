@@ -9,6 +9,9 @@ import scipy.sparse
 
 from copy import deepcopy
 
+import abc
+from collections import Sequence
+
 class Fold(object):
   """
   Represents a fold. Abstracts accessing of subsections of a numpy/scipy array
@@ -90,6 +93,8 @@ class FeatureMap(SplitArray):
     """
     if len(fms) == 1: return fms[0]
 
+    # The problem is that this can MemoryError out - it tries to allocate
+    # enough memory to build the stacked version.
     fm = scipy.sparse.vstack([f[:] for f in fms])
     metadata = dict()
     feature_desc = tuple()
@@ -124,25 +129,113 @@ class ClassMap(SplitArray):
 # Task
 ###
 class Task(object):
-  __slots__ = [ 'train_vectors'
-              , 'train_classes'
-              , 'train_sequence'
-              , 'test_vectors'
-              , 'test_classes'
-              , 'test_sequence'
-              , 'metadata'
-              , 'train_indices'
-              , 'test_indices'
-              , 'weights'
-              ]
+  __metaclass__ = abc.ABCMeta
+  train_sequence = None
+  test_sequence = None
 
-  def compute_weight(self, weight_function):
-    if weight_function.__name__ not in self.weights:
-      self.weights[weight_function.__name__] = weight_function(self.train_vectors, self.train_classes)
-    return self.weights[weight_function.__name__]
+  @abc.abstractproperty
+  def train_vectors(self): 
+    pass
 
+  @abc.abstractproperty
+  def train_classes(self): 
+    pass
+
+  @abc.abstractproperty
+  def train_indices(self): 
+    pass
+
+  @abc.abstractproperty
+  def test_vectors(self): 
+    pass
+
+  @abc.abstractproperty
+  def test_classes(self): 
+    pass
+
+  @abc.abstractproperty
+  def test_indices(self): 
+    pass
+
+  @abc.abstractproperty
+  def metadata(self): 
+    pass
+
+  @abc.abstractproperty
+  def weights(self): 
+    pass
+
+class BasicTask(Task):
+  def __init__( self, 
+      train_vectors, train_classes, train_indices,
+      test_vectors, test_classes, test_indices,
+      train_sequence = None, test_sequence=None,
+      weights = None, metadata=None):
+    self._train_vectors = train_vectors
+    self._train_classes = train_classes
+    self._train_indices = train_indices
+    self._test_vectors = test_vectors
+    self._test_classes = test_classes
+    self._test_indices = test_indices
+    self._train_sequence = train_sequence
+    self._test_sequence = test_sequence
+    self._weights = weights if weights else {}
+    self._metadata = dict(metadata) if metadata else {}
+
+  @classmethod
+  def from_task(cls, task):
+    """
+    Convenience method to "materialize" a task
+    """
+    return cls( task.train_vectors, task.train_classes, task.train_indices,
+      task.test_vectors, task.test_classes, task.test_indices,
+      task.train_sequence, task.test_sequence, task.weights, task.metadata)
+
+  @property
+  def train_vectors(self): 
+    return self._train_vectors
+
+  @property
+  def train_classes(self): 
+    return self._train_classes
+
+  @property
+  def train_indices(self): 
+    return self._train_indices
+
+  @property
+  def train_sequence(self): 
+    return self._train_sequence
+
+  @property
+  def test_vectors(self): 
+    return self._test_vectors
+
+  @property
+  def test_classes(self): 
+    return self._test_classes
+
+  @property
+  def test_indices(self): 
+    return self._test_indices
+
+  @property
+  def test_sequence(self): 
+    return self._test_sequence
+
+  @property
+  def metadata(self): 
+    return self._metadata
+
+  @property
+  def weights(self): 
+    return self._weights
+
+  @weights.setter
+  def weights(self, value):
+    self._weights = value
+  
 class DataTask(Task):
-  __slots__ = Task.__slots__ + [ 'class_map', 'feature_map', 'sequence']
   def __init__( self
               , feature_map
               , class_map
@@ -158,14 +251,33 @@ class DataTask(Task):
 
     self.class_map = class_map
     self.feature_map = feature_map
-    self.train_indices = train_indices
-    self.test_indices = test_indices
+    self._train_indices = train_indices
+    self._test_indices = test_indices
     # TODO: Sanity check on the partitioning of the sequence. There shouldn't be sequences
     #       that span train & test
     self.sequence = sequence
-    self.metadata = dict(metadata)
-    self.weights = {}
+    self._metadata = dict(metadata)
+    self._weights = {}
+  
+  @property
+  def weights(self):
+    return self._weights
 
+  @weights.setter
+  def weights(self, value):
+    self._weights = value
+
+  @property
+  def train_indices(self):
+    return self._train_indices
+
+  @property
+  def test_indices(self):
+    return self._test_indices
+
+  @property
+  def metadata(self):
+    return self._metadata
     
   @property
   def train_vectors(self):
@@ -224,17 +336,41 @@ class DataTask(Task):
 ###
 # TaskSet
 ###
-class TaskSet(object):
+class TaskSet(Sequence):
   """
-  This base class represents the TaskSet interface. It consists of two
-  attributes, metadata and tasks, which can be implemented as properties
-  if lazy behaviour is desired.
+  This represents the TaskSet interface. A taskset is basically a 
+  sequence of tasks, and hence implements the Sequence ABC. It also
+  carries an additional attribute "metadata". 
   """
+  # TODO: Potentially introduce a metadata ABC
+  @abc.abstractproperty
+  def metadata(self):
+    pass
+
+  def __contains__(self, key):
+    # this would require task-level equality. not sure where we could ever need this
+    raise NotImplementedError("not clear when we need this or how it should behave")
+
+
+class BasicTaskSet(TaskSet):
   def __init__( self, tasks, metadata):
     self.tasks = tasks
     self.metadata = dict(metadata)
 
+  def __getitem__(self, key):
+    return self.tasks[key]
+
+  def __len__(self):
+    return len(self.tasks)
+
+  def __iter__(self):
+    return iter(self.tasks)
+
+  def __contains__(self, key):
+    return key in self.tasks
+
 # TODO: New-style Tasks
+# TODO: What is a new-style Task???
 class DataTaskSet(TaskSet):
   def __init__(self, featuremap, classmap, sequence=None, metadata={}):
     self.featuremap = featuremap
@@ -253,39 +389,15 @@ class DataTaskSet(TaskSet):
     md = proxy.desc
     return cls(fm, cm, sq, md)
 
-  @property
-  def tasks(self):
+  def __getitem__(self, key):
     fm = self.featuremap
     cm = self.classmap
     sq = self.sequence
+    fold = fm.folds[key]
+    DataTask(fm.raw, cm.raw, fold.train_ids, fold.test_ids, {'index':key}, sequence=sq)
 
-    tasklist = []
-    for i,fold in enumerate(fm.folds):
-      tasklist.append(DataTask(fm.raw, cm.raw, fold.train_ids, fold.test_ids, {'index':i}, sequence=sq))
-    return tasklist
-
-"""
-import hydrat.task.transform as tx
-class Transform(TaskSet):
-  def __init__(self, tasksetsource, transformer):
-    self.tasksetsource = tasksetsource
-    self.transformer = transformer
-
-  @property
-  def _desc(self):
-    return tx.update_medata(tasksetsource.desc, self.transformer)
-    
-  @property
-  def tasklist(self):
-    # TODO: Work out how to get the required weights, and how to extend them back
-    # TODO: Work out why we need add_args
-    raise NotImplementedError
-    self.weights = transformer.weights.keys()
-    taskset = self.taskset
-    new_taskset = tx.transform_taskset(taskset, transformer, add_args=add_args)
-    self.store.extend_Weights(taskset)
-    #self.store.new_TaskSet(new_taskset)
-"""
+  def __len__(self):
+    return len(self.featuremap.folds)
 
 ###
 # Result

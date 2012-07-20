@@ -81,7 +81,7 @@ class Tasks(object):
     page.init(**page_config)
     page.add(dict_as_html(taskset.metadata))
 
-    for i, task in enumerate(taskset.tasks):
+    for i, task in enumerate(taskset):
       page.h2('Task %d' % i)
       md = dict(task.metadata)
       md['train_count'] = len(task.train_indices)

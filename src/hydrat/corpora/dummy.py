@@ -27,6 +27,13 @@ class dummy(ByteUBT, CodepointUBT, UTF8):
         classmap["%04d"%(i * self.max_times + j)] = [u'class' + unicode(i) ]
     return classmap
 
+  def cm_dummy_binary(self):
+    classmap = {}
+    for i in xrange(len(self.words)):
+      for j in xrange(self.max_times):
+        classmap["%04d"%(i * self.max_times + j)] = [u'class' + ('0' if i==0 else '1') ]
+    return classmap
+
   def sp_dummy_default(self):
     return dict( train = self.instance_ids[:-(2*self.max_times)]
                , test = self.instance_ids[-(2*self.max_times):-self.max_times]

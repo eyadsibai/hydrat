@@ -7,7 +7,7 @@ import logging
 import UserDict 
 import numpy
 warnings.simplefilter("ignore", tables.NaturalNameWarning)
-from scipy.sparse import lil_matrix, coo_matrix
+from scipy.sparse import lil_matrix, csr_matrix
 
 from hydrat import config
 from hydrat.common import progress
@@ -196,13 +196,18 @@ class StoredTaskSet(SpaceProxy, Stored, TaskSet):
       labels.extend(self.store.get_Space(feature_space))
     return labels
     
-  @property
-  def tasks(self):
-    tasks = []
-    for task_node in self.node._v_groups.values():
-      tasks.append(StoredTask(self.store, task_node))
-    tasks.sort(key=lambda r:r.metadata['index'])
-    return tasks
+  def __len__(self):
+    return len(self.node._v_groups)
+
+  def __getitem__(self, key):
+    g = self.node._v_groups
+    task_node = None
+    for node in g.values():
+      if node._v_attrs.index == key:
+        task_node = node
+    if task_node is None:
+      raise IndexError(key)
+    return StoredTask(self.store, task_node)
 
 class StoredTask(Stored, Task):
   @property
@@ -304,6 +309,7 @@ class StoredWeights(NodeProxy):
     if key in self.node:
       # TODO: Work out if we need to do something fancy with updates
       self.node._v_file.removeNode(getattr(self.node,key))
+    # TODO: Work out if we can handle sparse arrays better
     self.node._v_file.createArray(self.node, key, value)
 
   def __delitem__(self, key):
@@ -396,9 +402,9 @@ class Store(object):
     """
     self.path = path
     logger.debug("Opening Store at '%s', mode '%s'", self.path, mode)
-    dirname, basename = os.path.split(self.path)
-    lockpath = os.path.join(dirname, '.'+basename+'.lockfile')
-    self.filelock = FileLock(lockpath, timeout=0)
+    self.filelock = FileLock(self.path, timeout=0)
+    # TODO: Extend filelock so it stores the pid of the locking process,
+    #       and implement a lock-breaking mechanism that is aware of this.
 
     # The locking behaviour we need is a bit odd. We can open for reading mutliple 
     # times, and we can open for reading a file that is being appended to, but we 
@@ -440,6 +446,13 @@ class Store(object):
     if not 'version' in self.root._v_attrs or self.root._v_attrs['version'] != STORE_VERSION:
       raise ValueError, "Store format is outdated; please open the store as writeable to automatically update it"
 
+    # http://docs.python.org/reference/datamodel.html states that:
+    # It is not guaranteed that __del__() methods are called for objects that still exist when the interpreter exits.
+    #
+    # We need to ensure that __del__ is called as it is used to release the file lock, so we
+    # use an exitfunc to ensure this happens.
+    import atexit; atexit.register(lambda: self.__del__())
+
   @classmethod
   def from_caller(cls, fallback=None):
     """
@@ -453,8 +466,6 @@ class Store(object):
     path = os.path.join(store_path, os.path.splitext(filename)[0]+'.h5')
     logger.debug("from_caller: %s", path)
     return cls(path, 'a', fallback=fallback)
-    
-
   
   def __str__(self):
     return "<Store mode '%s' @ '%s'>" % (self.mode, self.path)
@@ -482,8 +493,14 @@ class Store(object):
     ax0 = node.read(field='ax0')
     ax1 = node.read(field='ax1')
     values = node.read(field='value')
-    m = coo_matrix((values,numpy.vstack((ax0,ax1))), shape=shape)
-    m = m.tocsr()
+    # TODO: This is turning out to be a blocker as it
+    #       basically requires double memory to do the
+    #       conversion. The options at this point are:
+    #       1) change how sparse nodes are stored, so we
+    #          can read back the sparse matrix without
+    #          conversion
+    #       2) use a disk-backed data structure somewhere
+    m = csr_matrix((values,(ax0,ax1)), shape=shape)
     return m
 
   def _add_sparse_node( self
@@ -689,7 +706,7 @@ class Store(object):
                                     )
 
     # Initialize space to store instance sizes.
-    n_inst = len(self.get_Space(dsname))
+    n_inst = ds._v_attrs['num_instances']
     
     attrs = fm_node._v_attrs
     setattr(attrs, 'dtype', group._v_attrs.type)
@@ -737,7 +754,7 @@ class Store(object):
     self._check_writeable()
     logger.debug("Adding Class Map to dataset '%s' in space '%s'", dsname, space_name)
     ds = getnode(self.datasets, dsname)
-    space = getnode(self.spaces, space_name)
+    space = self.get_Space(space_name)
 
     num_inst = self.get_SpaceMetadata(ds._v_attrs['instance_space'])['size'] 
     num_classes = len(space)
@@ -747,8 +764,8 @@ class Store(object):
       raise StoreError, "Wrong shape for class map!"
 
     group =  self.fileh.createGroup( ds.class_data
-                                   , space._v_name
-                                   , "Data for %s" % space._v_name
+                                   , space_name
+                                   , "Data for %s" % space_name
                                    )
 
     cm_node = self.fileh.createCArray( group
@@ -763,6 +780,12 @@ class Store(object):
                                
   def add_TaskSet(self, taskset):
     # TODO: Find some way to make this atomic! Otherwise, we can write incomplete tasksets!!
+    #       The best way to do this is probably to introduce a top-level 'pending'
+    #       node. A hardlink to the new node will be attached when we create the new
+    #       node but before we start writing to it. This hardlink is removed when
+    #       writing is complete. Thus, if we open up a store and find anything attached
+    #       to the pending node, we know that the item is incomplete and should be
+    #       deleted.
     self._check_writeable()
     
     # Copy the metadata as we are not allowed to modify it directly
@@ -779,7 +802,7 @@ class Store(object):
     try:
       logger.debug('Adding a taskset %s', str(md))
 
-      for i,task in enumerate(ProgressIter(taskset.tasks, label="Adding Tasks")):
+      for i,task in enumerate(ProgressIter(taskset, label="Adding Tasks")):
         self._add_Task(task, taskset_entry)
       self.fileh.flush()
     except Exception:
