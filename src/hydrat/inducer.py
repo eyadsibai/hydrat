@@ -40,6 +40,7 @@ class DatasetInducer(object):
     logger.debug('  sps: %s', sps)
 
     dsname = dataset.__name__
+    instance_space = dataset.instance_space
 
     # Work out if this is the first time we encounter this dataset
     if self.store.has_Dataset(dsname):
@@ -86,7 +87,7 @@ class DatasetInducer(object):
     for key in cms - present_cm:
       logger.debug("Processing class map '%s'", key)
       try:
-        self.add_Classmap(dsname, key, dataset.classmap(key))
+        self.add_Classmap(dsname, instance_space, key, dataset.classmap(key))
       except AlreadyHaveData,e :
         logger.debug(e)
 
@@ -94,7 +95,7 @@ class DatasetInducer(object):
     for key in fms - present_fm:
       logger.debug("Processing feature map '%s'", key)
       try:
-        self.add_Featuremap(dsname, key, dataset.featuremap(key))
+        self.add_Featuremap(dsname, instance_space, key, dataset.featuremap(key))
       except AlreadyHaveData,e :
         logger.warning(e)
         # TODO: Why are we calling pdb for this?
@@ -108,7 +109,7 @@ class DatasetInducer(object):
       logger.debug("Processing token stream '%s'", key)
 
       try:
-        self.add_TokenStreams(dsname, key, dataset.tokenstream(key))
+        self.add_TokenStreams(dsname, instance_space, key, dataset.tokenstream(key))
       except AlreadyHaveData,e :
         # TODO: I don't think this is actually raised by anything.
         logger.warning(e)
@@ -116,28 +117,45 @@ class DatasetInducer(object):
     # Handle all the sequences
     for key in sqs - present_sq:
       logger.debug("Processing sequence '%s'", key)
-      self.add_Sequence(dsname, key, dataset.sequence(key))
+      self.add_Sequence(dsname, instance_space, key, dataset.sequence(key))
 
     # Handle all the splits
     for key in sps - present_sp:
       logger.debug("Processing split '%s'", key)
-      self.add_Split(dsname, key, dataset.split(key), dataset.instance_ids)
+      self.add_Split(dsname, instance_space, key, dataset.split(key))
 
 
-  def add_Split(self, dsname, split_name, split, instance_ids):
+  def add_Split(self, dsname, instance_space, split_name, split):
+    instance_ids = self.store.get_Space(instance_space)
     if 'train' in split and 'test' in split:
       # Train/test type split.
       train_ids = membership_vector(instance_ids, split['train'])
       test_ids = membership_vector(instance_ids, split['test'])
       spmatrix = numpy.dstack((train_ids, test_ids)).swapaxes(0,1)
 
-    elif any(key.startswith('fold') for key in split):
+    elif all(key.startswith('fold') for key in split):
       # Cross-validation folds
-      folds_present = sorted(key for key in split if key.startswith('fold'))
+      folds_present = sorted(split)
       partitions = []
       for fold in folds_present:
         test_ids = membership_vector(instance_ids, split[fold])
         train_docids = sum((split[f] for f in folds_present if f is not fold), [])
+        train_ids = membership_vector(instance_ids, train_docids)
+        partitions.append( numpy.dstack((train_ids, test_ids)).swapaxes(0,1) )
+      spmatrix = numpy.hstack(partitions)
+
+    elif all(key.startswith('learncurve') for key in split):
+      # Learning curve. learncurve0 ... learncurve(N) are the training
+      # portions, where (N) is a number. There will be N+1 tasks, where 
+      # task m has training data learncurve0 ... learncurve(m). The test
+      # data is marked with a special key, learncurveT, using just the
+      # capital letter T.
+      if 'learncurveT' not in split:
+        raise ValueError("missing test data for learning curves")
+      test_ids = membership_vector(instance_ids, split['learncurveT'])
+      partitions = []
+      for i in range(1,len(split)):
+        train_docids = sum((split["learncurve{0}".format(j)] for j in range(i)), [])
         train_ids = membership_vector(instance_ids, train_docids)
         partitions.append( numpy.dstack((train_ids, test_ids)).swapaxes(0,1) )
       spmatrix = numpy.hstack(partitions)
@@ -148,31 +166,29 @@ class DatasetInducer(object):
     self.store.add_Split(dsname, split_name, spmatrix)
 
 
-  def add_Sequence(self, dsname, seq_name, sequence):
+  def add_Sequence(self, dsname, instance_space, seq_name, sequence):
     # This involves converting the sequence representation from lists of identifers 
     # in-dataset identifiers to a matrix. 
     # Axis 0 represents the parent and axis 1 represents the child.
     # A True value indicates a directed edge from parent to child.
-    instance_ids = self.store.get_Space(dsname)
+    instance_ids = self.store.get_Space(instance_space)
     index = dict((k,i) for i,k in enumerate(instance_ids))
     sqlist = [ [index[id] for id in s] for s in sequence ]
     sqmatrix = sequence2matrix(sqlist) 
     logger.debug("Adding Sequence'%s' to Dataset '%s'", seq_name, dsname)
     self.store.add_Sequence(dsname, seq_name, sqmatrix)
 
-  def add_TokenStreams(self, dsname, stream_name, tokenstreams):
+  def add_TokenStreams(self, dsname, instance_space, stream_name, tokenstreams):
     metadata = dict()
-    # TODO: This is wrong. instance ids is based on the instance space of a ds,
-    # which may not correspond to the ds name.
-    instance_ids = self.store.get_Space(dsname)
+    instance_ids = self.store.get_Space(instance_space)
 
     tslist = [tokenstreams[i] for i in instance_ids]
     logger.debug("Adding Token Stream '%s' to Dataset '%s'", stream_name, dsname)
     self.store.add_TokenStreams(dsname, stream_name, tslist)
 
-  def add_Featuremap(self, dsname, space_name, feat_dict):
+  def add_Featuremap(self, dsname, instance_space, space_name, feat_dict):
     # Check the list of instances is correct
-    instance_ids = self.store.get_Space(dsname)
+    instance_ids = self.store.get_Space(instance_space)
     assert set(instance_ids) == set(feat_dict.keys())
 
     # load up the existing space if any
@@ -196,12 +212,33 @@ class DatasetInducer(object):
     # (instance#, feat#, value)
     feat_map = disklist(config.getpath('paths','scratch'))
 
+    # TODO: Implement top-n feature thresholding here. The motivation for this is 
+    #       that the low-frequency features generally have little to no impact
+    #       on the final outcome, and are problematic to deal with for very
+    #       large feature spaces.
+    max_feats = config.getint('parameters','max_feats')
+    feat_sum = defaultdict(int)
+
     for i, id in enumerate(ProgressIter(instance_ids,label='FeatureMap(%s)' % space_name)):
       d = feat_dict[id]
       for feat in d:
         j = feat_index[feat]
+        feat_sum[j] += d[feat]
         feat_map.append((i,j,d[feat]))
     logger.debug(' space "%s" now has %d unique features', space_name, len(feat_index))
+
+    if len(feat_index) > max_feats:
+      logger.debug("culling features, keeping top %d features", max_feats)
+      selected = set(sorted(feat_sum, key=feat_sum.get, reverse=True)[:max_feats])
+      fm = feat_map
+      feat_map = disklist(config.getpath('paths','scratch'))
+      for t in fm:
+        if t[1] in selected:
+          feat_map.append(t)
+      culled_count = len(fm) - len(feat_map)
+      prop = float(culled_count) / len(fm)
+      logger.debug("eliminated %d triplets (%.1f%%)", culled_count, prop)
+
 
     # Store the extended space
     space = sorted(feat_index, key=feat_index.get)
@@ -215,7 +252,8 @@ class DatasetInducer(object):
     logger.debug("adding map to store")
     self.store.add_FeatureDict(dsname, space_name, feat_map)
 
-  def add_Classmap(self, dsname, space_name, docclassmap):
+  def add_Classmap(self, dsname, instance_space, space_name, docclassmap):
+    instance_ids = self.store.get_Space(instance_space)
     if not config.getboolean('debug','allow_str_classset'):
       if any(isinstance(d, str) or isinstance(d, unicode) for d in docclassmap.values()):
         raise ValueError, "str detected as classset - did you forget to wrap classmap values in a list?"
@@ -236,7 +274,6 @@ class DatasetInducer(object):
     if self.store.has_Data(dsname, space_name):
       raise ValueError, "Already have data for dataset '%s' in space '%s'"% (dsname, space_name)
 
-    instance_ids = self.store.get_Space(dsname)
     class_map = map2matrix(docclassmap, instance_ids, classlabels)
     self.store.add_ClassMap(dsname, space_name, class_map)
 

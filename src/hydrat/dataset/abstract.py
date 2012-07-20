@@ -175,5 +175,6 @@ class Dataset(object):
         else:
           raise ValueError, msg
 
+    # TODO: This fm object could actually evaluate getitem on demand.
     return fm
 

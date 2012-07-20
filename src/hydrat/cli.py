@@ -322,3 +322,50 @@ class HydratCmdln(cmdln.Cmdln):
     print "  tasksets:", len(store.get_TaskSets({}))
     print "  results:", len(store.get_TaskSetResults({}))
 
+  @cmdln.option("-f", "--force",   action="store_true", default=False, help="force unlocking")
+  def do_unlock(self, subcmd, opts, path):
+    """${cmd_name}: break a lock on a store file
+
+    ${cmd_usage} 
+
+    Files can remain locked if the program locking them does not terminate
+    correctly. The lockfiles carry information about the hostname and the
+    process ID. We only allow normal unlocking if the hostname matches and 
+    the PID does not exist (only works on Linux for now).
+    """
+    from common.filelock import FileLock, FileLockException
+    import os, platform
+    lock = FileLock(path)
+
+    try:
+      lock.acquire()
+      print '"{0}": not locked'.format(path)
+    except FileLockException:
+      pass
+
+    if not lock.is_locked: #we were unable to acquire the lock
+      with open(lock.lockfile) as f:
+        l_hostname, l_pid = f.read().strip().split(':')
+      print '"{0}": locked by {1} ({2})'.format(path, l_hostname, l_pid)
+
+      if opts.force:
+        os.unlink(lock.lockfile)
+        print "lock broken"
+      else:
+        hostname = platform.node()
+        if hostname == l_hostname:
+          if platform.system() == 'Linux':
+            if os.path.exists(os.path.join('/','proc',l_pid)):
+              print '[ERROR] pid {0} still running'.format(l_pid)
+              print "refusing to break lock"
+            else:
+              os.unlink(lock.lockfile)
+              print "lock broken"
+          else:
+            # Not Linux, don't have /proc/, not implemented.
+            raise NotImplementedError("have not implemented live process checking for non-Linux platforms")
+        else:
+          print '[ERROR] hostname ({0}) does not match lockfile ({1})'.format(hostname, l_hostname)
+          print "refusing to break lock"
+      
+

@@ -70,6 +70,13 @@ class NaiveBayesL(Learner):
       raise ValueError, "unknown class prior"
     self.class_prior = class_prior
 
+  def __getstate__(self):
+    return (self.eventmodel, self.class_prior)
+
+  def __setstate__(self, state):
+    Learner.__init__(self)
+    self.eventmodel, self.class_prior = state
+
   def _params(self):
     return {'eventmodel':self.eventmodel.__name__, 'class_prior':self.class_prior }
 

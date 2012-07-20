@@ -274,7 +274,7 @@ class DataProxy(TaskSet):
         ts[ids[i]] = processor(bts)
       
       # Save the new tokenstream
-      self.inducer.add_TokenStreams(self.dsname, tokenstream_name, ts)
+      self.inducer.add_TokenStreams(self.dsname, self.instance_space, tokenstream_name, ts)
 
     # Set the new tokenstream name
     self.tokenstream_name = tokenstream_name
@@ -287,7 +287,7 @@ class DataProxy(TaskSet):
     # Ensure the top-level store has this dataset node.
     # TODO: Refactor this to avoid breaking the abstraction.
     if not hasattr(self.store.datasets, self.dsname):
-      self.store.add_Dataset(self.dsname, self.dataset.instance_space, self.dataset.instance_ids)
+      self.store.add_Dataset(self.dsname, self.instance_space, self.dataset.instance_ids)
       
     if self.tokenstream_name is None:
       raise ValueError, "tokenstream_name not set"
@@ -312,22 +312,22 @@ class DataProxy(TaskSet):
       for id, inst_tokens in izip(self.instancelabels, tokens):
         feat_dict[id] = dict(inst_tokens)
 
-      self.inducer.add_Featuremap(self.dsname, space_name, feat_dict)
+      self.inducer.add_Featuremap(self.dsname, self.instance_space, space_name, feat_dict)
 
     self.feature_spaces = space_name
 
-  @property
-  def tasks(self):
+  def __len__(self):
+    return len(self.featuremap.folds)
+
+  def __getitem__(self, key):
     fm = self.featuremap
     cm = self.classmap
     sq = self.sequence
 
-    tasklist = []
-    for i,fold in enumerate(fm.folds):
-      t = DataTask(fm.raw, cm.raw, fold.train_ids, fold.test_ids, 
-          {'index':i}, sequence=sq)
-      tasklist.append(t)
-    return tasklist
+    fold = fm.folds[key]
+    t = DataTask(fm.raw, cm.raw, fold.train_ids, fold.test_ids, 
+        {'index':key}, sequence=sq)
+    return t
 
   @property
   def taskset(self):
@@ -590,24 +590,20 @@ class InductiveLOO(DataProxy):
     retval.split = self.split
     return retval
 
-  @property
-  def tasks(self):
-    # TODO: refactor against dataproxy
+  def __getitem__(self, key):
     fm = self.featuremap
     cm = self.classmap
     sq = self.sequence
 
-    tasklist = []
     domains = [ p.dsname for p in self.proxies ]
-    for i,fold in enumerate(fm.folds):
-      metadata = dict()
-      metadata['index'] = i
-      metadata['domain.train'] = tuple(d for j,d in enumerate(domains) if i != j)
-      metadata['domain.test'] = domains[i],
-      t = DataTask(fm.raw, cm.raw, fold.train_ids, fold.test_ids, 
-          metadata, sequence=sq)
-      tasklist.append(t)
-    return tasklist
+    fold = fm.folds[key]
+    metadata = dict()
+    metadata['index'] = key
+    metadata['domain.train'] = tuple(d for j,d in enumerate(domains) if key != j)
+    metadata['domain.test'] = domains[key],
+    t = DataTask(fm.raw, cm.raw, fold.train_ids, fold.test_ids, 
+        metadata, sequence=sq)
+    return t
 
 
     
