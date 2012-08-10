@@ -167,7 +167,12 @@ class Dataset(object):
 
     tokens = pool.imap(extractor, tokenstream())
     for id, inst_tokens in izip(instancelabels, tokens):
-      fm[id] = dict(inst_tokens)
+      try:
+        fm[id] = dict(inst_tokens)
+      except TypeError:
+        #inst_tokens is not a mapping type. we then treat it as a sequence instead
+        #and assign arbitrary feature names
+        fm[id] = dict(("feat{0}".format(i+1),t) for i,t in enumerate(inst_tokens))
       if len(fm[id]) == 0:
         msg =  "%s_%s has no tokens for '%s'" % (tsname, extractor.__name__, id)
         if config.getboolean('debug','allow_empty_instance'):
