@@ -124,7 +124,7 @@ class InfoGain(WeightingFunction):
     
     # Calculate  the entropy of the class distribution over all instances 
     H_P = entropy(class_map.sum(0))
-    self.logger.debug("Overall entropy: %.2f", H_P)
+    #self.logger.debug("Overall entropy: %.2f", H_P)
       
     # unused features have 0 information gain, so we skip them
     nz_index = numpy.array(feature_map.sum(0).nonzero())[1,0]
