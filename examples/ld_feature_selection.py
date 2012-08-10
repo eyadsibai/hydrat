@@ -1,7 +1,7 @@
 from hydrat.corpora.dummy import dummy
-from hydrat.proxy import DataProxy, InductiveLOO
+from hydrat.proxy import DataProxy, TransductiveLOO
 from hydrat.store import Store
-from hydrat.transformer.featureselect import FeatureSelect, HighestN, LangDomain
+from hydrat.transformer.featureselect import LangDomain
 from hydrat.transformer import Transform
 
 datasets = [
@@ -20,7 +20,7 @@ if __name__ == "__main__":
     proxy.class_space = 'dummy_default'
     proxies.append(proxy)
   
-  proxy = InductiveLOO(proxies)
+  proxy = TransductiveLOO(proxies)
 
   ts = store.new_TaskSet(proxy)
   tss = Transform(ts, LangDomain(proxy.domainmap))
