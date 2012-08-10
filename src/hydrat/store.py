@@ -803,6 +803,7 @@ class Store(object):
       logger.debug('Adding a taskset %s', str(md))
 
       for i,task in enumerate(ProgressIter(taskset, label="Adding Tasks")):
+        logger.debug('  adding task {0}'.format(i))
         self._add_Task(task, taskset_entry)
       self.fileh.flush()
     except Exception:
@@ -963,16 +964,15 @@ class Store(object):
     """
     try:
       ds = getnode(self.datasets, dsname)
-      space = self.get_Space(space_name)
       feature_node = getnode(ds.feature_data, space_name)
     except NoData:
       return self.fallback.get_FeatureMap(dsname, space_name)
 
     data_type = feature_node._v_attrs.type
-    logger.debug("Returning matrix of type %s", data_type)
+    logger.debug("returning {0}:{1} ({2})".format(dsname, space_name, data_type))
     fm = getattr(feature_node, 'feature_map')
     n_inst = self.get_SpaceMetadata(ds._v_attrs['instance_space'])['size'] 
-    n_feat = len(space)
+    n_feat = self.get_SpaceMetadata(space_name)['size'] 
     m = self._read_sparse_node(fm,shape=(n_inst, n_feat))
     metadata = dict\
                  ( dataset=dsname
