@@ -234,6 +234,7 @@ class DataProxy(TaskSet):
    
   @property
   def featuremap(self):
+    self.logger.debug("  loading FM {0}:{1}".format(self.dsname, self.feature_spaces))
     self.inducer.process(self.dataset, fms=self.feature_spaces)
 
     # TODO: Avoid this duplicate memory consumption
@@ -317,7 +318,8 @@ class DataProxy(TaskSet):
     self.feature_spaces = space_name
 
   def __len__(self):
-    return len(self.featuremap.folds)
+    return self.split.shape[1]
+    #return len(self.featuremap.folds)
 
   def __getitem__(self, key):
     fm = self.featuremap
@@ -475,12 +477,14 @@ class CrossDomainDataProxy(DataProxy):
     raise NotImplementedError
 
 
-class InductiveLOO(DataProxy):
+class TransductiveLOO(DataProxy):
   """
-  Inductive transfer learning. 
+  Transductive transfer learning. 
   We do this as leave-one-out over the set of domains.
   This is similar to DomainCrossValidation, but is initialized with
   a list of proxies rather than a list of datasets.
+  Note that this was previously incorrectly called InductiveLOO.
+  The name has been changed to reflect standard terminology.
   """
 
   def __init__(self, proxies):
@@ -510,7 +514,7 @@ class InductiveLOO(DataProxy):
 
   @property
   def dsname(self):
-    return "InductiveLOO"
+    return "TransductiveLOO"
 
   @property
   def sequence(self):
@@ -551,22 +555,29 @@ class InductiveLOO(DataProxy):
 
   @property
   def split_name(self):
-    return "InductiveLOO"
+    return "TransductiveLOO"
 
   @property
   def split(self):
     # we need this to implement featuremap and classmap
     num_inst = len(self.instancelabels)
     num_fold = len(self.proxies)
+    
+    # We need to mark the role of each document in each fold
     test_inst = numpy.zeros((num_inst, num_fold), dtype=bool)
 
+    # For each proxy in turn, we mark all of its documents as the
+    # test documents
     start = 0
     for i,p in enumerate(self.proxies):
       end = start + len(p.instancelabels)
       test_inst[numpy.arange(start, end), i, :] = True
       start = end
 
+    # We then mark all the non-test documents as train documents for
+    # each fold
     train_inst = numpy.logical_not(test_inst)
+
     retval = numpy.dstack((train_inst, test_inst))
     return retval
 
@@ -575,6 +586,7 @@ class InductiveLOO(DataProxy):
     """
     ClassMap over domains.
     """
+    # we use the test-domain membership map in the split as the cm itself
     retval = ClassMap(self.split[...,1], self.split)
     return retval
 
