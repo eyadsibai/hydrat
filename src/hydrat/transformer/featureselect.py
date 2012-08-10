@@ -1,4 +1,5 @@
 import numpy
+import hydrat.common.weight as weight 
 from hydrat.classifier.liblinear import liblinearL
 from hydrat.transformer import Transformer
 from hydrat.common import rankdata
@@ -40,6 +41,9 @@ class LangDomain(FeatureSelect):
   Cross-domain Feature Selection for Language Identification, Marco Lui, Timothy Baldwin (2011) 
   In Proceedings of the 5th International Joint Conference on Natural Language Processing (IJCNLP 2011), Chiang Mai, Thailand. 
   """
+  # TODO: save the actual LD weight into the task weights, so that we can look at
+  #       it per-feature in the browser
+  # TODO: Improve logging output
   def __init__(self, domain_map, num_feat = 400):
     """
     domain_map is a 2d boolean array (instances, domains)
@@ -56,6 +60,7 @@ class LangDomain(FeatureSelect):
     The depend on the exact feature set, and thus will vary under composition
     with other feature sets.
     """
+    self.logger.debug("LD learn: {0} instances, {1} features, {2} classes".format(feature_map.shape[0], feature_map.shape[1], class_map.shape[1]))
     reduced_dm = self.domain_map[indices]
     if 'ig_domain' not in self.weights:
       # IG over all domains
@@ -79,6 +84,43 @@ class LangDomain(FeatureSelect):
 
     ld_w = numpy.min(cl_prof, axis=0)
     self.keep_indices = self.keep_rule(ld_w)
+
+
+class LocalIG(FeatureSelect):
+  """
+  Implementation of per-class feature selection based on IG.
+  In the long term, this should be refactored into a two components,
+  the local feature selection and the underlying weighting metric
+
+  This implementation based on hydrat.transformer.LangDomain
+  """
+  def __init__(self, num_feat = 400):
+    """
+    domain_map is a 2d boolean array (instances, domains)
+    It is used for the IG computation for domain.
+    """
+    Transformer.__init__(self)
+    self.keep_rule = LessThan(num_feat)
+    self.keep_indices = None
+
+  def learn(self, feature_map, class_map, indices):
+    cl_prof = []
+    for cl in range(class_map.shape[1]):
+      # binarized IG over classes
+      cl_id = 'ig_cl{0}'.format(cl)
+      if cl_id not in self.weights:
+        pos = class_map[:,cl]
+        reduced_cm = np.hstack((np.logical_not(pos)[:,None], pos[:,None]))
+        self.weights[cl_id] = weight.ig_bernoulli(feature_map, reduced_cm)
+
+      cl_w = self.weights[cl_id]
+
+      cl_r = rankdata(cl_w, reverse=True)
+      cl_prof.append(cl_r)
+
+    w = np.min(cl_prof, axis=0)
+    self.keep_indices = self.keep_rule(w)
+
 
 class SVM(FeatureSelect):
   """
@@ -164,7 +206,6 @@ class LessThan(KeepRule):
     return numpy.flatnonzero(weight_vector < self.n)
 
 
-import hydrat.common.weight as weight 
 cavnar_trenkle94 = FeatureSelect(weight.CavnarTrenkle94(), LessThan(300))
 def cavnar_trenkle(x): return FeatureSelect(weight.CavnarTrenkle94(), LessThan(x))
 def term_count_exceeds(x): return FeatureSelect(weight.TermFrequency(), Exceeds(x))
