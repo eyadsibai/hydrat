@@ -32,21 +32,14 @@ class DatasetInducer(object):
     self.store = store
 
   def process(self, dataset, fms=None, cms=None, tss=None, sqs=None, sps=None):
-    logger.debug('Processing %s', dataset.__name__)
-    logger.debug('  fms: %s', fms)
-    logger.debug('  cms: %s', cms)
-    logger.debug('  tss: %s', tss)
-    logger.debug('  sqs: %s', sqs)
-    logger.debug('  sps: %s', sps)
-
     dsname = dataset.__name__
     instance_space = dataset.instance_space
 
     # Work out if this is the first time we encounter this dataset
     if self.store.has_Dataset(dsname):
-      logger.debug("Already had dataset '%s'", dsname)
+      logger.debug("{0}: already had dataset".format(dsname))
     else:
-      logger.debug("Adding new dataset '%s'", dsname)
+      logger.debug("{0}: adding new dataset".format(dsname))
       self.store.add_Dataset(dsname, dataset.instance_space, dataset.instance_ids)
 
     fms = as_set(fms)
@@ -61,31 +54,24 @@ class DatasetInducer(object):
     present_sq = set(self.store.list_Sequence(dsname))
     present_sp = set(self.store.list_Split(dsname))
 
-    logger.debug("present_fm: %s", str(present_fm))
-    logger.debug("present_cm: %s", str(present_cm))
-    logger.debug("present_ts: %s", str(present_ts))
-    logger.debug("present_sq: %s", str(present_sq))
-    logger.debug("present_sp: %s", str(present_sp))
-
-    logger.debug("For dataset '%s', Store has:", dsname)
-    logger.debug("  %d Feature Maps", len(present_fm))
-    logger.debug("  %d Class Maps", len(present_cm))
-    logger.debug("  %d Token Streams", len(present_ts))
-    logger.debug("  %d Sequences", len(present_sq))
-    logger.debug("  %d Splits", len(present_sp))
+    logger.debug("  present_fm: ({0}) {1}".format(len(present_fm),str(present_fm)))
+    logger.debug("  present_cm: ({0}) {1}".format(len(present_cm),str(present_cm)))
+    logger.debug("  present_ts: ({0}) {1}".format(len(present_ts),str(present_ts)))
+    logger.debug("  present_sq: ({0}) {1}".format(len(present_sq),str(present_sq)))
+    logger.debug("  present_sp: ({0}) {1}".format(len(present_sp),str(present_sp)))
 
     # Handle explicit class spaces 
     for key in set(dataset.classspace_names):
-      logger.debug("Processing explicit class space '%s'", key)
+      logger.debug("  processing explicit class space '%s'", key)
       if self.store.has_Space(key):
-        logger.debug('Already have space %s', key)
+        logger.debug('  - already have space %s', key)
       else:
         c_metadata = {'type':'class','name':key}
         self.store.add_Space(dataset.classspace(key), c_metadata)
 
     # Handle all the class maps
     for key in cms - present_cm:
-      logger.debug("Processing class map '%s'", key)
+      logger.debug("  processing class map '%s'", key)
       try:
         self.add_Classmap(dsname, instance_space, key, dataset.classmap(key))
       except AlreadyHaveData,e :
@@ -93,7 +79,7 @@ class DatasetInducer(object):
 
     # Handle all the feature maps
     for key in fms - present_fm:
-      logger.debug("Processing feature map '%s'", key)
+      logger.debug("  processing feature map '%s'", key)
       try:
         self.add_Featuremap(dsname, instance_space, key, dataset.featuremap(key))
       except AlreadyHaveData,e :
@@ -106,7 +92,7 @@ class DatasetInducer(object):
 
     # Handle all the token streams
     for key in tss - present_ts:
-      logger.debug("Processing token stream '%s'", key)
+      logger.debug("  processing token stream '%s'", key)
 
       try:
         self.add_TokenStreams(dsname, instance_space, key, dataset.tokenstream(key))
@@ -116,12 +102,12 @@ class DatasetInducer(object):
 
     # Handle all the sequences
     for key in sqs - present_sq:
-      logger.debug("Processing sequence '%s'", key)
+      logger.debug("  processing sequence '%s'", key)
       self.add_Sequence(dsname, instance_space, key, dataset.sequence(key))
 
     # Handle all the splits
     for key in sps - present_sp:
-      logger.debug("Processing split '%s'", key)
+      logger.debug("  processing split '%s'", key)
       self.add_Split(dsname, instance_space, key, dataset.split(key))
 
 
