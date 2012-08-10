@@ -301,7 +301,13 @@ def load_configuration(config):
   console_output.setFormatter(console_formatter)
 
   if config.get('logging','logfile'):
-    logfile_output = logging.FileHandler(config.getpath('logging','logfile'), delay=True)
+    # pull out the name of the calling file
+    # adapted from store.py
+    import inspect
+    stack = inspect.stack()
+    filename = os.path.splitext(os.path.basename(stack[-1][1]))[0] + '.' + config.getpath('logging','logfile')
+
+    logfile_output = logging.FileHandler(filename, delay=True)
     logfile_level = LEVELS.get(config.get('logging','logfile.level'), logging.NOTSET)
     logfile_formatter = logging.Formatter(config.get('logging','logfile.format',raw=True))
     logfile_output.setLevel(logfile_level)
