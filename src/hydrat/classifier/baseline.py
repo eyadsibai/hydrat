@@ -15,6 +15,12 @@ class majorityL(Learner):
   def _check_installed(self):
     pass
 
+  def __getstate__(self):
+    return (self.n,)
+
+  def __setstate__(self, value):
+    self.__init__(*value)
+
   def _params(self):
     return dict(n=self.n)
 
@@ -44,7 +50,10 @@ from hydrat.common.sampling import CheckRNG
 class randomL(Learner):
   __name__ = 'random'
   
-  @CheckRNG
+  #@CheckRNG
+  #http://funkyworklehead.blogspot.com.au/2008/12/how-to-decorate-init-or-another-python.html
+  #The current decorator is unsuitable, see the above post on how to fix
+  # TODO: Fix CheckRNG here.
   def __init__(self, rng=None):
     Learner.__init__(self)
     self.rng = rng
@@ -53,7 +62,10 @@ class randomL(Learner):
     pass
 
   def _params(self):
-    return dict(rng_state = rng.get_state())
+    return dict()
+    # Originally we considered the RNG state a parameter, but it is not usually
+    # tracked in applications, so we disable it for now.
+    #return dict(rng_state = hash(self.rng.get_state()))
 
   def _learn(self, feature_map, class_map):
     return randomC(feature_map, class_map, self.rng)
@@ -74,5 +86,5 @@ class randomC(Classifier):
   def _classify(self, test_fm):
     train_docs = self.fm.shape[0]
     test_docs  = test_fm.shape[0]
-    test_doc_indices = self.rng.sample(xrange(train_docs), test_docs)
+    test_doc_indices = self.rng.randint(0,train_docs,test_docs)
     return self.cm[test_doc_indices]
