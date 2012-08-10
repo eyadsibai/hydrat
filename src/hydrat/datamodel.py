@@ -4,8 +4,8 @@
 # This module contains hydrat's datamodel, which specifies the objects used by hydrat
 # to represent different data.
 
-import numpy
-import scipy.sparse
+import numpy as np
+import scipy.sparse as sp
 
 from copy import deepcopy
 
@@ -62,8 +62,8 @@ class SplitArray(object):
     self.folds = []
     if value is not None:
       for i in range(value.shape[1]):
-        train_ids = numpy.flatnonzero(value[:,i,0])
-        test_ids = numpy.flatnonzero(value[:,i,1])
+        train_ids = np.flatnonzero(value[:,i,0])
+        test_ids = np.flatnonzero(value[:,i,1])
         self.folds.append(Fold(self, train_ids, test_ids))
 
 class FeatureMap(SplitArray):
@@ -75,7 +75,7 @@ class FeatureMap(SplitArray):
     # TODO: Sanity check on metadata
     if len(fms) == 1: return fms[0]
 
-    fm = scipy.sparse.hstack([f[:] for f in fms])
+    fm = sp.hstack([f[:] for f in fms])
 
     metadata = dict()
     feature_desc = tuple()
@@ -95,7 +95,7 @@ class FeatureMap(SplitArray):
 
     # The problem is that this can MemoryError out - it tries to allocate
     # enough memory to build the stacked version.
-    fm = scipy.sparse.vstack([f[:] for f in fms])
+    fm = sp.vstack([f[:] for f in fms])
     metadata = dict()
     feature_desc = tuple()
 
@@ -107,7 +107,7 @@ class FeatureMap(SplitArray):
 
 class ClassMap(SplitArray): 
   """
-  Represents a ClassMap. The underling raw array is a numpy.ndarray with bool dtype by convention
+  Represents a ClassMap. The underling raw array is a np.ndarray with bool dtype by convention
   """
   @staticmethod
   def stack(*cms):
@@ -116,7 +116,7 @@ class ClassMap(SplitArray):
     """
     if len(cms) == 1: return cms[0]
 
-    cm = numpy.vstack([c[:] for c in cms])
+    cm = np.vstack([c[:] for c in cms])
     metadata = dict()
     feature_desc = tuple()
 
@@ -244,9 +244,9 @@ class DataTask(Task):
               , metadata
               , sequence = None
               ):
-    if not issubclass(train_indices.dtype.type, numpy.int):
+    if not issubclass(train_indices.dtype.type, np.int):
       raise ValueError, 'Expected integral indices'
-    if not issubclass(test_indices.dtype.type, numpy.int):
+    if not issubclass(test_indices.dtype.type, np.int):
       raise ValueError, 'Expected integral indices'
 
     self.class_map = class_map
@@ -398,6 +398,50 @@ class DataTaskSet(TaskSet):
 
   def __len__(self):
     return len(self.featuremap.folds)
+
+class TestClassOnly(TaskSet):
+  """
+  Taskset transformation that reduces a taskset, leaving only 
+  documents from classes present in the test portion of the task.
+  Useful when working across domains, and testing on domains that
+  may cover less classes than the training set.
+  """
+  def __init__(self, taskset):
+    self.taskset = taskset
+
+  @property
+  def metadata(self):
+    metadata = dict(self.taskset.metadata)
+    metadata['variant'] = 'TestClassOnly' 
+    return metadata
+
+  def __len__(self):
+    return len(self.taskset)
+
+  def __getitem__(self, key):
+    task = self.taskset[key]
+
+    if task.train_sequence or task.test_sequence:
+      raise NotImplementedError("Did not implement handling of sequence data")
+
+    # Identify the set of classes present in the test data
+    used_classes = np.flatnonzero(task.test_classes.sum(0))
+    # Identify the set of train documents that are not members of any used class
+    train_ids = np.flatnonzero(task.train_classes[:,used_classes].sum(1))
+
+    t = BasicTask(
+      task.train_vectors[train_ids], 
+      task.train_classes[train_ids], 
+      task.train_indices[train_ids],
+      task.test_vectors, 
+      task.test_classes, 
+      task.test_indices,
+      None, 
+      None,
+      metadata= dict(task.metadata)
+      )
+    return t
+
 
 ###
 # Result
