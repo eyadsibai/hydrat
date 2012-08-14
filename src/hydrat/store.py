@@ -7,6 +7,7 @@ import logging
 import UserDict 
 import numpy
 warnings.simplefilter("ignore", tables.NaturalNameWarning)
+import itertools
 from scipy.sparse import lil_matrix, csr_matrix
 
 from hydrat import config
@@ -19,6 +20,7 @@ from hydrat.common.pb import ProgressIter
 
 from hydrat.common.decorators import deprecated
 from hydrat.common.filelock import FileLock, FileLockException
+from hydrat.common.timer import Timer
 
 logger = logging.getLogger(__name__)
 
@@ -490,17 +492,22 @@ class Store(object):
     """
     dtype = node._v_attrs.dtype
     if shape is None: shape = node._v_attrs.shape
-    ax0 = node.read(field='ax0')
-    ax1 = node.read(field='ax1')
-    values = node.read(field='value')
-    # TODO: This is turning out to be a blocker as it
-    #       basically requires double memory to do the
-    #       conversion. The options at this point are:
-    #       1) change how sparse nodes are stored, so we
-    #          can read back the sparse matrix without
-    #          conversion
-    #       2) use a disk-backed data structure somewhere
-    m = csr_matrix((values,(ax0,ax1)), shape=shape)
+    n_ent = node._v_attrs.NROWS
+    logger.debug("reading sparse node {0}({1} entries)".format(shape, n_ent))
+    t = Timer()
+    with t:
+      ax0 = node.read(field='ax0')
+      ax1 = node.read(field='ax1')
+      values = node.read(field='value')
+      # TODO: This is turning out to be a blocker as it
+      #       basically requires double memory to do the
+      #       conversion. The options at this point are:
+      #       1) change how sparse nodes are stored, so we
+      #          can read back the sparse matrix without
+      #          conversion
+      #       2) use a disk-backed data structure somewhere
+      m = csr_matrix((values,(ax0,ax1)), shape=shape)
+    logger.debug("reading took {0:.1f}s ({1} entries/s)".format(t.duration, n_ent/t.duration))
     return m
 
   def _add_sparse_node( self
@@ -523,19 +530,22 @@ class Store(object):
     setattr(attrs, 'shape', data.shape)
     # Add the features to the table
     inst, feat = data.nonzero()
-    import itertools
+    logger.debug("writing sparse node {0}({1} entries)".format(data.shape, data.nnz))
     CHUNKSIZE = 1000000
     inst_i = iter(inst)
     feat_i = iter(feat)
     data_i = iter(data.data)
-    while True:
-      inst_c = numpy.fromiter(itertools.islice(inst_i, CHUNKSIZE), 'uint64')
-      feat_c = numpy.fromiter(itertools.islice(feat_i, CHUNKSIZE), 'uint64')
-      data_c = numpy.fromiter(itertools.islice(data_i, CHUNKSIZE), 'uint64')
-      if len(inst_c) == 0:
-        break
-      node.append(numpy.rec.fromarrays((inst_c, feat_c, data_c)))
-    self.fileh.flush()
+    t = Timer()
+    with t:
+      while True:
+        inst_c = numpy.fromiter(itertools.islice(inst_i, CHUNKSIZE), 'uint64')
+        feat_c = numpy.fromiter(itertools.islice(feat_i, CHUNKSIZE), 'uint64')
+        data_c = numpy.fromiter(itertools.islice(data_i, CHUNKSIZE), 'uint64')
+        if len(inst_c) == 0:
+          break
+        node.append(numpy.rec.fromarrays((inst_c, feat_c, data_c)))
+      self.fileh.flush()
+    logger.debug("writing took {0:.1f}s ({1} entries/s)".format(t.duration,data.nnz/t.duration))
 
 
   def has_Space(self, name):
@@ -806,8 +816,9 @@ class Store(object):
         logger.debug('  adding task {0}'.format(i))
         self._add_Task(task, taskset_entry)
       self.fileh.flush()
-    except Exception:
+    except Exception, e:
       # Delete the node if any exceptions occur
+      logger.error("{0}: {1}".format(type(e),e))
       self.fileh.removeNode(taskset_entry, recursive=True)
       raise
 
@@ -962,6 +973,9 @@ class Store(object):
     @return: data corresponding to the given dataset in the given feature space
     @rtype: varies 
     """
+    #import inspect
+    #caller = inspect.stack()[1]
+    #print "get_FeatureMap({0},{1}) called by {caller[3]}({caller[1]}:{caller[2]})".format(dsname, space_name, caller=caller)
     try:
       ds = getnode(self.datasets, dsname)
       feature_node = getnode(ds.feature_data, space_name)
