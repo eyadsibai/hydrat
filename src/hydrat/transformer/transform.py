@@ -70,5 +70,6 @@ class Transform(TaskSet):
     # TODO: Work out why we needed add_args, and what to do with it now
     # TODO: Timing of the component parts
     task = self.taskset[key]
-    return transform_task(task, self.transformer)
+    retval = transform_task(task, self.transformer)
+    return retval
 
