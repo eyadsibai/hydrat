@@ -1,4 +1,4 @@
-import numpy
+import numpy as np
 import hydrat.common.weight as weight 
 from hydrat.classifier.liblinear import liblinearL
 from hydrat.transformer import Transformer
@@ -16,22 +16,22 @@ class FeatureSelect(Transformer):
   def learn(self, feature_map, class_map):
     wf_name = self.weighting_function.__name__
     if wf_name not in self.weights or self.weights[wf_name] is None:
-      self.logger.debug('Learning Weights')
+      self.logger.debug('{0}: learning weights'.format(wf_name))
       self.weights[wf_name] = self.weighting_function(feature_map, class_map)
-    else:
-      self.logger.debug('Using learned weights')
 
     weights = self.weights[wf_name]
     if len(weights) != feature_map.shape[1]:
       raise ValueError, "weight length mismatch"
 
     self.keep_indices = self.keep_rule(weights)
+    self.logger.debug('{0}: will keep {1} features'.format(wf_name, len(self.keep_indices)))
 
   def apply(self, feature_map):
     assert self.keep_indices is not None, "Weights have not been learned!"
-    self.logger.debug('Applying Weights')
+    self.logger.debug("applying feature selection")
     
     selected_map = feature_map[:,self.keep_indices]
+    self.logger.debug('  ({0}->{1})'.format(feature_map.shape[1], selected_map.shape[1]))
     return selected_map 
 
 class LangDomain(FeatureSelect):
@@ -73,7 +73,7 @@ class LangDomain(FeatureSelect):
       cl_id = 'ig_cl{0}'.format(cl)
       if cl_id not in self.weights:
         pos = class_map[:,cl]
-        reduced_cm = numpy.hstack((numpy.logical_not(pos)[:,None], pos[:,None]))
+        reduced_cm = np.hstack((np.logical_not(pos)[:,None], pos[:,None]))
         self.weights[cl_id] = weight.ig_bernoulli(feature_map, reduced_cm)
 
       cl_w = self.weights[cl_id]
@@ -82,7 +82,7 @@ class LangDomain(FeatureSelect):
       cl_ld_r = rankdata(cl_ld_w, reverse=True)
       cl_prof.append(cl_ld_r)
 
-    ld_w = numpy.min(cl_prof, axis=0)
+    ld_w = np.min(cl_prof, axis=0)
     self.keep_indices = self.keep_rule(ld_w)
 
 
@@ -156,9 +156,9 @@ class SVM(FeatureSelect):
         self.weights['svm_cl{0}'.format(cl_i)] = cl_w
 
     # reconstruct theta
-    theta = numpy.vstack(self.weights[w_l] for w_l in w_labels)
+    theta = np.vstack(self.weights[w_l] for w_l in w_labels)
     # TODO: Do we want abs here or not?
-    w = numpy.abs(theta).max(axis=0)
+    w = np.abs(theta).max(axis=0)
     self.keep_indices = self.keep_rule(w)
     
 
@@ -172,7 +172,7 @@ class KeepRule(object):
     """Returns indices to be kept"""
     raise NotImplementedError
 
-def nonzero(vector):  return numpy.flatnonzero(vector)
+def nonzero(vector):  return np.flatnonzero(vector)
 
 class HighestN(KeepRule):
   def __init__(self, n):
@@ -185,7 +185,7 @@ class HighestN(KeepRule):
     Note that in the case of weight equality this is biased towards
     low-indexed features by nature of numpy's argsort.
     """
-    return numpy.argsort(vector)[-self.n:]
+    return np.argsort(vector)[-self.n:]
 
 class Exceeds(KeepRule):
   def __init__(self, n):
@@ -194,7 +194,7 @@ class Exceeds(KeepRule):
     self.n = n
 
   def __call__(self, weight_vector):
-    return numpy.flatnonzero(weight_vector >= self.n)
+    return np.flatnonzero(weight_vector >= self.n)
 
 class LessThan(KeepRule):
   def __init__(self, n):
@@ -203,7 +203,7 @@ class LessThan(KeepRule):
     self.n = n
 
   def __call__(self, weight_vector):
-    return numpy.flatnonzero(weight_vector < self.n)
+    return np.flatnonzero(weight_vector < self.n)
 
 
 cavnar_trenkle94 = FeatureSelect(weight.CavnarTrenkle94(), LessThan(300))
