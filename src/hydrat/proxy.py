@@ -318,8 +318,10 @@ class DataProxy(TaskSet):
     self.feature_spaces = space_name
 
   def __len__(self):
-    return self.split.shape[1]
-    #return len(self.featuremap.folds)
+    if self.split_name is None:
+      return 0
+    else:
+      return self.split.shape[1]
 
   def __getitem__(self, key):
     fm = self.featuremap
