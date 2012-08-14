@@ -8,6 +8,8 @@ from hydrat import config
 from hydrat.common.pb import ProgressIter
 from hydrat.common.diskdict import diskdict
 
+import numpy as np
+
 # TODO: Automatically monkeypatch an instance when a particular ts/fm/cm is loaded, 
 #       so we don't try to load it from disk again.
 class Dataset(object):
@@ -172,6 +174,11 @@ class Dataset(object):
       except TypeError:
         #inst_tokens is not a mapping type. we then treat it as a sequence instead
         #and assign arbitrary feature names
+        
+        # the marshal module does not roundtrip numpy number types correctly.
+        # We do a tolist conversion.
+        if isinstance(inst_tokens, np.ndarray):
+          inst_tokens = inst_tokens.tolist()
         fm[id] = dict(("feat{0}".format(i+1),t) for i,t in enumerate(inst_tokens))
       if len(fm[id]) == 0:
         msg =  "%s_%s has no tokens for '%s'" % (tsname, extractor.__name__, id)

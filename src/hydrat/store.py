@@ -705,7 +705,7 @@ class Store(object):
                                   , "Sparse Feature Map %s" % space._v_name
                                   )
     # TODO: is this very expensive?
-    group._v_attrs.type  = 'int' if all(isinstance(i[2], int) for i in feat_map) else 'float'
+    group._v_attrs.type  = 'int' if all(isinstance(i[2], (int,long)) for i in feat_map) else 'float'
 
     fm_node = self.fileh.createTable( group
                                     , 'feature_map'
@@ -1355,8 +1355,8 @@ class Store(object):
     sp_node.flush()
 
   def get_Split(self, dsname, split_name):
-    dsnode = getnode(self.datasets, dsname)
     try:
+      dsnode = getnode(self.datasets, dsname)
       data = getnode(dsnode.split, split_name)
     except NoData:
       return self.fallback.get_Split(dsname, split_name)
