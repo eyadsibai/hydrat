@@ -59,6 +59,7 @@ class liblinearL(Configurable, Learner):
 
   def __init__(self, output_probability=False, 
       svm_type=1, cost=1, additional=''):
+    self.clear_temp = config.getboolean('debug', 'clear_temp_files')
 
     if svm_type not in range(8):
       raise ValueError, 'unknown svm_type'
@@ -72,9 +73,6 @@ class liblinearL(Configurable, Learner):
     self.classifier = config.getpath('tools','liblinearclassifier') 
     Learner.__init__(self)
 
-    self.model_path = None
-    self.clear_temp = config.getboolean('debug', 'clear_temp_files')
-
     self.__params = dict( output_probability=output_probability
                         , svm_type=svm_type
                         , cost=cost
@@ -87,9 +85,6 @@ class liblinearL(Configurable, Learner):
   def __setstate__(self, value):
     self.__init__(*value)
 
-  def __del__(self):
-    if self.clear_temp:
-      if self.model_path is not None: os.remove(self.model_path)
 
   def _check_installed(self):
     if not all([os.path.exists(tool) for tool in 
@@ -111,24 +106,24 @@ class liblinearL(Configurable, Learner):
     train.flush()
 
     #Create a temporary file for the model
-    model_file, self.model_path = tempfile.mkstemp()
-    self.logger.debug("model path: %s", self.model_path)
+    model_file, model_path = tempfile.mkstemp()
+    self.logger.debug("model path: %s", model_path)
     os.close(model_file)
 
     # train svm
     if self.additional:
       training_cmd = [ self.learner, '-q', '-s', str(self.svm_type), '-c', 
-          str(self.cost), self.additional, train.name , self.model_path ]
+          str(self.cost), self.additional, train.name , model_path ]
     else:
       training_cmd = [ self.learner, '-q', '-s', str(self.svm_type), '-c', 
-          str(self.cost), train.name , self.model_path ]
+          str(self.cost), train.name , model_path ]
     self.logger.debug("Training liblinear: %s", ' '.join(training_cmd))
     retcode = subprocess.call(training_cmd)
     if retcode:
       self.logger.critical("Training liblinear failed")
       raise ValueError, "Training liblinear returned %s"%(str(retcode))
 
-    return SVMClassifier( self.model_path, self.classifier, class_map.shape[1],
+    return SVMClassifier( model_path, self.classifier, class_map.shape[1],
         probability_estimates=self.output_probability )
 
 class SVMClassifier(Classifier):
@@ -152,10 +147,20 @@ class SVMClassifier(Classifier):
     # This could be problematic if we pickle the classifier for long-term storage,
     # rather than simply for transmission between processes.
     self.clear_temp = False
-    return (self.model_path, self.classifier, self.num_classes, self.probability_estimates)
+    # TODO: METADATA NOT BEING PRESERVED
+    initargs = (self.model_path, self.classifier, self.num_classes, self.probability_estimates)
+    metadata = self.metadata
+    return (initargs, metadata)
 
   def __setstate__(self, state):
-    self.__init__(*value)
+    initargs, metadata = state
+    self.__init__(*initargs)
+    self.metadata.update(metadata)
+
+  def __del__(self):
+    if self.clear_temp:
+      if self.model_path is not None: 
+        os.remove(self.model_path)
 
   def __invoke_classifier(self, test_path):
     #Create a temporary file for the results
