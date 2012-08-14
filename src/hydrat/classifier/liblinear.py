@@ -143,6 +143,20 @@ class SVMClassifier(Classifier):
     self.probability_estimates = probability_estimates
     self.clear_temp = config.getboolean('debug','clear_temp_files')
 
+  def __getstate__(self):
+    # Temp clearing becomes slightly tricky, because the classifier parameters per se
+    # are stored in a file. One option would be to read that file and save it as 
+    # state, but here we go for an alternative - if the state is read, we disable
+    # tempfile clearing. This means that we expect that if the state is read,
+    # whatever receives that state becomes responsible for clearing the tempfile.
+    # This could be problematic if we pickle the classifier for long-term storage,
+    # rather than simply for transmission between processes.
+    self.clear_temp = False
+    return (self.model_path, self.classifier, self.num_classes, self.probability_estimates)
+
+  def __setstate__(self, state):
+    self.__init__(*value)
+
   def __invoke_classifier(self, test_path):
     #Create a temporary file for the results
     result_file, result_path = tempfile.mkstemp()
