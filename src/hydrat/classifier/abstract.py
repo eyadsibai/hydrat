@@ -12,6 +12,9 @@ class NoClassLabelsError(ClassifierError): pass
 class NoFeaturesError(ClassifierError): pass
 class NotInstalledError(ClassifierError): pass
 
+def train_classifier(learner, fm, cm, kwargs):
+  return learner(fm, cm, **kwargs)
+
 class Learner(object):
   def __init__(self):
     self.logger = logging.getLogger(__name__+'.'+self.__name__)
@@ -23,6 +26,12 @@ class Learner(object):
     md['learner']          = self.__name__
     md['learner_params']   = self.params
     return md
+
+  def learn_async(self, pool, feature_map, class_map, **kwargs):
+    """
+    Use a multiprocessing worker pool to train a classifier asynchronously.
+    """
+    return pool.apply_async(train_classifier, (self, feature_map, class_map, kwargs))
 
   def __call__(self, feature_map, class_map, **kwargs):
     """
