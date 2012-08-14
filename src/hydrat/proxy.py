@@ -500,6 +500,8 @@ class TransductiveLOO(DataProxy):
       if proxy.split is not None:
         raise ValueError, "no support for dealing with splits"
       self.proxies  = proxies
+    self._fm = None
+    self._cm = None
 
   @property
   def metadata(self):
@@ -592,15 +594,19 @@ class TransductiveLOO(DataProxy):
 
   @property 
   def classmap(self):
-    retval = ClassMap.stack(*(p.classmap for p in self.proxies))
-    retval.split = self.split
-    return retval
+    if self._cm is None:
+      cm = retval = ClassMap.stack(*(p.classmap for p in self.proxies))
+      cm.split = self.split
+      self._cm = cm
+    return self._cm
 
   @property
   def featuremap(self):
-    retval = FeatureMap.stack(*(p.featuremap for p in self.proxies))
-    retval.split = self.split
-    return retval
+    if self._fm is None:
+      fm = FeatureMap.stack(*(p.featuremap for p in self.proxies))
+      fm.split = self.split
+      self._fm = fm
+    return self._fm
 
   def __getitem__(self, key):
     fm = self.featuremap
