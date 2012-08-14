@@ -30,7 +30,9 @@ class RepeatLearner(Learner):
       # have to sparsify as scipy.sparse only accepts sparse indexing
       class_docs = np.flatnonzero(class_map[:,cl])
       fvs.append(feature_map[class_docs])
-      cvs.append(class_map[class_docs])
+      part_cm = np.zeros((len(class_docs), class_map.shape[1]), dtype=bool)
+      part_cm[:,cl] = True
+      cvs.append(part_cm)
     
     fm = sp.vstack(fvs).tocsr()
     cm = np.vstack(cvs)
