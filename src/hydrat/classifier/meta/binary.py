@@ -6,28 +6,6 @@ import numpy as np
 from hydrat.classifier.abstract import Learner, Classifier
 from hydrat.common.pb import ProgressIter
 
-import cPickle
-import scipy.sparse as sp
-import numpy as np
-def is_pickleable(learner):
-  """
-  Checks that a learner and the corresponding classifier produced are both
-  pickleable. We do this by testing it. This is needed to allow us to transmit
-  learners and classifiers for multiprocessing.
-  """
-  try:
-    cPickle.dumps(learner)
-    fv = sp.csr_matrix([[1,0],[0,1]])
-    cv = np.array([[1,0],[0,1]], dtype=bool)
-    # Generate a trivial classifier
-    cPickle.dumps(learner(fv,cv))
-    return True
-  except (cPickle.UnpickleableError, TypeError):
-    return False
-  except Exception, e:
-    print "Unexpected: {0} {1}".format(type(e), e)
-    return False
-
 import multiprocessing as mp
 from hydrat import config
 
@@ -50,14 +28,14 @@ class BinaryLearner(Learner):
     used_classes = np.flatnonzero(class_map.sum(0))
     classifiers = []
 
-    if is_pickleable(self.learner):
+    if self.learner.is_pickleable():
       # Pickleable learner, so we can use multiprocessing
       pool = mp.Pool(config.getint('parameters','job_count'))
       async_c = []
       for cl in used_classes:
         mask = class_map[:,cl]
         submap = np.vstack((np.logical_not(mask),mask)).transpose()
-        async_c.append(self.learner.learn_async(pool, feature_map, submap, **kwargs))
+        async_c.append(self.learner.async(pool, feature_map, submap, **kwargs))
       for async_result in ProgressIter(async_c, label='Binary Learn (PARALLEL)'):
         classifiers.append(async_result.get())
 
@@ -81,7 +59,17 @@ class BinaryClassifier(Classifier):
     self.used_classes = used_classes
 
   def _classify(self, feature_map, **kwargs):
+    # TODO: implement parallelized classification for pickleable classifiers
     retval = np.zeros((feature_map.shape[0], self.num_classes), dtype=bool)
-    for i, c in ProgressIter(zip(self.used_classes, self.classifiers), label="Binary Classify"):
-      retval[:,i] = c(feature_map, **kwargs)[:,1]
+    if self.classifiers[0].is_pickleable():
+      # assume that if the first is pickleable, they all are.
+      pool = mp.Pool(config.getint('parameters','job_count'))
+      async_c = []
+      for c in self.classifiers:
+        async_c.append(c.async(pool, feature_map, **kwargs))
+      for i, async_result in ProgressIter(zip(self.used_classes, async_c), label='Binary Classify (PARALLEL)'):
+        retval[:,i] = async_result.get()[:,1] 
+    else:
+      for i, c in ProgressIter(zip(self.used_classes, self.classifiers), label="Binary Classify"):
+        retval[:,i] = c(feature_map, **kwargs)[:,1]
     return retval

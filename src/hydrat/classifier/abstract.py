@@ -2,18 +2,24 @@
 This module specifies the abstract interface that all classifier modules should
 implement, and also provides some convenience methods.
 """
-import numpy as n
 import logging
 import time
 import inspect
+import cPickle
+
+import scipy.sparse as sp
+import numpy as np
 
 class ClassifierError(Exception): pass
 class NoClassLabelsError(ClassifierError): pass
 class NoFeaturesError(ClassifierError): pass
 class NotInstalledError(ClassifierError): pass
 
-def train_classifier(learner, fm, cm, kwargs):
+def train(learner, fm, cm, kwargs):
   return learner(fm, cm, **kwargs)
+
+def predict(classifier, fm, kwargs):
+  return classifier(fm, **kwargs)
 
 class Learner(object):
   def __init__(self):
@@ -27,11 +33,36 @@ class Learner(object):
     md['learner_params']   = self.params
     return md
 
-  def learn_async(self, pool, feature_map, class_map, **kwargs):
+  def async(self, pool, feature_map, class_map, **kwargs):
     """
     Use a multiprocessing worker pool to train a classifier asynchronously.
     """
-    return pool.apply_async(train_classifier, (self, feature_map, class_map, kwargs))
+    return pool.apply_async(train, (self, feature_map, class_map, kwargs))
+
+  def is_pickleable(self):
+    """
+    Checks that a learner and the corresponding classifier produced are both
+    pickleable. We do this by testing it. This is needed to allow us to transmit
+    learners and classifiers for multiprocessing. Learners can also override this 
+    to avoid the need to test.
+    
+    TODO: There are situations where a pickleable learner that produces an
+    unpickleable classifier are just fine, e.g. in experiment parallelization,
+    where only the learner and result need to be pickleable. How do we
+    handle this?
+    """
+    try:
+      cPickle.dumps(self)
+      fv = sp.csr_matrix([[1,0],[0,1]])
+      cv = np.array([[1,0],[0,1]], dtype=bool)
+      # Generate a trivial classifier
+      cPickle.dumps(self(fv,cv))
+      return True
+    except (cPickle.UnpickleableError, TypeError):
+      return False
+    except Exception, e:
+      self.logger.warning("Unexpected: {0} {1}".format(type(e), e))
+      return False
 
   def __call__(self, feature_map, class_map, **kwargs):
     """
@@ -148,6 +179,19 @@ class Classifier(object):
     self.logger.debug("classification took %.1f seconds", timetaken)
     return classifications 
 
+  def is_pickleable(self):
+    try:
+      cPickle.dumps(self)
+      return True
+    except (cPickle.UnpickleableError, TypeError):
+      return False
+    except Exception, e:
+      self.logger.warning("Unexpected: {0} {1}".format(type(e), e))
+      return False
+
+  def async(self, pool, feature_map, **kwargs):
+    return pool.apply_async(predict, (self, feature_map, kwargs))
+    
   def _classify(self, feature_map):
     """ Classify a set of documents represented as an array of features
         Returns a boolean array:

@@ -70,6 +70,9 @@ class NaiveBayesL(Learner):
       raise ValueError, "unknown class prior"
     self.class_prior = class_prior
 
+  def is_pickleable(self):
+    return True
+
   def __getstate__(self):
     return (self.eventmodel, self.class_prior)
 
@@ -111,6 +114,21 @@ class NaiveBayesC(Classifier):
     self.ptc = ptc
     self.tot_cl = tot_cl
     self.used_cl = used_cl
+
+  def is_pickleable(self):
+    return True
+
+  # Implementation of getstate/setstate based on liblinear.py
+  def __getstate__(self):
+    initargs = (self.pc, self.ptc, self.tot_cl, self.used_cl)
+    metadata = self.metadata
+    return (initargs, metadata)
+
+  def __setstate__(self, state):
+    initargs, metadata = state
+    self.__init__(*initargs)
+    self.metadata.update(metadata)
+    
 
   def _classify(self, fm):
     lf = fm.copy()
