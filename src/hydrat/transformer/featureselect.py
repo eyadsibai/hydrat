@@ -136,11 +136,13 @@ class SVM(FeatureSelect):
 
   def learn(self, feature_map, class_map):
     num_class = class_map.shape[1]
-    w_labels = ['svm_cl{0}'.format(i) for i in xrange(1 if num_class == 2 else num_class)]
+    nz_cl = np.flatnonzero(class_map.sum(0))
+    w_labels = ['svm_cl{0}'.format(i) for i in ([0] if num_class == 2 else nz_cl)]
     if any(w_l not in self.weights for w_l in w_labels):
       # Missing a weight, must compute
       l = liblinearL()
-      c = l(feature_map, class_map)
+      nz_cm = class_map[:,nz_cl]
+      c = l(feature_map, nz_cm)
       theta = c.theta.T
       # Quick sanity check for theta
       # The number of parameters may be less than number of features,
@@ -152,7 +154,8 @@ class SVM(FeatureSelect):
       # about this.
       #assert theta.shape[0] == (1 if num_class == 2 else num_class)
       #assert theta.shape[1] <= feature_map.shape[1]
-      for cl_i, cl_w in enumerate(theta):
+      for i, cl_w in enumerate(theta):
+        cl_i = nz_cl[i]
         self.weights['svm_cl{0}'.format(cl_i)] = cl_w
 
     # reconstruct theta
