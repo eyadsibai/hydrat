@@ -113,15 +113,24 @@ class ConcatWeights(Mapping):
     assert len(self.weights) >= 2
     w_0 = self.weights[0]
     self._keys = set(k for k in w_0 if all(k in w for w in self.weights))
+    self.internal = dict()
 
   def __contains__(self, key):
     return key in self._keys
 
   def __getitem__(self, key):
-    if not key in self._keys:
-      raise KeyError(key)
-    w_vec = numpy.hstack(w[key] for w in self.weights)
-    return w_vec
+    if key in self._keys:
+      w_vec = numpy.hstack(w[key] for w in self.weights)
+      return w_vec
+    elif key in self.internal:
+      return self.internal[key]
+    raise KeyError(key)
+
+  def __setitem__(self, key, value):
+    import warnings
+    warnings.warn("setitem for ConcetWeights does not propagate to the underlying tasks (yet)")
+    self.internal[key] = value
+    
 
   def __len__(self):
     return len(self._keys)
