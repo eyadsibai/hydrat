@@ -494,6 +494,8 @@ class Results(object):
         footer_r['fp'] += row['fp']
         footer_r['fn'] += row['fn']
         rows_r.append(row)
+      footer_cm = footer_r['tp'],footer_r['tn'], footer_r['fp'], footer_r['fn']
+      footer_r['precision'], footer_r['recall'], footer_r['fscore'] = metric(numpy.array(footer_cm))
 
       with page.table:
         with page.tr:
