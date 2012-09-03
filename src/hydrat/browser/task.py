@@ -92,15 +92,14 @@ class Tasks(object):
         for key in task.weights.keys():
           # TODO: remove hardcoding of top 100 weights
           with page.li:
-            page.a(key, href='./weight/%s/%s?top=%d'% (key,uuid, 100))
+            page.a(key, href='./weight/%s/%s?top=%d&index=%d'% (key,uuid, 100, i))
 
     return str(page)
 
   @cherrypy.expose
-  def weight(self, weight_key, uuid, top=None, bottom=None):
+  def weight(self, weight_key, uuid, top=None, bottom=None, index=None):
     uuid = as_set(uuid).pop()
     taskset = self.store._get_TaskSet(uuid)
-    tasks = taskset.tasks
 
     # TODO: Better space resolution. Should make this part of the taskset.
     space = self.store.get_Space(taskset.metadata['feature_desc'][0])
@@ -113,7 +112,12 @@ class Tasks(object):
       page.h1('ERROR: Cannot have both top and bottom set')
       return page()
 
-    weight = tasks[0].weights[weight_key]
+    if index is None:
+      index = 0
+    else:
+      index = int(index)
+
+    weight = taskset[index].weights[weight_key]
     if top is None and bottom is None:
       indexes = numpy.arange(len(weight))
     else:
@@ -126,12 +130,13 @@ class Tasks(object):
     # actually copy values for each index out
     weights = defaultdict(dict)
     cols = ['feature']
-    for task_index, task in enumerate(tasks):
-      task_id = 'fold%d' % task_index
-      cols.append(task_id)
-      weight = task.weights[weight_key]
-      for i in indexes:
-        weights[space[i]][task_id] = weight[i]
+    #for task_index, task in enumerate(taskset):
+    task = taskset[index]
+    task_id = 'fold%d' % index
+    cols.append(task_id)
+    weight = task.weights[weight_key]
+    for i in indexes:
+      weights[space[i]][task_id] = weight[i]
 
     rows = []
     for f in weights:
@@ -142,7 +147,8 @@ class Tasks(object):
     page = markup.page()
     page.init(**page_config)
     page.add(dict_as_html(taskset.metadata))
-    page.h2('%s on %s' % (weight_key, taskset.metadata['feature_desc']))
+    page.h2('%s on %s (task %d)' % (weight_key, taskset.metadata['feature_desc'], index))
+    page.add(dict_as_html(task.metadata))
 
     page.dict_table(rows, cols, col_headings=cols)
 
