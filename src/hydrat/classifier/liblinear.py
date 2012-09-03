@@ -79,6 +79,9 @@ class liblinearL(Configurable, Learner):
                         , additional=additional
                         )
 
+  def is_picklable(self):
+    return True
+
   def __getstate__(self):
     return (self.output_probability, self.svm_type, self.cost, self.additional)
 
@@ -138,22 +141,30 @@ class SVMClassifier(Classifier):
     self.probability_estimates = probability_estimates
     self.clear_temp = config.getboolean('debug','clear_temp_files')
 
+  def is_picklable(self):
+    return True
+
   def __getstate__(self):
-    # Temp clearing becomes slightly tricky, because the classifier parameters per se
-    # are stored in a file. One option would be to read that file and save it as 
-    # state, but here we go for an alternative - if the state is read, we disable
-    # tempfile clearing. This means that we expect that if the state is read,
-    # whatever receives that state becomes responsible for clearing the tempfile.
-    # This could be problematic if we pickle the classifier for long-term storage,
-    # rather than simply for transmission between processes.
-    self.clear_temp = False
-    # TODO: METADATA NOT BEING PRESERVED
-    initargs = (self.model_path, self.classifier, self.num_classes, self.probability_estimates)
+    # we actually read the model file, as each instance
+    # of the classifier is responsible for deleting its own
+    # copy thereof. This means that for pickling, just having
+    # a path is insufficient.
+    with open(self.model_path) as f:
+      model = f.read()
+
+    initargs = (self.classifier, self.num_classes, self.probability_estimates)
     metadata = self.metadata
-    return (initargs, metadata)
+    return (initargs, metadata, model)
 
   def __setstate__(self, state):
-    initargs, metadata = state
+    initargs, metadata, model = state
+
+    _f, model_path = tempfile.mkstemp()
+    os.close(_f)
+    with open(model_path,'w') as f:
+      f.write(state[2])
+
+    initargs = (model_path,) + initargs
     self.__init__(*initargs)
     self.metadata.update(metadata)
 
