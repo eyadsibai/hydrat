@@ -1,22 +1,21 @@
 from hydrat.datamodel import TaskSet, BasicTask
 def transform_task(task, transformer):
+    train_sequence = task.train_sequence
+    train_indices = task.train_indices
+    train_vectors = task.train_vectors
+
     # Transform each task
     add_args = {}
-    add_args['sequence'] = task.train_sequence
-    add_args['indices'] = task.train_indices
+    add_args['sequence'] = train_sequence
+    add_args['indices'] = train_indices
 
     # Patch transformer with our known weights
     # TODO: Why can't weights just be an argument?
     weights = transformer.weights
     transformer.weights = task.weights
 
-    transformer._learn(task.train_vectors, task.train_classes, add_args)
-
-    # Transform train vectors
-    add_args = {}
-    add_args['sequence'] = task.train_sequence
-    add_args['indices'] = task.train_indices
-    train_vectors = transformer._apply(task.train_vectors, add_args)
+    transformer._learn(train_vectors, task.train_classes, add_args)
+    train_vectors = transformer._apply(train_vectors, add_args)
 
     # Transform test vectors
     add_args = {}
