@@ -17,6 +17,15 @@ class RepeatLearner(Learner):
   def _check_installed(self):
     pass
 
+  def is_picklable(self):
+    return self.learner.is_picklable()
+  
+  def __getstate__(self):
+    return (self.learner,)
+
+  def __setstate__(self, value):
+    self.__init__(*value)
+
   def _params(self):
     params = dict(self.learner.params)
     params['multiclass'] = 'repeat'
