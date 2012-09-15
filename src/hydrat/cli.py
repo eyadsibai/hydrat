@@ -17,6 +17,19 @@ import cmdln
 
 import configuration
 
+def get_browser_config():
+  """
+  Temporary hackjob to handle loading browser config. May be ripe for redesign.
+  """
+  # TODO: Do this via importlib rather than this stupid hack of messing with sys.path
+  sys.path.append('.')
+  try:
+    import browser_config
+  except ImportError:
+    import hydrat.browser.browser_config as browser_config
+  return browser_config
+
+
 logger = logging.getLogger(__name__)
 
 class HydratCmdln(cmdln.Cmdln):
@@ -114,20 +127,22 @@ class HydratCmdln(cmdln.Cmdln):
 
   @cmdln.option("-f", "--force",   action="store_true", default=False, help="force generation of all summaries")
   @cmdln.option("-d", "--delete",  action="store_true", default=False, help="delete summary nodes")
-  def do_summary(self, subcmd, opts, store_path):
+  def do_summary(self, subcmd, opts, *store_paths):
     """${cmd_name}: create summaries 
 
     ${cmd_usage} 
     """
     from store import Store
     import sys
-    sys.path.append('.')
-    try:
-      import browser_config
-    except ImportError:
-      import hydrat.browser.browser_config as browser_config
 
-    store = Store(store_path,'a')
+    # Allow additional stores to be specified as fallbacks, for summary functions
+    # that require things like feature spaces that may be stored elsewhere.
+    fallback = None
+    for p in store_paths[1:]:
+      fallback = Store(p, fallback=fallback)
+    store = Store(store_paths[0],'a', fallback = fallback)
+    
+    browser_config = get_browser_config()
 
     summary_fn = browser_config.summary_fn
     interpreter = browser_config.interpreter
@@ -161,7 +176,7 @@ class HydratCmdln(cmdln.Cmdln):
     import tempfile
     import updatedir
     import shutil
-    from hydrat.configuration import browser_config
+    browser_config = get_browser_config()
 
     store = Store(store_path)
     scratchP = tempfile.mkdtemp('output', dir=config.getpath('paths','scratch'))
@@ -212,7 +227,7 @@ class HydratCmdln(cmdln.Cmdln):
       for path in paths[-1:0:-1]:
         fallback = Store(path, fallback=fallback)
     store = Store(paths[0], 'a' if opts.modify else 'r', fallback=fallback)
-    from hydrat.configuration import browser_config
+    browser_config = get_browser_config()
 
     # Try to determine local IP address
     # from http://stackoverflow.com/questions/166506/finding-local-ip-addresses-in-python
@@ -240,7 +255,7 @@ class HydratCmdln(cmdln.Cmdln):
     import csv
     from hydrat.store import Store
     from hydrat.display.tsr import project_compound
-    from hydrat.configuration import browser_config as bconfig
+    bconfig = get_browser_config()
     store = Store(store_path)
     fieldnames = zip(*bconfig.relevant)[1]
     with open(output_path, 'w') as outfile:
