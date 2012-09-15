@@ -540,7 +540,7 @@ class Store(object):
       while True:
         inst_c = numpy.fromiter(itertools.islice(inst_i, CHUNKSIZE), 'uint64')
         feat_c = numpy.fromiter(itertools.islice(feat_i, CHUNKSIZE), 'uint64')
-        data_c = numpy.fromiter(itertools.islice(data_i, CHUNKSIZE), 'uint64')
+        data_c = numpy.fromiter(itertools.islice(data_i, CHUNKSIZE), data.dtype)
         if len(inst_c) == 0:
           break
         node.append(numpy.rec.fromarrays((inst_c, feat_c, data_c)))
@@ -1308,7 +1308,7 @@ class Store(object):
       # e.g. a row is a thread, each index is the instance index in dataset representing posts
       # returns a list of arrays.
       return self._read_sparse_node(sqnode)
-    except AttributeError:
+    except (AttributeError,NoData):
       return self.fallback.get_Sequence(dsname, seq_name)
 
   def list_Sequence(self, dsname):
