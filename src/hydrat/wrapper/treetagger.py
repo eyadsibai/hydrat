@@ -70,6 +70,26 @@ def treetagger_posfw(item):
     raise ValueError, "Error processing {0}: {1}".format(key, e)
   return key, tokens 
 
+def treetagger_lemmapos(item):
+  """
+  Lemma_pos tagstream. Map each token onto lemma+pos, separated
+  by underscore
+  """
+  global __tagger
+  key, path = item
+  with open(path) as f:
+    text = f.read()
+  try:
+    # We replace all ocurrances of '<' with '>' to destroy any accidental SGML
+    tokens = []
+    for t in __tagger.TagText(text.replace('<','>')):
+      if '\t' in t:
+        word, pos, lemma = t.split('\t')
+        tokens.append('_'.join((lemma, pos)))
+  except ttw.TreeTaggerError, e:
+    raise ValueError, "Error processing {0}: {1}".format(key, e)
+  return key, tokens 
+
 def write_codepoint(target, outq):
     text = target.ts_codepoint()
     for key in ProgressIter(text,'ToDisk'):
@@ -88,6 +108,9 @@ class TreeTagger(Configurable, EncodedTextDataset):
 
   def ts_treetaggerposfw(self):
     return self.treetagger(treetagger_posfw)
+
+  def ts_treetaggerlemmapos(self):
+    return self.treetagger(treetagger_lemmapos)
 
   def treetagger(self, tokenizer):
     # Based on hydrat.dataset.tokenstream.Genia
