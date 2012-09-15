@@ -32,6 +32,7 @@ class Dataset(object):
     # We need to avoid circularity in working out instance ids
     self._checked_dep = set()
     self._instance_ids = None
+    self._fm_cache = {}
 
   def __str__(self):
     ret_strs = []
@@ -62,7 +63,9 @@ class Dataset(object):
     return getattr(self, 'cm_'+name)()
 
   def featuremap(self, name):
-    return getattr(self, 'fm_'+name)()
+    if name not in self._fm_cache:
+      self._fm_cache[name] = getattr(self, 'fm_'+name)()
+    return self._fm_cache[name]
 
   def split(self, name):
     return getattr(self, 'sp_'+name)()
