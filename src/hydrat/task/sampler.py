@@ -30,15 +30,7 @@ def stratify_with_index(class_map):
 
   # Build strata identifiers, which are a bit patern indicating 
   # set-of-classes membership
-  strata_identifiers = numpy.zeros(num_docs)
-  for i, row in enumerate(class_map):
-    identifier = 0
-    for entry in row:
-      identifier = identifier << 1
-      if entry:
-        identifier += 1
-    strata_identifiers[i] = identifier
-  assert len(row) == class_map.shape[1]
+  strata_identifiers = [ tuple(row) for row in class_map ]
 
   unique_identifiers  = set(strata_identifiers)
   num_stratas         = len(unique_identifiers)
