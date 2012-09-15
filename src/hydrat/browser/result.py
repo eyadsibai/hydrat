@@ -14,6 +14,7 @@ from hydrat.common.metadata import metamap
 import hydrat.result.stats as stats
 from display import list_as_html, dict_as_html, list_of_links
 from common import page_config
+from hydrat.store import NoData
 
 
 KEY_SEP =':'
@@ -442,7 +443,6 @@ class Results(object):
     from hydrat.display.tsr import render_TaskSetResult
     
     tsr = self.store._get_TaskSetResult(uuid)
-    class_space = self.store.get_Space(tsr.metadata['class_space'])
     confusion_matrix = tsr.overall_confusion_matrix(self.interpreter).sum(0)
     used_classes = (confusion_matrix[:,0] + confusion_matrix[:,3]) > 0
     summary = self.summary_fn(tsr, self.interpreter)
@@ -474,9 +474,25 @@ class Results(object):
 
     page = markup.page()
     page.init(**page_config)
+
+    try:
+      class_space = self.store.get_Space(tsr.metadata['class_space'])
+    except NoData:
+      class_space = ['class{0}'.format(i) for i in xrange(confusion_matrix.shape[0])]
+      page.add('<h1>Warning: No data for class space "{0}"</h1>'.format(tsr.metadata['class_space']))
+
+    # Data summmary
     page.add(dict_as_html(summary))
+
+    # Overall summary
     space = list(numpy.array(class_space)[used_classes])
     page.dict_table(rows, cols, list(col_headings), space, footer)
+
+    # Multiclass summary
+    # TODO: If either the goldstandard or the output are multiclass,
+    #       we will display a breakdown of the confusion matrix
+    #       according to (x,y) -> (a,b,c).
+
 
     for i, result in enumerate(tsr.results):
       page.h2('Result %d' % i)
