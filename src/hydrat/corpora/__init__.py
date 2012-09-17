@@ -1,2 +1,0 @@
-import reuters
-import langid
