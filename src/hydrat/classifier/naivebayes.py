@@ -59,9 +59,11 @@ class MultinomialBoolean(Multinomial):
 class NaiveBayesL(Learner):
   __name__ = "naivebayes" 
   VALID_CLASS_PRIORS = ['default', 'uniform']
-  def __init__(self, eventmodel, class_prior='default'):
+  def __init__(self, eventmodel, class_prior='default', output_prob=False):
     """
-    no_class_prior: override the calculated class prior with a uniform prior
+    class_prior: override the calculated class prior with a uniform prior
+    output_prob: output a probability distribution over classes, rather than just the most
+                 likely class
     """
 
     Learner.__init__(self)
@@ -69,22 +71,22 @@ class NaiveBayesL(Learner):
     if class_prior not in self.VALID_CLASS_PRIORS:
       raise ValueError, "unknown class prior"
     self.class_prior = class_prior
+    self.output_prob = output_prob
 
   def is_pickleable(self):
     return True
 
   def __getstate__(self):
-    return (self.eventmodel, self.class_prior)
+    return (self.eventmodel, self.class_prior, self.output_prob)
 
   def __setstate__(self, state):
     Learner.__init__(self)
-    self.eventmodel, self.class_prior = state
+    self.eventmodel, self.class_prior, self.output_prob = state
 
   def _params(self):
-    return {'eventmodel':self.eventmodel.__name__, 'class_prior':self.class_prior }
+    return {'eventmodel':self.eventmodel.__name__, 'class_prior':self.class_prior, 'output_prob':self.output_prob }
 
   def _learn(self, fm, cm):
-    # TODO: Do a collapse of unused classes
     tot_cl = cm.shape[1]
     used_cl = np.flatnonzero(cm.sum(0) > 0)
     cm = sp.csr_matrix(cm[:,used_cl], dtype='int32')
@@ -95,14 +97,14 @@ class NaiveBayesL(Learner):
     else:
       raise ValueError, "unknown class prior!"
     ptc = self.eventmodel.term_priors(fm, cm)
-    return NaiveBayesC(pc, ptc, tot_cl, used_cl)
+    return NaiveBayesC(pc, ptc, tot_cl, used_cl, self.output_prob)
 
   def _check_installed(self):
     pass
 
 class NaiveBayesC(Classifier):
   __name__ = "naivebayes" 
-  def __init__(self, pc, ptc, tot_cl, used_cl):
+  def __init__(self, pc, ptc, tot_cl, used_cl, output_prob):
     """
     pc: class log priors (numpy matrix (1,num_class))
     ptc: term log priors (numpy matrix ax0:term ax1:class)
@@ -114,13 +116,14 @@ class NaiveBayesC(Classifier):
     self.ptc = ptc
     self.tot_cl = tot_cl
     self.used_cl = used_cl
+    self.output_prob = output_prob
 
   def is_pickleable(self):
     return True
 
   # Implementation of getstate/setstate based on liblinear.py
   def __getstate__(self):
-    initargs = (self.pc, self.ptc, self.tot_cl, self.used_cl)
+    initargs = (self.pc, self.ptc, self.tot_cl, self.used_cl, self.output_prob)
     metadata = self.metadata
     return (initargs, metadata)
 
@@ -131,12 +134,16 @@ class NaiveBayesC(Classifier):
     
 
   def _classify(self, fm):
-    lf = fm.copy()
-    lf.data = logfac(lf.data).astype(float)
-    pdc = fm * self.ptc - lf.sum(1)
-    cl = np.argmax(pdc + self.pc, axis=1)
-    cm = np.zeros((fm.shape[0], self.tot_cl), dtype=bool)
-    cm[np.arange(cm.shape[0]), self.used_cl[np.array(cl)[:,0]]] = True
+    pdc = fm * self.ptc
+    pd = pdc + self.pc
+    if self.output_prob:
+      pd = np.array(pd)
+      with np.errstate(under='ignore'):
+        cm = (1/np.exp(pd[:,:,None] - pd[:,None,:]).sum(1))
+    else:
+      cl = np.argmax(pdc + self.pc, axis=1)
+      cm = np.zeros((fm.shape[0], self.tot_cl), dtype=bool)
+      cm[np.arange(cm.shape[0]), self.used_cl[np.array(cl)[:,0]]] = True
     return cm
 
 def multinomialL(*args, **kwargs): return NaiveBayesL(Multinomial(), *args, **kwargs)
