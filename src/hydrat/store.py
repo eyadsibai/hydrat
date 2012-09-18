@@ -472,10 +472,15 @@ class Store(object):
   def __str__(self):
     return "<Store mode '%s' @ '%s'>" % (self.mode, self.path)
 
-  def __del__(self):
+  def close(self):
+    if self.fallback is not None:
+      self.fallback.close()
     if hasattr(self, 'fileh'):
       self.fileh.close()
     self.filelock.release()
+
+  def __del__(self):
+    self.close()
 
   ###
   # Utility Methods
@@ -1530,5 +1535,5 @@ class NullStore(Store):
       elif key.startswith('has_'):
         setattr(self, key, null_has)
 
-  def __del__(self):
+  def close(self):
     pass
