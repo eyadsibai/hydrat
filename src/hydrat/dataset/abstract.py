@@ -2,7 +2,7 @@ import logging
 import os
 import multiprocessing as mp
 
-from itertools import izip
+from itertools import izip, imap
 
 from hydrat import config
 from hydrat.common.pb import ProgressIter
@@ -136,13 +136,17 @@ class Dataset(object):
     ts = diskdict(config.getpath('paths','scratch'))
 
     # TODO: refactor against proxy
-    pool = mp.Pool(config.getint('parameters','job_count'))
     def tokenstream():
       # This hack is to avoid a bad interaction between multiprocessing, progressbar and signals.
       for t in ProgressIter(tss, label="%s(%s)" % (fn.__name__, tsname)):
         yield t 
 
-    tokens = pool.imap(fn, tokenstream())
+
+    if config.getboolean('parameters','parallel_tokenize'):
+      pool = mp.Pool(config.getint('parameters','job_count'))
+      tokens = pool.imap(fn, tokenstream())
+    else:
+      tokens = imap(fn, tokenstream())
     for id, inst_tokens in izip(instancelabels, tokens):
       ts[id] = inst_tokens
       if len(inst_tokens) == 0:
@@ -164,13 +168,17 @@ class Dataset(object):
     fm = diskdict(config.getpath('paths','scratch'))
 
     # TODO: refactor against proxy
-    pool = mp.Pool(config.getint('parameters','job_count'))
     def tokenstream():
       # This hack is to avoid a bad interaction between multiprocessing, progressbar and signals.
       for t in ProgressIter(tss, label="%s(%s)" % (extractor.__name__, tsname)):
         yield t 
 
-    tokens = pool.imap(extractor, tokenstream())
+    if config.getboolean('parameters','parallel_tokenize'):
+      pool = mp.Pool(config.getint('parameters','job_count'))
+      tokens = pool.imap(extractor, tokenstream())
+    else:
+      tokens = imap(extractor, tokenstream())
+
     for id, inst_tokens in izip(instancelabels, tokens):
       try:
         fm[id] = dict(inst_tokens)
