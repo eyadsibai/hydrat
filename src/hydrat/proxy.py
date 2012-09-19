@@ -14,7 +14,7 @@ import scipy.sparse
 import multiprocessing as mp
 
 from copy import deepcopy
-from itertools import izip
+from itertools import izip, imap
 
 from hydrat import config
 from hydrat.common.diskdict import diskdict
@@ -302,16 +302,27 @@ class DataProxy(TaskSet):
       # TODO: Backoff behaviour if multiprocessing fails
       #for i, id in enumerate(self.instancelabels):
       #  feat_dict[id] = extractor(tss[i])
-      #  TODO manage number of CPUS used.
-      pool = mp.Pool(config.getint('parameters','job_count'))
       def tokenstream():
         # This hack is to avoid a bad interaction between multiprocessing, progressbar and signals.
         for t in ProgressIter(tss, label=extractor.__name__):
           yield t
-      tokens = pool.imap(extractor, tokenstream())
+
+      if config.getboolean('parameters','parallel_tokenize'):
+        pool = mp.Pool(config.getint('parameters','job_count'))
+        tokens = pool.imap(extractor, tokenstream())
+      else:
+        tokens = imap(extractor, tokenstream())
+
       #for i, id in enumerate(self.instancelabels):
       for id, inst_tokens in izip(self.instancelabels, tokens):
         feat_dict[id] = dict(inst_tokens)
+
+        if len(inst_tokens) == 0:
+          msg =  "%s(%s) has no tokens for '%s'" % (self.tokenstream, extractor.__name__, id)
+          if config.getboolean('debug','allow_empty_instance'):
+            self.logger.warning(msg)
+          else:
+            raise ValueError, msg
 
       self.inducer.add_Featuremap(self.dsname, self.instance_space, space_name, feat_dict)
 
@@ -400,7 +411,12 @@ class CrossDomainDataProxy(DataProxy):
   @class_space.setter
   def class_space(self, value):
     self.train.class_space = value
-    self.eval.class_space = value
+    try:
+      self.eval.class_space = value
+    except ValueError:
+      # Eval dataset may not know about the class space, for example in
+      # a shared task where the goldstandard for test data is not given.
+      pass
     self._class_space = value
 
   @property
@@ -453,8 +469,17 @@ class CrossDomainDataProxy(DataProxy):
   @property
   def classmap(self):
     cm_train = self.train.classmap
-    cm_eval = self.eval.classmap
-    raw = numpy.vstack((cm_train.raw, cm_eval.raw))
+    try:
+      cm_eval_raw = self.eval.classmap.raw
+    except ValueError:
+      # Create a stub blank classmap
+      # TODO: Do we need to somehow note this in the metadata that the
+      #       eval space had no data for the class?
+      eval_doc_count = len(self.eval.instancelabels)
+      class_count = cm_train.raw.shape[1]
+      cm_eval_raw = numpy.zeros((eval_doc_count,class_count), dtype=bool)
+
+    raw = numpy.vstack((cm_train.raw, cm_eval_raw))
     md = dict(dataset=self.dsname, class_space=self.class_space, 
         instance_space=self.instance_space)
     return ClassMap(raw, split=self.split, metadata=md)
