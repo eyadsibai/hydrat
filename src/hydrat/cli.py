@@ -125,6 +125,21 @@ class HydratCmdln(cmdln.Cmdln):
         logger.debug(e)
         print("%s is not a dataset" % dsname)
 
+  ''' 
+  def do_interactive(self, subcmd, opts, *store_paths):
+    """${cmd_name}: interactive data exporation
+
+    ${cmd_usage} 
+    """
+    from store import Store
+    fallback = None
+    for p in store_paths[1:]:
+      fallback = Store(p, fallback=fallback)
+    store = Store(store_paths[0],'a', fallback = fallback)
+
+    import pdb;pdb.set_trace()
+  '''
+    
   @cmdln.option("-f", "--force",   action="store_true", default=False, help="force generation of all summaries")
   @cmdln.option("-d", "--delete",  action="store_true", default=False, help="delete summary nodes")
   def do_summary(self, subcmd, opts, *store_paths):
@@ -161,6 +176,7 @@ class HydratCmdln(cmdln.Cmdln):
           store.fileh.removeNode(tsr.node, recursive=True)
           continue
         print "Added summary", int_id, "to", tsr
+    store.close()
 
   # TODO: Refactor against frameworks.offline and browser.results
   def do_output(self, subcmd, opts, store_path, output_path):
@@ -198,6 +214,8 @@ class HydratCmdln(cmdln.Cmdln):
                     help="allow the store to be modified")
   @cmdln.option("-p", "--port", type='int', default=8080,
                     help="listen on port number")
+  @cmdln.option("-s", "--summary", action='store_true', default=False,
+                    help="do summarization first")
   def do_browse(self, subcmd, opts, *paths):
     """${cmd_name}: browse an existing hdf5 store
 
@@ -217,6 +235,13 @@ class HydratCmdln(cmdln.Cmdln):
     of the browser's behaviour. See the default at hydrat.browser.browser_config
     for more details of what is configurable.
     """
+    if opts.summary:
+      import optparse
+      v = optparse.Values()
+      v.ensure_value('delete',False)
+      v.ensure_value('force',False)
+      self.do_summary(subcmd, v, *paths)
+
     import cherrypy
     from hydrat.store import Store
     from hydrat.browser import StoreBrowser
