@@ -70,6 +70,9 @@ class Results(object):
 
     summaries = self.get_full_summary(uuids, summary_fn)
 
+    page.h3('Interpreter')
+    page.add(dict_as_html({'Interpreter':int_id}))
+
     page.h3('Parameters')
     page.add(dict_as_html(params))
 
