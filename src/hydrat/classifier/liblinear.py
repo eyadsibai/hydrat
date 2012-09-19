@@ -115,8 +115,9 @@ class liblinearL(Configurable, Learner):
 
     # train svm
     if self.additional:
-      training_cmd = [ self.learner, '-q', '-s', str(self.svm_type), '-c', 
-          str(self.cost), self.additional, train.name , model_path ]
+      training_cmd = [ self.learner, '-q', '-s', str(self.svm_type), '-c', str(self.cost)] +\
+        self.additional.split() +\
+        [ train.name , model_path ]
     else:
       training_cmd = [ self.learner, '-q', '-s', str(self.svm_type), '-c', 
           str(self.cost), train.name , model_path ]
@@ -126,6 +127,12 @@ class liblinearL(Configurable, Learner):
       self.logger.critical("Training liblinear failed")
       raise ValueError, "Training liblinear returned %s"%(str(retcode))
 
+    with open(model_path) as f:
+      model_len = len(f.read())
+      if model_len == 0:
+        self.logger.critical("Training liblinear produced empty file")
+        raise ValueError("Training liblinear produced empty file")
+        
     return SVMClassifier( model_path, self.classifier, class_map.shape[1],
         probability_estimates=self.output_probability )
 
