@@ -83,9 +83,14 @@ class Experiment(TaskSetResult):
         # TODO: Should we define a custom exception for this?
         raise cPickle.UnpickleableError
       cPickle.dumps(self.learner)
+      # TODO: closing a multiprocessing pool produces an unsightly error msg
+      # TODO: it seems that explicitly closing it does not cause this error msg
       pool = mp.Pool(config.getint('parameters','job_count'))
       for result in ProgressIter(pool.imap_unordered(get_result, self.folds), 'PARALLEL', maxval=len(self.taskset)):
         results.append(result)
+      pool.close()
+      pool.join() # This waits for all the pool members to exit
+
       results.sort(key=lambda x:x.metadata['index'])
     except cPickle.UnpickleableError:
       for fold in ProgressIter(self.folds, 'SERIES'):
