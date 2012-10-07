@@ -79,7 +79,7 @@ class Experiment(TaskSetResult):
     results = []
     print "Experiment: %s %s" % (self.learner.__name__, self.learner.params)
     try:
-      if not self.parallel:
+      if not self.parallel or not self.learner.is_pickleable():
         # TODO: Should we define a custom exception for this?
         raise cPickle.UnpickleableError
       cPickle.dumps(self.learner)
@@ -92,7 +92,7 @@ class Experiment(TaskSetResult):
       pool.join() # This waits for all the pool members to exit
 
       results.sort(key=lambda x:x.metadata['index'])
-    except cPickle.UnpickleableError:
+    except (cPickle.UnpickleableError, TypeError):
       for fold in ProgressIter(self.folds, 'SERIES'):
         results.append(fold.result)
     self._results = results
