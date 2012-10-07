@@ -210,6 +210,7 @@ def default_configuration():
   default_config.set('debug', 'allow_empty_instance', 'False')
   default_config.set('debug', 'allow_decode_error', 'False')
   default_config.set('debug', 'pdb_on_summaryfn_exception', 'False')
+  default_config.set('debug', 'quiet_extern', 'True')
 
   return default_config
 
