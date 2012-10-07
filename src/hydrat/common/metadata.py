@@ -58,3 +58,14 @@ def metamap(metadatas):
         mapping[k].update((v,))
   return mapping
 
+def shared(*metadatas):
+  """
+  Compute the shared metadata of a sequence of metadata objects.
+  """
+  m0 = metadatas[0]
+  retval = {}
+  for k in m0:
+    if all( m[k] == m0[k] for m in metadatas ):
+      retval[k] = m0[k]
+  return retval
+
