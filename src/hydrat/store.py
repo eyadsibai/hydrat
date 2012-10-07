@@ -499,8 +499,7 @@ class Store(object):
     if shape is None: shape = node._v_attrs.shape
     n_ent = node._v_attrs.NROWS
     logger.debug("reading sparse node {0}({1} entries)".format(shape, n_ent))
-    t = Timer()
-    with t:
+    with Timer() as t:
       ax0 = node.read(field='ax0')
       ax1 = node.read(field='ax1')
       values = node.read(field='value')
@@ -512,7 +511,7 @@ class Store(object):
       #          conversion
       #       2) use a disk-backed data structure somewhere
       m = csr_matrix((values,(ax0,ax1)), shape=shape)
-    logger.debug("reading took {0:.1f}s ({1} entries/s)".format(t.duration, n_ent/t.duration))
+    logger.debug("reading took {0:.1f}s ({1} entries/s)".format(t.elapsed, n_ent/t.elapsed))
     return m
 
   def _add_sparse_node( self
@@ -550,7 +549,7 @@ class Store(object):
           break
         node.append(numpy.rec.fromarrays((inst_c, feat_c, data_c)))
       self.fileh.flush()
-    logger.debug("writing took {0:.1f}s ({1} entries/s)".format(t.duration,data.nnz/t.duration))
+    logger.debug("writing took {0:.1f}s ({1} entries/s)".format(t.elapsed,data.nnz/t.elapsed))
 
 
   def has_Space(self, name):
