@@ -4,7 +4,7 @@ import numpy
 
 from hydrat.common.invert_dict import invert_dict
 from hydrat.common.richcomp import RichComparisonMixin
-from hydrat.common.metadata import metadata_matches
+from hydrat.common.metadata import metadata_matches, shared
 
 def confusion_matrix(gs, cl):
   assert gs.shape == cl.shape
@@ -121,6 +121,19 @@ class Result(RichComparisonMixin):
     except AttributeError:
       return False
 
+  @classmethod
+  def vstack(cls, *results):
+    """
+    Produce a single stacked result from a list of results
+    """
+    gs = numpy.vstack([r.goldstandard for r in results])
+    cl = numpy.vstack([r.classifications for r in results])
+    ind = numpy.hstack([r.instance_indices for r in results])
+    md = shared(*(r.metadata for r in results))
+    retval = cls(gs, cl, ind, md)
+    return retval
+
+    
   def eq_metadata(self, other):
     EXCL_KEYS = set(('learn_time', 'classify_time'))
     m_s = self.metadata
