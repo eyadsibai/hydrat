@@ -144,6 +144,7 @@ class Dataset(object):
 
     if config.getboolean('parameters','parallel_tokenize'):
       pool = mp.Pool(config.getint('parameters','job_count'))
+      # TODO: Handle fn not being pickleable
       tokens = pool.imap(fn, tokenstream())
     else:
       tokens = imap(fn, tokenstream())
