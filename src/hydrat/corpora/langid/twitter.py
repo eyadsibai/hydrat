@@ -13,11 +13,10 @@ class TwitterZHENJA5k(UTF8, ISO639_1, Configurable, ByteUBT, CodepointUBT):
   requires={
     ('corpora','twitter-zhenja-5k') : DIR('twitter-zhenja-5k'),
     }
-  datapath = config.getpath('corpora', 'twitter-zhenja-5k')
 
   def cm_iso639_1(self):
     retval = {}
-    with open(self.datapath) as f:
+    with open(config.getpath('corpora', 'twitter-zhenja-5k')) as f:
       for row in f:
         row = row.split('\t')
         retval[row[0]] = [ row[1] ]
@@ -25,13 +24,13 @@ class TwitterZHENJA5k(UTF8, ISO639_1, Configurable, ByteUBT, CodepointUBT):
 
   def ts_byte(self):
     retval = {}
-    with open(self.datapath) as f:
+    with open(config.getpath('corpora', 'twitter-zhenja-5k')) as f:
       for row in f:
         row = row.split('\t')
         retval[row[0]] = row[2] 
     return retval
 
-class TwitterSCarter(UTF8, ISO639_1, Configurable, ByteUBT, CodepointUBT, AutoCV, ByteQuadgram, BytePentagram):
+class TwitterSCarter(UTF8, ISO639_1, Configurable, ByteUBT, CodepointUBT):
   """
   Dataset of Simon Carter, from http://ilps.science.uva.nl/resources/twitterlid
   """
