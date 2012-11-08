@@ -2,6 +2,7 @@
 This module specifies the abstract interface that all classifier modules should
 implement, and also provides some convenience methods.
 """
+import numpy as n
 import logging
 import time
 import inspect

@@ -73,6 +73,9 @@ class liblinearL(Configurable, Learner):
     self.classifier = config.getpath('tools','liblinearclassifier') 
     Learner.__init__(self)
 
+    self.model_path = None
+    self.clear_temp = config.getboolean('debug', 'clear_temp_files')
+
     self.__params = dict( output_probability=output_probability
                         , svm_type=svm_type
                         , cost=cost
@@ -88,6 +91,9 @@ class liblinearL(Configurable, Learner):
   def __setstate__(self, value):
     self.__init__(*value)
 
+  def __del__(self):
+    if self.clear_temp:
+      if self.model_path is not None: os.remove(self.model_path)
 
   def _check_installed(self):
     if not all([os.path.exists(tool) for tool in 
