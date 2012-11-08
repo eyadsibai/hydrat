@@ -15,11 +15,5 @@ def main():
   CLI = cli.HydratCmdln()
   sys.exit( CLI.main() )
 
-import classifier
-import dataset
-import corpora
-import langid
-import transformer
-
 if __name__ == "__main__":
   main()

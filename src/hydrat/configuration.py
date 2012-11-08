@@ -79,6 +79,8 @@ class HydratConfigParser(ConfigParser.SafeConfigParser):
   """ HydratConfigParser adds a getpath method, to postprocess paths in a 
   config file by running expanduser and expandvars on the path.
   """
+  # TODO: Make reading and writing of configurations classmethods
+  # of this.
   def getpath(self, section, option):
     "Do some post-processing on a received path"
     path = self.get(section, option)
@@ -237,39 +239,36 @@ def read_configuration(additional_path=[]):
   logger.debug("Read configuration from %s", str(paths))
   return config
 
-def update_configuration(config, rescan=False, scan = []):
-  """ Receives a config object, then scans hydrat for requirements,
-  e.g. installed packages, tries to satisfy the requirements and 
-  returns an updated configuration.
+def update_configuration(config, requires, rescan=False, scan = []):
+  """ Receives a config object and requirements specification, then 
+  scans hydrat for requirements, e.g. installed packages, tries to satisfy the 
+  requirements and returns an updated configuration.
   """
-  # TODO: 
-  # Check for conflicting keys, and do something about it.
-  # Might not actually be an error: More than one package might ask for java.
-  import hydrat
-  for klass in Configurable.__subclasses__():
-    requires = klass.requires
-    for section,key in requires:
-      if config.has_option(section, key) and config.getpath(section,key) is not '':
-        # Already have a setting
-        existing = config.getpath(section, key)
-        if rescan:
-          toolpath = requires[(section,key)].value(scan)
-          if toolpath is not None and toolpath != existing:
-            logger.info("%s --> %s (updated)", key, toolpath)
-            config.set(section, key, toolpath)
-          else:
-            logger.info("%s --> %s (no update)", key, existing)
-        else:
-          logger.info("%s --> %s (existing configuration)", key, existing)
-      else:
+  for section,key in requires:
+    if config.has_option(section, key) and config.getpath(section,key) is not '':
+      # Already have a setting
+      existing = config.getpath(section, key)
+      if rescan:
         toolpath = requires[(section,key)].value(scan)
-        if toolpath is not None:
-          logger.info("%s --> %s (resolved)", key, toolpath)
+        if toolpath is not None and toolpath != existing:
+          logger.info("%s --> %s (updated)", key, toolpath)
           config.set(section, key, toolpath)
         else:
-          logger.info("%s --> None (not found)", key)
+          logger.info("%s --> %s (no update)", key, existing)
+      else:
+        logger.info("%s --> %s (existing configuration)", key, existing)
+    else:
+      toolpath = requires[(section,key)].value(scan)
+      if toolpath is not None:
+        logger.info("%s --> %s (resolved)", key, toolpath)
+        config.set(section, key, toolpath)
+      else:
+        logger.info("%s --> None (not found)", key)
   return config
 
+# TODO: revisit the logging infrastructure throughout hydrat
+#       issues include: reconsider per-instance/per-class loggers
+#                       let the CLI control the console loglevel
 logger = logging.getLogger("hydrat")
 logger.setLevel(logging.DEBUG)
 
