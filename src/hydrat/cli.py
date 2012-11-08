@@ -13,6 +13,7 @@ Each function should consume the balance of the command-line arguments.
 import os
 import sys
 import logging
+import importlib
 import cmdln
 
 import configuration
@@ -32,41 +33,71 @@ def get_browser_config():
 
 logger = logging.getLogger(__name__)
 
+# list of modules that config must import to check for Configurable subclasses
+CONFIG_IMPORTS=[
+  "dataset",
+  "langid",
+  "corpora",
+  "classifier",
+  "wrapper",
+  "transformer",
+]
+
 class HydratCmdln(cmdln.Cmdln):
   @cmdln.option("-d", "--default", action="store_true", default=False,
                     help="write a default configuration (do not parse existing config file)")
   @cmdln.option("-r", "--rescan", action="store_true", default=False,
                     help="rescan paths")
   @cmdln.option("-i", "--include", action="append", default=[],
-                    help="include additional configuration files")
+                    help="include existing configuration files")
   @cmdln.option("-s", "--scan", action="append", default=[],
                     help="specify additional paths to scan")
+  @cmdln.option("-v", "--verbose", action="store_true", default=False,
+                    help="output debug information while configuring")
   def do_configure(self, subcmd, opts, *args):
     """${cmd_name}: write a configuration file
 
-    ${cmd_usage} 
+    ${cmd_usage} [config_file]
 
-    Writes the default configuration file to .hydratrc
+    Writes hydrat configuration to config_file (default .hydratrc)
     """
+    if opts.verbose:
+      logging.basicConfig()
+
     if opts.default and len(opts.include) > 0:
       self.optparser.error('-d and -i are mutually exclusive')
 
-    if len(args) > 0:
+    if len(args) == 0:
+      path = configuration.DEFAULT_CONFIG_FILE
+    elif len(args)  == 1:
       path = args[0]
     else:
-      path = configuration.DEFAULT_CONFIG_FILE
+      self.optparser.error('too many arguments')
 
     if not os.path.isabs(path):
       path = os.path.abspath(path)
 
     if opts.default: 
       # overwrite with default
+      logger.info("reset all configuration values to default")
       config = configuration.default_configuration()
     else:
       # Read in the existing configuration, so we don't lose
       # user customizations.
+      logger.info("reading existing configuration options")
       config = configuration.read_configuration(opts.include)
-    config = configuration.update_configuration(config, rescan=opts.rescan, scan=opts.scan)
+
+    for module in CONFIG_IMPORTS:
+      logger.debug("importing {0}".format(module))
+      importlib.import_module('.' + module, 'hydrat')
+
+    configurables = set(configuration.Configurable.__subclasses__())
+    logger.info("found {0} Configurable subclasses".format(len(configurables)))
+    
+    for item in configurables:
+      logger.debug("configuring {0}".format(item.__name__))
+      config = configuration.update_configuration(config, item.requires, rescan=opts.rescan, scan=opts.scan)
+
     configuration.write_configuration(config, path)
     logger.info("Wrote configuration file to '%s'", path)
 
