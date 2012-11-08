@@ -46,6 +46,17 @@ class EuroGOV(NAACL2010, UTF8, ByteUBT, CodepointUBT):
 
 class TCL(NAACL2010, ByteUBT, CodepointUBT):
   __name__ = 'TCL'
+  # NOTE: In the original data, ms documents are all mislabeled ml.
+  #       We correct this in this interface.
+
+  def cm_iso639_1(self):
+    cm = naacl2010.TCL.cm_iso639_1(self)
+    for key in cm:
+      if 'ml' in cm[key]:
+        # Replace the incorrectly labelled 'Malayalam' with 'Malay'
+        cm[key].remove('ml')
+        cm[key].append('ms')
+    return cm
 
   def encodings(self):
     encodings = {}
