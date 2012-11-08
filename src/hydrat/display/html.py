@@ -116,6 +116,8 @@ class HTMLWriter(object):
 
   def _heading(self, cells):
     self._openTag('thead')
+    # Add a space after heading labels, to allow for the sort icons.
+    cells_str = [ self.text_method(c) + ' ' for c in cells ]
     self._row(cells, celltype = 'th')
     self._closeTag('thead')
 
