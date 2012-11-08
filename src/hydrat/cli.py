@@ -96,7 +96,7 @@ class HydratCmdln(cmdln.Cmdln):
     
     for item in configurables:
       logger.debug("configuring {0}".format(item.__name__))
-      config = configuration.update_configuration(config, item.requires, rescan=opts.rescan, scan=opts.scan)
+      config = configuration.update_configuration(config, item.requires, rescan=opts.rescan, scan=opts.scan, blank_keys=True)
 
     configuration.write_configuration(config, path)
     logger.info("Wrote configuration file to '%s'", path)

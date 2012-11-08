@@ -239,7 +239,7 @@ def read_configuration(additional_path=[]):
   logger.debug("Read configuration from %s", str(paths))
   return config
 
-def update_configuration(config, requires, rescan=False, scan = []):
+def update_configuration(config, requires, rescan=False, scan = [], blank_keys=False):
   """ Receives a config object and requirements specification, then 
   scans hydrat for requirements, e.g. installed packages, tries to satisfy the 
   requirements and returns an updated configuration.
@@ -264,6 +264,8 @@ def update_configuration(config, requires, rescan=False, scan = []):
         config.set(section, key, toolpath)
       else:
         logger.info("%s --> None (not found)", key)
+        if blank_keys:
+          config.set(section, key, '')
   return config
 
 # TODO: revisit the logging infrastructure throughout hydrat
