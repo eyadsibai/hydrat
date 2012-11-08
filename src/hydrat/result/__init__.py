@@ -120,6 +120,12 @@ class CombinedMicroAverage(object):
     self.combined_matrix = matrix.sum(axis = 0)
     self.aggregator = Microaverage()
 
+  def __iter__(self):
+    """
+    K-V pair iterator allows us to consume this in the dict constructor
+    """
+    return iter([('precision',self.precision),('recall',self.recall),('fscore',self.fscore)])
+    
   def __repr__(self):
     return "<P:%.3f R:%.3f F:%.3f>"% (self.precision, self.recall, self.fscore)
 
