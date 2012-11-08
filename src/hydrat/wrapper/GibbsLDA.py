@@ -12,6 +12,9 @@ import numpy
 import scipy.sparse
 import logging
 
+# TODO: Support load/save of model
+#       Support access to various mappings provided by the model
+
 logger = logging.getLogger(__name__)
 
 
@@ -20,13 +23,34 @@ TMP = './scratch'
 
 RE_ITERATION = re.compile(r'Iteration (?P<count>\d+) ...')
 
+enc_symbols = []
+for s in ['09', 'az','AZ']:
+  for o in range(ord(s[0]), ord(s[1])+1):
+    enc_symbols.append(chr(o))
+enc_symbols = ''.join(enc_symbols)
+
+def encode(feature):
+  retval = []
+  symbol_count = len(enc_symbols)
+  while feature:
+    retval.append(enc_symbols[feature % symbol_count])
+    feature /= symbol_count
+  return ''.join(reversed(retval))
+
 def array2file(array, fileobj):
+  """
+  Produce an input file for GibbsLDA from a sparse array.
+  For each row, for each index, we produce a number of tokens
+  according to the value at that index.
+  The actual token produced is not important, as long as we are
+  able to recover the original index from it.
+  """
   fileobj.write(str(array.shape[0]) + '\n')
   for row in array:
     instance = []
     for feature in row.nonzero()[1]:
-      for i in xrange(int(row[0,feature])):
-        instance.append(str(feature))
+      count = int(row[0,feature])
+      instance.extend([encode(feature)] * count)
     fileobj.write(' '.join(instance) + '\n')
 
 class GibbsLDA(object):
@@ -41,6 +65,7 @@ class GibbsLDA(object):
               , exe = LDA_EXE
               , tmp = TMP
               , clear_temp = True
+              , timeout = 60
               ):
     if alpha is None:
       self.alpha = 50 / ntopics
@@ -53,6 +78,7 @@ class GibbsLDA(object):
     self.savestep = savestep if savestep is not None else 0
     self.twords = twords
     self.clear_temp = clear_temp
+    self.timeout = timeout
     self.exe = exe
     self.tmp = tmp
     self.workdir = os.path.abspath(tempfile.mkdtemp(prefix='GibbsLDA',dir=self.tmp))
@@ -84,6 +110,7 @@ class GibbsLDA(object):
             , delete=self.clear_temp
             ) as f:
       # Write the training file
+      logger.debug('writing training file: "%s"', f.name)
       array2file(feature_map, f)
       command =\
         [ self.exe
@@ -102,8 +129,10 @@ class GibbsLDA(object):
       lda_instance.expect(r'Sampling (?P<count>\d+) iterations!')
       niters = int(lda_instance.match.group('count'))
 
+      # Monitor output of GibbsLDA to account for progress
       for i in range(niters):
-        lda_instance.expect(RE_ITERATION)
+        # TODO: loosen timeout?
+        lda_instance.expect(RE_ITERATION, timeout=self.timeout)
         if progress_callback is not None:
           progress_callback(i+1)
 
@@ -112,8 +141,40 @@ class GibbsLDA(object):
     self.trained = True
 
   @property
+  def model(self):
+    """
+    Produce an object representing the current model
+    """
+    if not self.trained:
+      raise ValueError, "Not trained"
+    paths=[
+      "model-final.others",
+      "model-final.phi",
+      "model-final.theta",
+      "model-final.tassign",
+      "model-final.twords",
+      "wordmap.txt",
+      ]
+    retval = {}
+    for path in paths:
+      full_path = os.path.join(self.workdir, path)
+      if os.path.exists(full_path):
+        with open(full_path) as f:
+          retval[path] = f.read()
+    return retval
+
+  def load_model(self, model):
+    """
+    Load a previously saved model
+    """
+    for path in model:
+      with open(os.path.join(self.workdir, path), 'w') as f:
+        f.write(model[path])
+    self.trained = True
+
+  @property
   def topics(self):
-    if not self.Trained:
+    if not self.trained:
       raise ValueError, "Not trained"
     theta = numpy.genfromtxt(os.path.join(self.workdir,'model-final.theta'))
     theta = scipy.sparse.csr_matrix(theta)
