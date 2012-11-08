@@ -1,10 +1,12 @@
-.. This is your project NEWS file which will contain the release notes.
-.. Example: http://www.python.org/download/releases/2.6/NEWS.txt
-.. The content of this file, along with README.rst, will appear in your
-.. project's PyPI page.
-
 News
 ====
+
+0.9.4
+-----
+*Release date: 8-11-2012*
+
+* First "release" of hydrat in a long time. Development has continued, but there has not been an "official release" in awhile.
+* This release is intended to support my publication of a langid test harness.
 
 0.9.2.4
 -------
