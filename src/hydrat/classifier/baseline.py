@@ -5,46 +5,73 @@ import numpy
 __all__=['randomL','majorityL']
 
 
-class majorityL(Learner):
+class BaselineL(Learner):
+  def _check_installed(self): 
+    pass
+
+  def __getstate__(self):
+    return tuple()
+
+  def __setstate__(self, value):
+    self.__init__(*value)
+  
+  def _params(self):
+    return dict()
+
+class UniformL(BaselineL):
+  __name__ = 'uniform'
+
+  def _learn(self, feature_map, class_map):
+    num_classes      = class_map.shape[1]
+    cl_vector = numpy.ones((num_classes,)) / num_classes
+    return PresetC(cl_vector)
+
+class PriorL(BaselineL):
+  __name__ = 'prior'
+
+  def _learn(self, feature_map, class_map):
+    frequencies      = class_map.sum(0)
+    cl_vector = frequencies / float(frequencies.sum())
+    return PresetC(cl_vector)
+
+class MajorityL(BaselineL):
   __name__ = 'majority'
 
   def __init__(self, n=1):
     Learner.__init__(self)
     self.n = n
-  
-  def _check_installed(self):
-    pass
 
   def __getstate__(self):
     return (self.n,)
-
-  def __setstate__(self, value):
-    self.__init__(*value)
 
   def _params(self):
     return dict(n=self.n)
 
   def _learn(self, feature_map, class_map):
-    return majorityC(class_map, self.n)
+    num_classes      = class_map.shape[1]
+    frequencies      = class_map.sum(0)
+    majority_classes = frequencies.argsort()[-self.n:]
+    cl_vector = numpy.zeros((num_classes,), dtype='bool')
+    cl_vector[majority_classes] = True
+    return PresetC(cl_vector)
 
 
-class majorityC(Classifier):
-  """ Implements a simple majority-class classifier """
-  __name__ = "majorityclass"
-
-  def __init__(self, class_map, n):
+class PresetC(Classifier):
+  """
+  Implements a classifier that returns the same class vector for
+  every instance.
+  """
+  __name__ = "presetC"
+  
+  def __init__(self, vector):
     Classifier.__init__(self)
-    self.n = n
-    self.class_map = class_map
+    assert len(vector.shape) == 1
+    self.vector = vector
 
   def _classify(self, test_fm):
-    num_docs         = test_fm.shape[0]
-    num_classes      = self.class_map.shape[1]
-    frequencies      = self.class_map.sum(0)
-    majority_classes = frequencies.argsort()[-self.n:]
-    classifications  = numpy.zeros((num_docs, num_classes), dtype='bool')
-    classifications[:,majority_classes] = True
-    return classifications
+    retval = numpy.empty((test_fm.shape[0],self.vector.shape[0]), dtype=self.vector.dtype)
+    retval[...] = self.vector[None,...]
+    return retval
 
 from hydrat.common.sampling import CheckRNG
 class randomL(Learner):
