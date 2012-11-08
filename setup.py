@@ -6,7 +6,7 @@ README = open(os.path.join(here, 'README.rst')).read()
 NEWS = open(os.path.join(here, 'NEWS.txt')).read()
 
 
-version = '0.9.3'
+version = '0.9.4'
 
 install_requires =\
   [ 'progressbar==2.2'
@@ -14,9 +14,9 @@ install_requires =\
   , 'updatedir>=0.1'
   , 'cherrypy>=3.1.2'
   , 'pexpect==2.4'
-  , 'numpy'
-  , 'scipy'
-  , 'tables' # setuptools doesn't seem to realize this is installed?
+  , 'numpy>=1.6.1'
+  , 'scipy>=0.9.0'
+  , 'tables==2.3.1' # setuptools doesn't seem to realize this is installed?
   ]
 
 
