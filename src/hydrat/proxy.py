@@ -70,6 +70,7 @@ class DataProxy(TaskSet):
     md['sequence'] = self.sequence_name
     md['feature_desc'] = self.feature_desc
     md['class_space'] = self.class_space
+    md['feature_combination'] = 'concatenate'
     return md
 
     
@@ -77,16 +78,7 @@ class DataProxy(TaskSet):
   def dsname(self):
     return self.dataset.__name__
 
-  @property
-  def feature_spaces(self):
-    """
-    String or sequence of strings representing the feature spaces 
-    to operate over.
-    """
-    return self._feature_spaces
-
-  @feature_spaces.setter
-  def feature_spaces(self, value): 
+  def validate_feature_spaces(self, value):
     value = as_set(value)
     if any( not isinstance(s,str) for s in value):
       raise TypeError, "Invalid space identifier: %s" % str(s)
@@ -100,7 +92,19 @@ class DataProxy(TaskSet):
           unknown.append(space)
       if len(unknown) > 0:
         raise ValueError, "Unknown spaces: %s" % str(unknown)
-    self._feature_spaces = value
+    return value
+
+  @property
+  def feature_spaces(self):
+    """
+    String or sequence of strings representing the feature spaces 
+    to operate over.
+    """
+    return self._feature_spaces
+
+  @feature_spaces.setter
+  def feature_spaces(self, value): 
+    self._feature_spaces = self.validate_feature_spaces(value)
 
   @property
   def featurelabels(self):
@@ -801,4 +805,96 @@ class DomainCrossValidation(DataProxy):
   def tokenize(self, extractor):
     # TODO: How does this broadcast?
     raise NotImplementedError
+
+from hydrat.experiment import Experiment
+from hydrat.classifier.meta.featurestacking import StackedResult
+
+class StackingProxy(DataProxy):
+  """
+  A hydrat proxy subclass that implements an internal stacking
+  metalearner.
+
+  Internally, this maintains a StackedResult instance to serve 
+  Tasks from. This StackedResult will be generated on-demand, and
+  will be cached unless invalidated by a change in parameters.
+  """
+  def __init__( self, dataset, learner, split_name='crossvalidation', **kwargs):
+    #if 'split_name' not in kwargs:
+    #  raise ValueError("split name must be provided")
+    DataProxy.__init__(self, dataset, **kwargs)
+    self.learner = learner
+    self.__taskset = None # The internal StackedResult
+
+  def init_taskset(self):
+    # TODO: Add debug output!
+    if self.__taskset is None:
+      store = self.store
+
+      # Obtain the necessary results
+      proxy = DataProxy(self.dataset, store=store)
+      proxy.class_space = self.class_space
+      proxy.split_name = 'crossvalidation'
+
+      tsrs = []
+      for fs in self.feature_spaces:
+        proxy.feature_spaces = fs
+        e = Experiment(proxy, self.learner)
+        tsrs.append(store.new_TaskSetResult(e))
+
+      # Compile a suitable taskset
+
+      # TODO: Refactor against hydrat.browser.result:244
+      # Compute the set of keys present in the metadata over all results 
+      all_keys = sorted(reduce(set.union, (set(t.metadata.keys()) for t in tsrs)))
+      # Compute the set of possible values for each key 
+      values_set = {}
+      for k in all_keys:
+        for t in tsrs:
+          try:
+            values_set[k] = set(t.metadata.get(k,'UNKNOWN') for t in tsrs)
+          except TypeError:
+            # skip unhashable
+            pass
+      # Compute the set of key-values which all the results have in common
+      md = dict( (k, values_set[k].pop()) for k in values_set if len(values_set[k]) == 1)
+      #md['feature_desc'] = tuple(sorted(sum((d['feature_desc'] for d in descs), tuple())))
+      #md['stacking_desc'] = descs
+      md['feature_desc'] = self.feature_desc
+      md['feature_combination'] = 'stacking'
+
+      self.__taskset = StackedResult(tsrs, md)
+
+  @property
+  def metadata(self):
+    # TODO: should be able to compile metadata without needing to assemble the inner taskset
+    self.init_taskset()
+    return self.__taskset.metadata
+
+  @property
+  def feature_spaces(self):
+    """
+    String or sequence of strings representing the feature spaces 
+    to operate over.
+    """
+    return self._feature_spaces
+
+  @feature_spaces.setter
+  def feature_spaces(self, value): 
+    self._feature_spaces = DataProxy.validate_feature_spaces(self, value)
+    self.__taskset = None #invalidate existing taskset
+
+  def __getitem__(self, key):
+    self.init_taskset()
+    return self.__taskset[key]
+
+  def __len__(self):
+    self.init_taskset()
+    return len(self.__taskset)
+
+  def __iter__(self):
+    for i in xrange(len(self)):
+      yield self[i]
+
+  def __contains__(self, key):
+    return 0 <= key < len(self)
 
