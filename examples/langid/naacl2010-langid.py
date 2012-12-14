@@ -4,43 +4,46 @@ import hydrat.classifier.nearest_prototype as np
 import hydrat.classifier.maxent as maxent
 import hydrat.classifier.SVM as svm
 import hydrat.classifier.knn as knn
-from hydrat.frameworks.offline import OfflineFramework 
 
-learners=\
-  [ np.cosine_mean_prototypeL()
-  , np.skew_mean_prototypeL()
-  , knn.skew_1nnL()
-  , knn.oop_1nnL()
-  , knn.cosine_1nnL()
-  , maxent.maxentLearner()
-  , svm.libsvmExtL(kernel_type='linear')
-  , svm.libsvmExtL(kernel_type='rbf')
+from hydrat.proxy import DataProxy
+from hydrat.store import Store
+from hydrat.experiment import Experiment
+
+learners = [ 
+  np.cosine_mean_prototypeL(),
+  np.skew_mean_prototypeL(),
+  knn.skew_1nnL(),
+  knn.oop_1nnL(),
+  knn.cosine_1nnL(),
+  maxent.maxentLearner(),
+  svm.libsvmExtL(kernel_type='linear'),
+  svm.libsvmExtL(kernel_type='rbf'),
   ]
 
-feature_spaces=\
-  [ 'codepoint_unigram'
-  , 'byte_unigram'
-  , 'codepoint_bigram'
-  , 'byte_bigram'
-  , 'codepoint_trigram'
-  , 'byte_trigram'
+feature_spaces = [
+  'codepoint_unigram',
+  'byte_unigram',
+  'codepoint_bigram',
+  'byte_bigram',
+  'codepoint_trigram',
+  'byte_trigram',
   ]
 
-datasets=\
-  [ naacl.EuroGOV()
-  , naacl.TCL()
-  , naacl.Wikipedia()
+datasets = [
+  naacl.EuroGOV(),
+  naacl.TCL(),
+  naacl.Wikipedia(),
   ]
 
 if __name__ == "__main__":
-  for ds in datasets:
-    fw = OfflineFramework(ds, store='./naacl2010' )
-    fw.set_class_space('iso639_1')
-    fw.set_split('crossvalidation')
-    for fs in feature_spaces:
-      fw.set_feature_spaces(fs)
-      for l in learners:
-        fw.set_learner(l)
-        fw.run()
-    fw.generate_output()
+  store = Store.from_caller()
 
+  for ds in datasets:
+    proxy = DataProxy(ds, store=store)
+    proxy.class_space = 'iso639_1'
+    for feature in feature_spaces:
+      proxy.feature_spaces = feature
+
+      for l in learners:
+        e = Experiment(proxy, l)
+        r = store.new_TaskSetResult(e)
