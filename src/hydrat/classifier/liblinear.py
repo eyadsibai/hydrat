@@ -208,11 +208,15 @@ class SVMClassifier(Classifier):
 
     # Decide the type of file we are dealing with
     if first_line.split()[0] == 'labels':
+      class_indices = map(int,first_line.split()[1:])
       self.logger.debug('Parsing libSVM probability output')
       classifications = numpy.zeros((num_test_docs, self.num_classes), dtype='float')
       for i, l in enumerate(result_file):
         # Read a list of floats, skipping the first entry which is the predicted class
-        classifications[i] = map(float,l.split()[1:])
+        # We clip the lower values as liblinear can return really small probabilities.
+        # This can be a problem downstream e.g. in stacking.
+        # TODO: make the lower bound configurable?
+        classifications[i, class_indices] = numpy.clip(map(float,l.split()[1:]), 1.0e-50, 1.0 )
           
     else:
       self.logger.debug('Parsing svm one-of-m output')
