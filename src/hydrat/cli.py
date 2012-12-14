@@ -89,7 +89,10 @@ class HydratCmdln(cmdln.Cmdln):
 
     for module in CONFIG_IMPORTS:
       logger.debug("importing {0}".format(module))
-      importlib.import_module('.' + module, 'hydrat')
+      try:
+        importlib.import_module('.' + module, 'hydrat')
+      except ImportError:
+        logger.warning("failed to import {0} when configuring hydrat".format(module))
 
     configurables = set(configuration.Configurable.__subclasses__())
     logger.info("found {0} Configurable subclasses".format(len(configurables)))
