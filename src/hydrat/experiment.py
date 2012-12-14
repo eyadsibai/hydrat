@@ -77,7 +77,8 @@ class Experiment(TaskSetResult):
   def run(self, add_args = None):
     # TODO: parallelize over folds?
     results = []
-    print "Experiment: %s %s" % (self.learner.__name__, self.learner.params)
+    # TODO: Nicer in-progress output
+    print "Experiment: %s %s" % (self.learner.__name__, self.taskset.metadata)
     try:
       if not self.parallel or not self.learner.is_pickleable():
         # TODO: Should we define a custom exception for this?
