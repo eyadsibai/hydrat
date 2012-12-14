@@ -50,7 +50,7 @@ class TCL(NAACL2010, ByteUBT, CodepointUBT):
   #       We correct this in this interface.
 
   def cm_iso639_1(self):
-    cm = naacl2010.TCL.cm_iso639_1(self)
+    cm = NAACL2010.cm_iso639_1(self)
     for key in cm:
       if 'ml' in cm[key]:
         # Replace the incorrectly labelled 'Malayalam' with 'Malay'
