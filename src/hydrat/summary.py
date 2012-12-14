@@ -100,15 +100,10 @@ class TimeTaken(Summary):
   def key_avg_classify(self):  return numpy.mean(self.result.individual_metadata('classify_time'))
 
 class Metadata(Summary):
-  def __init__(self, keys = []):
-    self.__keys = keys
+  def __init__(self):
     Summary.__init__(self)
-
-  @property
-  def keys(self): return iter(self.__keys)
-
-  def __getitem__(self, key):
-    return self.result.metadata.get(key, None)
+  
+  def key_metadata(self): return self.result.metadata
 
 class ClassPRF(Summary):
   def __init__(self, klass):
@@ -196,7 +191,7 @@ def classification_summary():
   sf = Summary()
   sf.extend(MacroPRF())
   sf.extend(MicroPRF())
-  sf.extend(Metadata(['dataset','class_space','feature_desc','split','learner','learner_params']))
+  sf.extend(Metadata())
   sf.extend(TimeTaken())
   return sf
 
