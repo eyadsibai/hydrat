@@ -1,6 +1,7 @@
 import os, gzip
 from hydrat.dataset import Dataset
 import hydrat.common.extractors as ext
+from hydrat.common.filedict import FileDict
 
 class TextDataset(Dataset):
   """ Base class for datasets where instances can be represented
@@ -37,11 +38,11 @@ class SingleDir(TextDataset):
 
   def ts_byte(self):
     path = self.data_path()
-    instances = {}
+    instances = FileDict()
     for filename in os.listdir(path):
       filepath = os.path.join(path, filename)
       if os.path.isfile(filepath):
-        instances[filename] = open(filepath).read()
+        instances[filename] = filepath
     return instances
 
 class DirPerClass(TextDataset):
@@ -60,13 +61,12 @@ class DirPerClass(TextDataset):
 
   def ts_byte(self):
     path = self.data_path()
-    ts = {}
+    ts = FileDict()
     cls = [ c for c in os.listdir(path) if os.path.isdir(os.path.join(path, c)) ]
     for cl in cls:
       for file in os.listdir(os.path.join(path,cl)):
         instance_id = '%s_%s'%(cl, file)
-        with open(os.path.join(path, cl, file)) as f:
-          ts[instance_id] = f.read()
+        ts[instance_id] = os.path.join(path, cl, file)
     return ts
 
   def cm_dirname(self):
