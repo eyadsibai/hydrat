@@ -47,14 +47,18 @@ class LangDetect(object):
   def classify_batch(self, texts, callback=None):
     retval = []
     cm = {}
-    while texts:
-      batch, texts = texts[:self.batchsize], texts[self.batchsize:]
+    t_iter = iter(texts)
+    while True:
+      batch = itertools.islice(t_iter, self.batchsize)
       testfiles = []
       for text in batch:
         testfile = tempfile.NamedTemporaryFile(dir=self.scratch, prefix='LangDetect-')
         testfile.write(text)
         testfile.flush()
         testfiles.append(testfile)
+      if len(testfiles) == 0:
+        # No more files
+        break
       tf_names = [t.name for t in testfiles]
       p = Popen(\
             [ self.javapath, '-jar', self.toolpath, '--detectlang', '-d', self.profilespath, ] + tf_names,
