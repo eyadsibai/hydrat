@@ -27,8 +27,8 @@ class LAStrings(Configurable, TextClassifier):
     )
 
   def __init__(self):
-    self.tooldir   = config.getpath('paths','lastrings-data')
-    self.toolpath  = config.getpath('paths','lastrings')
+    self.tooldir   = config.getpath('tools','lastrings-data')
+    self.toolpath  = config.getpath('tools','lastrings')
     self.tempdir   = config.getpath('paths','scratch')
     TextClassifier.__init__(self, lambda l: l if len(l) == 2 else 'UNKNOWN')
 
