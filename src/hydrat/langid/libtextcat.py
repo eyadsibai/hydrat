@@ -1,4 +1,4 @@
-from hydrat.common.textclassifier import TextClassifier
+from hydrat.text import TextClassifier
 import textcat
 class LibTextCat(TextClassifier):
   metadata = dict(

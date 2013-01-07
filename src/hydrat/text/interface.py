@@ -17,16 +17,19 @@ class TextClassifier(object):
     """
     self.label_map = label_map if label_map is not None else lambda x: x
 
+  def classify(self, text):
+    raise NotImplementedError("deriving class must implement this")
+
   def classify_batch(self, texts, callback=None):
     retval = []
     for i, t in enumerate(texts):
-      retval.append(self.classify(t))
+      retval.append(self.label_map(self.classify(t)))
       if callback is not None:
         callback(i)
     return retval
 
   def __call__(self, text):
-    return map(self.label_map,self.classify(text))
+    return self.label_map(self.classify(text))
 
 class ProxyExperiment(TaskSetResult):
   """
