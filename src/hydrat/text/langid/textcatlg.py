@@ -1,3 +1,14 @@
+"""
+Wrapper for interacting with the Perl TextCat Language Guesser[1] of 
+Gentian Van Noord. This is provided for historical reasons; for practical
+purposes libtextcat[2] is much faster, while implementing the same algorithm.
+This module was renamed from textcat.py to avoid import conflicts with the
+pylibtextcat binding[3].
+
+[1] http://odur.let.rug.nl/~vannoord/TextCat/
+[2] http://software.wise-guys.nl/libtextcat/
+[3] http://pypi.python.org/pypi/pylibtextcat
+"""
 import logging
 import time
 import numpy
