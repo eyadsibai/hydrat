@@ -19,6 +19,7 @@ def goog2iso639_1(lang):
 
 class GoogleLangid(googlelangid.GoogleLangid):
   def __init__(self, chunksize=500, referer=None, retry=30, sleep=0.2):
+    raise NotImplementedError("Needs to be updated to google translate API v2")
     googlelangid.GoogleLangid.__init__(self, retry=retry, sleep=sleep, referer=referer)
     self.spacemap = goog2iso639_1
     self.chunksize = chunksize

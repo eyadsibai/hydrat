@@ -93,7 +93,7 @@ textcat2iso639_1_assoc = [
 
 textcat2iso639_1_dict = dict(textcat2iso639_1_assoc)
 def textcat2iso639_1(klass):
-  return textcat2iso639_1_dict.get(klass, 'UNKNOWN')
+  return [textcat2iso639_1_dict.get(k, 'UNKNOWN') for k in klass]
 
 def identity(klass):
   return klass

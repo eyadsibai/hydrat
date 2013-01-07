@@ -1,4 +1,4 @@
-from hydrat.common.textclassifier import TextClassifier
+from hydrat.text import TextClassifier
 from hydrat import config
 from hydrat.configuration import Configurable, DIR, EXE
 

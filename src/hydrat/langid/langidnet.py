@@ -38,6 +38,7 @@ def langidnet_langid(ds, tokenstream, key=None):
   return obtained
 
 def do_langidnet(test_ds, tokenstream, class_space, classlabels, spacemap, key=None):
+  raise DeprecationWarning("langid.net appears to be no longer operating")
   md = dict(\
     class_space  = class_space,
     dataset      = 'LangidNet',
