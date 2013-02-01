@@ -1,0 +1,57 @@
+News
+====
+
+0.9.4
+-----
+*Release date: 8-11-2012*
+
+* First "release" of hydrat in a long time. Development has continued, but there has not been an "official release" in awhile.
+* This release is intended to support my publication of a langid test harness.
+
+0.9.2.4
+-------
+
+*Release date: 16-10-2010*
+
+* Developed the cherrypy-based store browser. The browser is invoked via 'hydrat browse <file.h5>'
+** Split into subcomponents
+** Added result deletion via the browser
+** Added result-set comparison, showing instances misclassified in a set of results
+** Added intelligent class-space reduction in displaying a result's class-class confusion matrix
+* Added an xmlrpc server to the online framework. Classification as a service!
+* Added merge capabilities to store
+* Fixed a missing dependency on pexpect
+
+
+0.9.2.3
+-------
+
+*Release date: 12-10-2010*
+
+* Removed ~ from the paths considered in autoconfigure
+* Made weka easier to autoconfigure
+* Added -s to 'hydrat configure' to allow user to specify directories to scan
+
+0.9.2.2
+-------
+
+*Release date: 12-10-2010*
+
+* Improved the CLI options for 'hydrat browse'
+* Simplified the Store management in Framework
+* Added example code for the ALTW2010 Programming Competition
+
+0.9.2.1
+-------
+
+*Release date: 11-10-2010*
+
+* Fixed a subtle bug in the computation of cosine values.
+
+0.9.2
+-----
+
+*Release date: 10-10-2010*
+
+* Extensive work done on many fronts.
+
