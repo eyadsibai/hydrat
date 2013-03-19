@@ -10,7 +10,7 @@ import tempfile
 
 class disklist(collections.Iterable, collections.Sized):
   def __init__(self, temp_dir=None):
-    self.fileh = tempfile.TemporaryFile(dir=temp_dir)
+    self.fileh = tempfile.TemporaryFile(dir=temp_dir, suffix='-disklist')
     self.count = 0
 
   def __iter__(self):
