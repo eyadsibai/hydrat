@@ -58,6 +58,22 @@ class TaskSetResult(RichComparisonMixin):
         if i in r_map:
           result[i,:,r_i] = r.classifications[r_map[i]]
     return result
+
+  def overall_goldstandard(self, indices=None): 
+    if indices is None:
+      indices = self.all_indices
+    r = self.results[0]
+    num_inst = len(indices)
+    num_class = r.goldstandard.shape[1]
+    num_res = len(self.results)
+    result = numpy.zeros((num_inst, num_class, num_res), dtype=r.goldstandard.dtype)
+
+    for r_i, r in enumerate(self.results): 
+      r_map = dict( (k,v) for v,k in enumerate(r.instance_indices))
+      for i in indices: 
+        if i in r_map:
+          result[i,:,r_i] = r.goldstandard[r_map[i]]
+    return result
       
   def overall_classpairs(self, interpreter):
     """
