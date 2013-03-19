@@ -490,15 +490,21 @@ class CrossDomainDataProxy(DataProxy):
 
   @property
   def featuremap(self):
-    # NOTE: We access the featurelabels of both in order to ensure that
-    # full common feature space is learned before we attempt to access
-    # the actual featuremaps
-    self.train.featurelabels
-    self.eval.featurelabels
+    feats_train = self.train.featurelabels
+    feats_eval = self.eval.featurelabels
 
-    fm_train=self.train.featuremap
-    fm_eval=self.eval.featuremap
-    raw = scipy.sparse.vstack((fm_train.raw, fm_eval.raw)).tocsr()
+    if len(set(feats_train) - set(feats_eval)) != 0:
+      raise ValueError("train contains features that eval does not!")
+
+    fm_train=self.train.featuremap.raw
+    fm_eval=self.eval.featuremap.raw
+
+    size_diff = fm_eval.shape[1] - fm_train.shape[1]
+    if size_diff > 0:
+      # We need to upsize the train map to allow it to stack.
+      fm_train = scipy.sparse.csr_matrix((fm_train.data, fm_train.indices, fm_train.indptr), shape=(fm_train.shape[0],fm_eval.shape[1]))
+
+    raw = scipy.sparse.vstack((fm_train, fm_eval)).tocsr()
     md = dict(dataset=self.dsname, feature_spaces=self.feature_spaces, 
         instance_space=self.instance_space)
     return FeatureMap(raw, split=self.split, metadata=md)
