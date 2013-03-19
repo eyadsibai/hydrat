@@ -81,15 +81,17 @@ class DatasetInducer(object):
     for key in fms - present_fm:
       logger.debug("  processing feature map '%s'", key)
       try:
-        self.add_Featuremap(dsname, instance_space, key, dataset.featuremap(key))
+        self.add_Featuremap(dsname, instance_space, key, dataset.featuremap(key, cache=False) )
       except AlreadyHaveData,e :
         logger.warning(e)
         # TODO: Why are we calling pdb for this?
         import pdb;pdb.post_mortem()
       except AttributeError,e :
         logger.warning(e)
-        # TODO: Make ignoring this error configurable
-        import pdb;pdb.post_mortem()
+        if config.getboolean('debug','pdb_on_invalid_fm'):
+          import pdb;pdb.post_mortem()
+        else:
+          pass
 
     # Handle all the token streams
     for key in tss - present_ts:
@@ -199,10 +201,6 @@ class DatasetInducer(object):
     # (instance#, feat#, value)
     feat_map = disklist(config.getpath('paths','scratch'))
 
-    # TODO: Implement top-n feature thresholding here. The motivation for this is 
-    #       that the low-frequency features generally have little to no impact
-    #       on the final outcome, and are problematic to deal with for very
-    #       large feature spaces.
     max_feats = config.getint('parameters','max_feats')
     feat_sum = defaultdict(int)
 
