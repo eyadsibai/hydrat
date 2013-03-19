@@ -207,6 +207,7 @@ def default_configuration():
   default_config.add_section('debug')
   default_config.set('debug', 'pdb_on_classifier_exception', 'False')
   default_config.set('debug', 'pdb_on_unhandled_exception', 'False')
+  default_config.set('debug', 'pdb_on_invalid_fm', 'True')
   default_config.set('debug', 'clear_temp_files', 'True')
   default_config.set('debug', 'allow_str_classset', 'False')
   default_config.set('debug', 'allow_empty_instance', 'False')
