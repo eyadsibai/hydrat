@@ -62,10 +62,14 @@ class Dataset(object):
   def classmap(self, name):
     return getattr(self, 'cm_'+name)()
 
-  def featuremap(self, name):
-    if name not in self._fm_cache:
-      self._fm_cache[name] = getattr(self, 'fm_'+name)()
-    return self._fm_cache[name]
+  def featuremap(self, name, cache=True):
+    if name in self._fm_cache:
+      return self._fm_cache[name]
+    else:
+      retval = getattr(self, 'fm_'+name)()
+      if cache:
+        self._fm_cache[name] = retval
+      return retval
 
   def split(self, name):
     return getattr(self, 'sp_'+name)()
