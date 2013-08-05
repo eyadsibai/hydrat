@@ -394,7 +394,7 @@ class Store(object):
   The fallback argument can be used to provide references to additional stores to
   attempt to read from, if the data requested is not present in this store.
   """
-  def __init__(self, path, mode='r', fallback=None):
+  def __init__(self, path, mode='r', fallback=None, recursive_close=True):
     """
     The store object has four major nodes:
     # spaces
@@ -403,6 +403,7 @@ class Store(object):
     # results
     """
     self.path = path
+    self.recursive_close = recursive_close
     logger.debug("Opening Store at '%s', mode '%s'", self.path, mode)
     self.filelock = FileLock(self.path, timeout=0)
     # TODO: Extend filelock so it stores the pid of the locking process,
@@ -473,7 +474,7 @@ class Store(object):
     return "<Store mode '%s' @ '%s'>" % (self.mode, self.path)
 
   def close(self):
-    if self.fallback is not None:
+    if self.fallback is not None and self.recursive_close:
       self.fallback.close()
     if hasattr(self, 'fileh'):
       self.fileh.close()
@@ -621,6 +622,7 @@ class Store(object):
 
     if len(labels) == len(space):
       logger.debug("Space has not changed, no need to extend")
+      return
 
     logger.debug("Extending '%s' from %d to %d features", space_name, len(space), len(labels))
     metadata = self.get_SpaceMetadata(space_name)
@@ -638,7 +640,13 @@ class Store(object):
       raise ValueError, "labels are not unique!"
 
     # Delete the old node
-    self.fileh.removeNode(getattr(self.spaces, space_name))
+    try:
+      self.fileh.removeNode(getattr(self.spaces, space_name))
+    except tables.NoSuchNodeError:
+      # If we cannot find this node, it probably is from a fallback
+      # store. We should be able to safely ignore this and proceed to
+      # writing the new space to the outer store.
+      pass
 
     # Create the new node
     labels = [l.encode(metadata['repr']) for l in labels]
@@ -702,11 +710,11 @@ class Store(object):
     self._check_writeable()
     logger.debug("Adding feature map to dataset '%s' in space '%s'", dsname, space_name)
     ds = getnode(self.datasets, dsname)
-    space = getnode(self.spaces, space_name)
+    space = self.get_Space(space_name)
 
     group = self.fileh.createGroup( ds.feature_data
-                                  , space._v_name
-                                  , "Sparse Feature Map %s" % space._v_name
+                                  , space_name
+                                  , "Sparse Feature Map %s" % space_name
                                   )
     # TODO: is this very expensive?
     group._v_attrs.type  = 'int' if all(isinstance(i[2], (int,long)) for i in feat_map) else 'float'
@@ -742,13 +750,13 @@ class Store(object):
     self._check_writeable()
     logger.debug("Adding feature map to dataset '%s' in space '%s'", dsname, space_name)
     ds = getnode(self.datasets, dsname)
-    space = getnode(self.spaces, space_name)
+    space = self.get_Space(space_name)
     if feat_map.shape[1] != len(space):
       raise ValueError, "feature map is the wrong shape for this feature space"
 
     group = self.fileh.createGroup( ds.feature_data
-                                  , space._v_name
-                                  , "Sparse Feature Map %s" % space._v_name
+                                  , space_name
+                                  , "Sparse Feature Map %s" % space_name
                                   )
     group._v_attrs.type  = int if issubclass(feat_map.dtype.type, numpy.int) else float
 

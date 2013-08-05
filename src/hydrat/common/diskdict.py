@@ -19,7 +19,7 @@ import marshal
 
 class diskdict(collections.MutableMapping):
   def __init__(self, temp_path=None):
-    self.directory = tempfile.mkdtemp(dir=temp_path)
+    self.directory = tempfile.mkdtemp(dir=temp_path, suffix='-diskdict')
     self.key_map = {}
 
   def __del__(self):
