@@ -48,6 +48,8 @@ class LangDetect(object):
     retval = []
     cm = {}
     t_iter = iter(texts)
+
+    processed = 0
     while True:
       batch = itertools.islice(t_iter, self.batchsize)
       testfiles = []
@@ -56,9 +58,8 @@ class LangDetect(object):
         testfile.write(text)
         testfile.flush()
         testfiles.append(testfile)
-      if len(testfiles) == 0:
-        # No more files
-        break
+        processed += 1
+
       tf_names = [t.name for t in testfiles]
       p = Popen(\
             [ self.javapath, '-jar', self.toolpath, '--detectlang', '-d', self.profilespath, ] + tf_names,
@@ -67,7 +68,6 @@ class LangDetect(object):
             stderr=STDOUT,
             )
       out = p.communicate()[0]
-
 
       # Add the new results into the classmap
       if p.returncode == 0:
@@ -83,7 +83,13 @@ class LangDetect(object):
       retval.extend(cm.get(name, 'UNKNOWN') for name in tf_names)
 
       if callback is not None:
-        callback(len(retval))
+        callback(processed)
+
+      if processed == len(texts):
+        # Processed all the files. An explicit break is used as the iterable
+        # obtained from iter(texts) seems to loop on itself when certain pytables
+        # retvals are used.
+        break
 
       
     return retval
