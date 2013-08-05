@@ -46,6 +46,8 @@ class LangDetect(Configurable, langdetect.LangDetect, TextClassifier):
     return langdetect.LangDetect.classify(self, text)
 
   def classify_batch(self, texts, callback=None):
-    return map(self.label_map, langdetect.LangDetect.classify_batch(self, texts, callback))
+    raw = langdetect.LangDetect.classify_batch(self, texts, callback)
+    retval = map(self.label_map, raw)
+    return retval
   
     
