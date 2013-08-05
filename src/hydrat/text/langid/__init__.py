@@ -13,8 +13,13 @@ except ImportError:
   pass
 
 try:
+  from chromecld import ChromeCLD2
+except ImportError:
+  pass
+
+try:
   from libtextcat import LibTextCat
 except ImportError:
   pass
-from lastrings import LAStrings
+from lastrings import WhatLang
 from ldig import LDIG
