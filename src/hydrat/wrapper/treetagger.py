@@ -132,26 +132,26 @@ class TreeTagger(Configurable, EncodedTextDataset):
     num_items = len(self.instance_ids)
     q = Queue(num_items)
     p = Process(target=write_codepoint, args=(self, q))
-    try:
-      p.start()
-      items = [ q.get() for i in range(num_items)]
-      p.join()
 
-      def text_iter():
-        for i in ProgressIter(items,'TreeTagger'):
-          yield i
+    p.start()
+    items = [ q.get() for i in range(num_items)]
+    p.join()
 
-      pool = mp.Pool(config.getint('parameters','job_count'), init_tagger, 
-          (tt_path,wl_path))
-      vals = pool.imap_unordered(tokenizer, text_iter())
-      #init_tagger(tt_path)
-      #from itertools import imap
-      #vals = imap(treetagger_pos, text_iter())
-      streams = dict(vals)
-    finally:
-      if config.getboolean('debug', 'clear_temp_files'):
-        # Delete all the temporary files
-        for k, p in ProgressIter(items,"DeleteTemp"):
-          os.unlink(p)
+    def text_iter():
+      for i in ProgressIter(items,'TreeTagger'):
+        yield i
+
+    pool = mp.Pool(config.getint('parameters','job_count'), init_tagger, 
+        (tt_path,wl_path))
+    vals = pool.imap_unordered(tokenizer, text_iter())
+    #init_tagger(tt_path)
+    #from itertools import imap
+    #vals = imap(treetagger_pos, text_iter())
+    streams = dict(vals)
+
+    if config.getboolean('debug', 'clear_temp_files'):
+      # Delete all the temporary files
+      for k, p in ProgressIter(items,"DeleteTemp"):
+        os.unlink(p)
     return streams
       
