@@ -6,3 +6,4 @@ from langiddotpy import LangidDotPy
 from chromecld import ChromeCLD
 from libtextcat import LibTextCat
 from lastrings import LAStrings
+from ldig import LDIG
