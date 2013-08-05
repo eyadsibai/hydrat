@@ -316,10 +316,12 @@ class HydratCmdln(cmdln.Cmdln):
     from hydrat.display.tsr import project_compound
     bconfig = get_browser_config()
     store = Store(store_path)
-    fieldnames = zip(*bconfig.relevant)[1]
+    fieldlabel, fieldnames = zip(*bconfig.relevant)
+    fieldlabel = [ l['label'] if isinstance(l, dict) else l for l in fieldlabel ]
+
     with open(output_path, 'w') as outfile:
       writer = csv.DictWriter(outfile, fieldnames, extrasaction='ignore' )
-      writer.writerow(dict( (x,x) for x in fieldnames ))
+      writer.writerow(dict(zip(fieldnames, fieldlabel)))
 
       summaries = []
       for tsr in store.get_TaskSetResults({}):
