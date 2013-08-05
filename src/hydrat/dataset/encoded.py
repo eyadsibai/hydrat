@@ -1,4 +1,5 @@
 import codecs
+import os
 from collections import defaultdict
 from hydrat.dataset.text import TextDataset
 from hydrat.common.pb import ProgressIter
@@ -103,6 +104,53 @@ try:
       return e
 except ImportError:
   pass
+
+
+import json
+from itertools import imap
+from collections import Sequence
+class JSONTextDataset(UTF8):
+  """
+  """
+  def __init__(self, class_key = "class", text_key = "text", *args, **kwargs):
+    super(JSONTextDataset, self).__init__(*args, **kwargs)
+    self._ts = None
+    self._cm = None
+    self.class_key = class_key
+    self.text_key = text_key
+
+  def data_path(self):
+    raise NotImplementedError, "Deriving class must implement this"
+    
+  def cm_class(self):
+    if self._cm is None:
+      self.parse_data()
+    return self._cm
+
+  def ts_byte(self):
+    if self._ts is None:
+      self.parse_data()
+    return self._ts
+
+  def parse_data(self):
+    path = self.data_path()
+    if path.lower().endswith('.gz'):
+      import gzip 
+      file_open = gzip.open
+    else:
+      file_open = open
+
+    self._ts = {}
+    self._cm = {}
+    with file_open(path) as f:
+      for i, record in enumerate(imap(json.loads, f)):
+        r_id = '{0}-{1}'.format(os.path.basename(path), i)
+        self._ts[r_id] = record[self.text_key].encode('utf8')
+        c = record[self.class_key]
+        if isinstance(c, list):
+          self._cm[r_id] = c 
+        else: 
+          self._cm[r_id] = [ c ]
 
 
 class CodepointUnigram(EncodedTextDataset):
