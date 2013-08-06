@@ -23,3 +23,4 @@ except ImportError:
   pass
 from lastrings import WhatLang
 from ldig import LDIG
+from yali import YALI
